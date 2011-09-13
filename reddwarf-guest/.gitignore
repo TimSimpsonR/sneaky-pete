@@ -1,1 +1,4 @@
 *.o
+send
+receive*
+a.out

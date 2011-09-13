@@ -15,13 +15,12 @@ int main() {
         daemon(1,0);
         AMQP amqp("guest:guest@localhost:5672/");
         Guest::Guest *g= new Guest::Guest();
-        // syslog(LOG_INFO, "guest call %s", g->list_users().c_str());
         
         AMQPQueue * temp_queue = amqp.createQueue("guest.hostname");
         //Assume the queue is already declared.
         temp_queue->Declare();
         
-        g->create_database("testing", "utf8", "utf8_general_ci");
+        // g->create_database("testing", "utf8", "utf8_general_ci");
         while(true) {
             sleep(2);
             temp_queue->Get();
@@ -39,9 +38,6 @@ int main() {
                 }
             }
         }
-        
-        // delete con;
-                
     } catch (AMQPException e) {
         cout << e.getMessage() << endl;
         syslog(LOG_INFO,"exception is %s", e.getMessage().c_str());

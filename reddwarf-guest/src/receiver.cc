@@ -1,12 +1,4 @@
 #include "AMQPcpp.h"
-#include <unistd.h>
-#include <syslog.h>
-// #include "mysql_connection.h"
-// 
-// #include <cppconn/driver.h>
-// #include <cppconn/exception.h>
-// #include <cppconn/resultset.h>
-// #include <cppconn/statement.h>
 
 #include "guest.h"
 
@@ -32,6 +24,9 @@ int main() {
                     syslog(LOG_INFO, "message %s, key %s, tag %i, ex %s, c-type %s, c-enc %s" ,
                                       m->getMessage(), m->getRoutingKey().c_str(), m->getDeliveryTag(), m->getExchange().c_str(), 
                                       m->getHeader("Content-type").c_str(), m->getHeader("Content-encoding").c_str());
+                    
+                    json_object *new_obj = json_tokener_parse(m->getMessage());
+                    syslog(LOG_INFO, "json output: %s", json_object_to_json_string(new_obj));
                     temp_queue->Ack(m->getDeliveryTag());
                     temp_queue->Get();
                     syslog(LOG_INFO, "guest call %s", g->list_users().c_str());

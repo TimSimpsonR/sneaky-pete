@@ -1,6 +1,1 @@
-g++ -Wall -I/usr/local/include -I../include/ -L/usr/local/lib -g -c -o guest.o guest.cc /usr/local/lib/libamqpcpp.a -lrabbitmq -lmysqlcppconn
-g++ -Wall -I/usr/local/include -I../include/ -L/usr/local/lib -g receiver.cc -o receiver guest.o /usr/local/lib/libamqpcpp.a -lrabbitmq -lmysqlcppconn
-g++ -Wall -I/usr/local/include -I../include/ -L/usr/local/lib -g send.cc -o send /usr/local/lib/libamqpcpp.a -lrabbitmq -lmysqlcppconn
-
-LD_LIBRARY_PATH=/usr/local/lib ./receiver
-LD_LIBRARY_PATH=/usr/local/lib ./send
+Welcome sneakers. This is a guest. This is only a guest. 

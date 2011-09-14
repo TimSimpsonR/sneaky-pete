@@ -1,4 +1,6 @@
 *.o
 send
-receive*
+sender
+receive
+receiver
 a.out

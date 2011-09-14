@@ -1,1 +1,4 @@
 Welcome sneakers. This is a guest. This is only a guest. 
+
+PS when running make, be sure to declare the LIB_HOME, LIB_HOME=/usr/local/lib
+

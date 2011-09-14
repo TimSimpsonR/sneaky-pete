@@ -1,6 +1,7 @@
-#include "AMQPcpp.h"
-
 #include "guest.h"
+#include <AMQPcpp.h>
+#include <json/json.h>
+
 
 int main() {
     const string default_host = "%";
@@ -100,8 +101,9 @@ int main() {
             }
         }
     } catch (AMQPException e) {
-        cout << e.getMessage() << endl;
-        syslog(LOG_INFO,"exception is %s", e.getMessage().c_str());
+        syslog(LOG_ERR,"Exception! Code %i, message = %s", 
+               e.getReplyCode(),
+               e.getMessage().c_str());
     }
     return 0;
 }

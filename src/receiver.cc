@@ -25,8 +25,9 @@ int main() {
                                       m->getMessage(), m->getRoutingKey().c_str(), m->getDeliveryTag(), m->getExchange().c_str(), 
                                       m->getHeader("Content-type").c_str(), m->getHeader("Content-encoding").c_str());
                     
-                    json_object *new_obj = json_tokener_parse(m->getMessage());
-                    syslog(LOG_INFO, "json output: %s", json_object_to_json_string(new_obj));
+                    // json_object *new_obj = json_tokener_parse(m->getMessage());
+                    // syslog(LOG_INFO, "json output: %s", json_object_to_json_string(new_obj));
+                    new_obj = null;
                     temp_queue->Ack(m->getDeliveryTag());
                     temp_queue->Get();
                     syslog(LOG_INFO, "guest call %s", g->list_users().c_str());

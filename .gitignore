@@ -4,3 +4,5 @@ sender
 receive
 receiver
 a.out
+bin/*
+vagrant/.vagrant

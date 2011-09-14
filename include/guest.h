@@ -5,9 +5,7 @@
 #include <string>
 #include <syslog.h>
 #include <unistd.h>
-#include <vector>
-#include "json.h"
-#include "mysql_connection.h"
+#include <mysql_connection.h>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
@@ -26,7 +24,7 @@ class MySQLUser {
 class Guest {
     sql::Driver *driver;
     sql::Connection *con;
-    
+
     public:
         Guest();
         ~Guest();

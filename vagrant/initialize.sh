@@ -2,14 +2,16 @@ sudo apt-get install mercurial
 sudo apt-get install git-core
 sudo apt-get install autoconf
 sudo apt-get install libtool
-sudo apt-get install libboost1.40-dev
 sudo apt-get install uuid-dev
+
+
 sudo apt-get update
 
 # Install mysql stuff
 sudo apt-get install libmysqlcppconn-dev --fix-missing
 
 # Install rabbitmq stuff
+
 mkdir ~/build
 cd ~/build
 hg clone http://hg.rabbitmq.com/rabbitmq-codegen/
@@ -25,8 +27,44 @@ sudo make install
 
 cd ~/build/amqpcpp
 make
+
+# Copy stuff to usr/local/include
 cp include/* /usr/local/include
 cp libamqpcpp.a /usr/local/lib
 
 # Install json stuff
-# TODO do this!
+cd ~/build
+git clone https://github.com/jehiah/json-c.git
+cd json-c
+sh autogen.sh
+./configure
+make
+make install
+
+
+# Install Boost
+#sudo apt-get install libboost1.40-dev
+# or...
+# Install Boost from source
+cd ~/
+wget http://sourceforge.net/projects/boost/files/boost/1.47.0/boost_1_47_0.tar.bz2/download
+tar -xvf download
+cd ~/boost_1_47_0
+./bootstrap.sh
+# ./b2  #<-- This may be unnecessary.
+
+
+# Install some rabbit goodness!
+cd ~/
+cp /etc/apt/sources.list ~/sources.list
+echo "deb http://www.rabbitmq.com/debian/ testing main" >> ~/sources.list
+sudo cp ~/sources.list /etc/apt/sources.list
+wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+sudo apt-key add rabbitmq-signing-key-public.asc
+sudo apt-get update
+sudo apt-get install rabbitmq-server
+
+# Needed?
+# sudo apt-get install mysql-server-5.1
+
+sudo apt-get install valgrind

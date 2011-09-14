@@ -4,7 +4,9 @@
 #include <cstdio>
 #include <string>
 #include <syslog.h>
+#include <json.h>
 #include "mysql_connection.h"
+
 
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>

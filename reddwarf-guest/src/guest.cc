@@ -28,7 +28,7 @@ string Guest::list_users() {
     stmt = con->prepareStatement("select User from mysql.user where host != 'localhost';");
     res = stmt->executeQuery();
     while (res->next()) {
-        syslog(LOG_INFO, "\t... MySQL replies: %s", res->getString("User").c_str());
+        syslog(LOG_INFO, "username: %s", res->getString("User").c_str());
     }
     res->close();
     stmt->close();

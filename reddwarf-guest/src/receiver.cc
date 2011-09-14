@@ -1,33 +1,34 @@
-#include "AMQPcpp.h"
-#include <sstream>
 #include "guest.h"
+#include <AMQPcpp.h>
+#include <json/json.h>
+#include <sstream>
 
 int main() {
     const string default_host = "%";
-    
+
     try {
         daemon(1,0);
         AMQP amqp("guest:guest@localhost:5672/");
         Guest::Guest *g= new Guest::Guest();
-        
+
         AMQPQueue * temp_queue = amqp.createQueue("guest.hostname");
         //Assume the queue is already declared.
         temp_queue->Declare();
-        
+
         // g->create_database("testing", "utf8", "utf8_general_ci");
         while(true) {
             sleep(2);
             temp_queue->Get();
             syslog(LOG_INFO, "getting and getting");
-            
+
             AMQPMessage * m= temp_queue->getMessage();
             if (m->getMessageCount() > -1) {
                 int original_message_count = m->getMessageCount();
                 for (int i = 0; i <= original_message_count; i++) {
                     syslog(LOG_INFO, "message %s, key %s, tag %i, ex %s, c-type %s, c-enc %s" ,
-                                      m->getMessage(), m->getRoutingKey().c_str(), m->getDeliveryTag(), m->getExchange().c_str(), 
+                                      m->getMessage(), m->getRoutingKey().c_str(), m->getDeliveryTag(), m->getExchange().c_str(),
                                       m->getHeader("Content-type").c_str(), m->getHeader("Content-encoding").c_str());
-                    
+
                     json_object *new_obj = json_tokener_parse(m->getMessage());
                     json_object *method = json_object_object_get(new_obj, "method");
                     string method_name = json_object_to_json_string(method);
@@ -43,7 +44,7 @@ int main() {
                         try {
                             std::stringstream user_xml;
                             vector<MySQLUser> users = g->list_users();
-                            user_xml << "["; 
+                            user_xml << "[";
                             for (int i = 0; i < (int) users.size(); i++) {
                                 user_xml << "{'name':'" << users[i].name << "'},";
                             }
@@ -102,13 +103,14 @@ int main() {
 
                     temp_queue->Ack(m->getDeliveryTag());
                     temp_queue->Get();
-                    
+
                 }
             }
         }
     } catch (AMQPException e) {
-        cout << e.getMessage() << endl;
-        syslog(LOG_INFO,"exception is %s", e.getMessage().c_str());
+        syslog(LOG_ERR,"Exception! Code %i, message = %s",
+               e.getReplyCode(),
+               e.getMessage().c_str());
     }
     return 0;
 }

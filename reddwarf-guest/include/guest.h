@@ -17,8 +17,6 @@
 class Guest {
     sql::Driver *driver;
     sql::Connection *con;
-    sql::PreparedStatement *stmt;
-    sql::ResultSet *res;
     
     public:
         Guest();

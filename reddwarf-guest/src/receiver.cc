@@ -3,6 +3,8 @@
 #include "guest.h"
 
 int main() {
+    const string default_host = "%";
+    
     try {
         daemon(1,0);
         AMQP amqp("guest:guest@localhost:5672/");
@@ -29,18 +31,26 @@ int main() {
                     json_object *new_obj = json_tokener_parse(m->getMessage());
                     json_object *method = json_object_object_get(new_obj, "method");
                     string method_name = json_object_to_json_string(method);
-                    syslog(LOG_INFO, "method name %s", method_name.c_str());
+
                     if (method_name == "\"list_users\"") {
-                        string guest_return = g->list_users();
-                        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        try {
+                            string guest_return = g->list_users();
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR,"receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
                     } else if (method_name == "\"create_user\"") {
-                        string guest_return = g->create_user(string("a"), string("b"), "%");
-                        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        try {
+                            string guest_return = g->create_user("username", "password", default_host);
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
                     } else {
-                        syslog(LOG_INFO, "Should not happen");
+                        syslog(LOG_ERR, "Should not happen");
                     }
                     json_object_put(new_obj);
-                    
+
                     temp_queue->Ack(m->getDeliveryTag());
                     temp_queue->Get();
                     

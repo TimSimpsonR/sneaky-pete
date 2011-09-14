@@ -28,5 +28,5 @@ receiver: $(GUEST_OBJECTFILE)
 sender: $(GUEST_OBJECTFILE) 
 	$(CXX) $(CPPFLAGS) $(SOURCES_DIR)/test_sender.cc -o sender $(GUEST_OBJECTFILE) $(COMPILE_ARGS) 
 
-#clean:
-#	rm -f $(OBJECTS) $(EXAMPLES) $(LIBFILE)
+clean:
+	rm -f receiver sender $(GUEST_OBJECTFILE)

@@ -21,6 +21,7 @@ int main() {
         while(true) {
             sleep(1);
             ex->Publish("{'method': 'list_users'}", "");
+            ex->Publish("{'method': 'create_user'}", "");
         }
         
         

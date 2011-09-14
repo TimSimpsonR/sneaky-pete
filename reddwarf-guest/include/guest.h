@@ -23,7 +23,7 @@ class Guest {
     public:
         Guest();
         ~Guest();
-        std::string create_user(const std::string & username, const std::string & password);
+        std::string create_user(const std::string & username, const std::string & password, const std::string & host);
         std::string list_users();
         std::string delete_user(const std::string & username);
         std::string create_database(const std::string & database_name, const std::string & character_set, const std::string & collate);

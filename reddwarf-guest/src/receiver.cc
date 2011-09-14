@@ -29,13 +29,21 @@ int main() {
                     json_object *new_obj = json_tokener_parse(m->getMessage());
                     json_object *method = json_object_object_get(new_obj, "method");
                     string method_name = json_object_to_json_string(method);
-                    syslog(LOG_INFO, "method name: %s", method_name.c_str());
-                    // syslog(LOG_INFO, "json output: %s", json_object_to_json_string(new_obj));
+                    syslog(LOG_INFO, "method name %s", method_name.c_str());
+                    if (method_name == "\"list_users\"") {
+                        string guest_return = g->list_users();
+                        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                    } else if (method_name == "\"create_user\"") {
+                        string guest_return = g->create_user(string("a"), string("b"), "%");
+                        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                    } else {
+                        syslog(LOG_INFO, "Should not happen");
+                    }
                     json_object_put(new_obj);
                     
                     temp_queue->Ack(m->getDeliveryTag());
                     temp_queue->Get();
-                    syslog(LOG_INFO, "guest call %s", g->list_users().c_str());
+                    
                 }
             }
         }

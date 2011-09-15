@@ -14,7 +14,6 @@ int main() {
         daemon(1,0);
 #endif
         while(true) {
-            sleep(2);
             syslog(LOG_INFO, "getting and getting");
             json_object * new_obj = receiver.next_message();
             syslog(LOG_INFO, "output of json %s",

@@ -43,15 +43,10 @@ make install
 
 
 # Install Boost
-#sudo apt-get install libboost1.40-dev
-# or...
-# Install Boost from source
-cd ~/
-wget http://sourceforge.net/projects/boost/files/boost/1.47.0/boost_1_47_0.tar.bz2/download
-tar -xvf download
-cd ~/boost_1_47_0
-./bootstrap.sh
-# ./b2  #<-- This may be unnecessary.
+sudo apt-get install libboost1.40-dev
+sudo apt-get install bjam
+sudo apt-get install boost-build
+sudo apt-get install libboost-test-dev
 
 
 # Install some rabbit goodness!

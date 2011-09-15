@@ -5,6 +5,7 @@
 #include <string>
 #include <syslog.h>
 #include <unistd.h>
+#include <vector>
 #include <mysql_connection.h>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>

@@ -11,6 +11,7 @@ project
 		<include>include
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
+		<variant>debug:<define>_DEBUG
 	;
 
 # Base names of the source files for libboost_date_time
@@ -36,13 +37,14 @@ alias test_dependencies
 	;
 
 lib guest_lib
-    : src/$(CPP_SOURCES).cc
+    :   src/guest.cc
+        src/receiver.cc
     ;
 
 exe receiver
 	:	dependencies
 		guest_lib
-		src/receiver.cc
+		src/receiver_daemon.cc
 	;
 
 unit-test send_and_receive

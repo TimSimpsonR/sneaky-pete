@@ -10,7 +10,6 @@ project
 	:	requirements
 		<include>include
 		<include>$(BOOST_ROOT)
-		<include>$(LIB_HOME)/amqpcpp/include
 	;
 
 # Base names of the source files for libboost_date_time
@@ -28,7 +27,7 @@ lib lib_uuid : : <name>uuid ;
 # Non system libraries which are just some file somewhere we link to.
 lib lib_amqpcpp
 	:
-	: <file>$(LIB_HOME)/amqpcpp/libamqpcpp.a
+	: <file>$(LIB_HOME)/libamqpcpp.a
 	;
 
 alias dependencies

@@ -28,7 +28,7 @@ sudo make install
 cd ~/build/amqpcpp
 make
 
-# Copy stuff to usr/local/include
+# Copy stuff to /usr/local/include
 cp include/* /usr/local/include
 cp libamqpcpp.a /usr/local/lib
 
@@ -56,9 +56,7 @@ cd ~/boost_1_47_0
 
 # Install some rabbit goodness!
 cd ~/
-cp /etc/apt/sources.list ~/sources.list
-echo "deb http://www.rabbitmq.com/debian/ testing main" >> ~/sources.list
-sudo cp ~/sources.list /etc/apt/sources.list
+echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee /etc/apt/sources.list
 wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
 sudo apt-key add rabbitmq-signing-key-public.asc
 sudo apt-get update

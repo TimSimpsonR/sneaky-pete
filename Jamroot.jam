@@ -9,6 +9,7 @@ using testing ;
 project
 	:	requirements
 		<include>include
+		<include>/usr/include
 		<include>$(BOOST_ROOT)
 	;
 
@@ -24,14 +25,14 @@ lib lib_rabbitmq : : <name>rabbitmq ;
 lib lib_mysqlcppconn : : <name>mysqlcppconn ;
 lib lib_uuid : : <name>uuid ;
 lib lib_amqpcpp : : <name>amqpcpp ;
-
+lib lib_boost_unit_test_framework : : <name>boost_unit_test_framework ;
 
 alias dependencies
 	: lib_amqpcpp lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid
 	;
 
 alias test_dependencies
-	:	$(BOOST_ROOT)/libs/test/build//boost_unit_test_framework
+	:	lib_boost_unit_test_framework
 	;
 
 lib guest_lib
@@ -42,14 +43,14 @@ exe receiver
 	:	dependencies
 		guest_lib
 		src/receiver.cc
-	:	<define>BOOST_TEST_DYN_LINK
 	;
 
 unit-test send_and_receive
 	:	dependencies
 		test_dependencies
 		tests/send_and_receive.cc
-	:	<testing.launcher>valgrind
+	:   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>valgrind
 	;
 
 exe sender

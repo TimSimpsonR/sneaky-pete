@@ -30,6 +30,7 @@ int main() {
                                       m->getHeader("Content-type").c_str(), m->getHeader("Content-encoding").c_str());
 
                     json_object *new_obj = json_tokener_parse(m->getMessage());
+                    syslog(LOG_INFO, "output of json %s", json_object_to_json_string(new_obj));
                     json_object *method = json_object_object_get(new_obj, "method");
                     string method_name = json_object_to_json_string(method);
 

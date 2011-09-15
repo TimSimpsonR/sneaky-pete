@@ -1,12 +1,20 @@
 #include "guest.h"
 #include <uuid/uuid.h>
+
 using namespace std;
 
 Guest::Guest() {
-    driver = get_driver_instance();
-    con = driver->connect("tcp://127.0.0.1:3306", "root", "");
-    // Connect to the MySQL test database
-    con->setSchema("mysql");
+    try {
+        driver = get_driver_instance();
+        con = driver->connect("tcp://127.0.0.1:3306", "root", "");
+        // Connect to the MySQL test database
+        con->setSchema("mysql");
+    } catch (sql::SQLException &e) {
+        syslog(LOG_ERR, "Error with connection %s", e.what());
+        delete con;
+        throw e;
+    }
+    
 }
 
 Guest::~Guest() {
@@ -30,14 +38,18 @@ string Guest::create_user(const string & username,const string & password, const
     
     return "Guest::create_user method";
 }
-string Guest::list_users() {
+vector<MySQLUser> Guest::list_users() {
     sql::PreparedStatement *stmt;
     sql::ResultSet *res;
+    vector<MySQLUser> users;
     try {
         stmt = con->prepareStatement("select User from mysql.user where host != 'localhost';");
         res = stmt->executeQuery();
+        
         while (res->next()) {
-            syslog(LOG_INFO, "username: %s", res->getString("User").c_str());
+            MySQLUser user = MySQLUser();
+            user.name = res->getString("User");
+            users.push_back(user);
         }
         res->close();
         stmt->close();
@@ -48,7 +60,7 @@ string Guest::list_users() {
         delete stmt;
         throw e;
     }
-    return "Guest::list_users method";    
+    return users;
 }
 string Guest::delete_user(const string & username) {
     sql::PreparedStatement *stmt;

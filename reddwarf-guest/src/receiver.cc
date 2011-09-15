@@ -1,5 +1,5 @@
 #include "AMQPcpp.h"
-
+#include <sstream>
 #include "guest.h"
 
 int main() {
@@ -41,8 +41,15 @@ int main() {
                         }
                     } else if (method_name == "\"list_users\"") {
                         try {
-                            string guest_return = g->list_users();
-                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                            std::stringstream user_xml;
+                            vector<MySQLUser> users = g->list_users();
+                            user_xml << "["; 
+                            for (int i = 0; i < (int) users.size(); i++) {
+                                user_xml << "{'name':'" << users[i].name << "'},";
+                            }
+                            user_xml << "]";
+                            syslog(LOG_INFO, "guest call %s", user_xml.str().c_str());
+                            users.clear();
                         } catch (sql::SQLException &e) {
                             syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
                         }

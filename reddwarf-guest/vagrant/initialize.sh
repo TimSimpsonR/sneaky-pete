@@ -29,8 +29,8 @@ cd ~/build/amqpcpp
 make
 
 # Copy stuff to /usr/local/include
-cp include/* /usr/local/include
-cp libamqpcpp.a /usr/local/lib
+sudo cp include/* /usr/local/include
+sudo cp libamqpcpp.a /usr/local/lib
 
 # Install json stuff
 cd ~/build

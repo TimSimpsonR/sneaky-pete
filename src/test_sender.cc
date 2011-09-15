@@ -22,13 +22,6 @@ int main(int argc, const char* argv[]) {
         publish_string.append("'}");
         cout << publish_string <<endl;
         ex->Publish(publish_string.c_str(), "");
-        // while(true) {
-            // sleep(1);
-            // ex->Publish("{'method': 'list_users'}", "");
-            // ex->Publish("{'method': 'create_user'}", "");
-        // }
-        
-        
     } catch (AMQPException e) {
         std::cout << e.getMessage() << std::endl;
     }

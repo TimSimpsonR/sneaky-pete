@@ -1,7 +1,7 @@
 CXX      = g++
 CFLAGS   = -Wall
 
-AMQPCPP = $(LIB_HOME)
+AMQPCPP = /usr/local/lib
 
 CPPFLAGS = $(CFLAGS) -I/usr/local/include -L/usr/local/lib -Iinclude/
 

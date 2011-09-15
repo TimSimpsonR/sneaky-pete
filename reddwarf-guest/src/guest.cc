@@ -114,19 +114,15 @@ string Guest::enable_root() {
         stmt->executeUpdate();
         stmt->close();
         delete stmt;
-        
-        syslog(LOG_INFO, "after first stmt");
-        
+                
         stmt = con->prepareStatement("GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;");
         stmt->executeUpdate();
         stmt->close();
         delete stmt;
     } catch (sql::SQLException &e) {
-        syslog(LOG_INFO, "in catch %s", e.what());
         delete stmt;
         throw e;
     }
-    syslog(LOG_INFO, "after catch");
     
     return string(buf);
 }

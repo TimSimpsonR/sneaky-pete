@@ -1,9 +1,9 @@
 #include "/usr/local/include/AMQPcpp.h"
 #include <unistd.h>
 
-int main() {
+int main(int argc, const char* argv[]) {
     try {
-        daemon(1,0);
+        // daemon(1,0);
         AMQP amqp("guest:guest@localhost:5672/");
         string exchange = "guest.hostname_exchange";
         AMQPExchange * ex = amqp.createExchange(exchange);
@@ -17,12 +17,16 @@ int main() {
         ex->setHeader("Delivery-mode", 2);
         ex->setHeader("Content-type", "text/text");
         ex->setHeader("Content-encoding", "UTF-8");
-        
-        while(true) {
-            sleep(1);
-            ex->Publish("{'method': 'list_users'}", "");
-            ex->Publish("{'method': 'create_user'}", "");
-        }
+        string publish_string = "{'method': '";
+        publish_string.append(argv[1]);
+        publish_string.append("'}");
+        cout << publish_string <<endl;
+        ex->Publish(publish_string.c_str(), "");
+        // while(true) {
+            // sleep(1);
+            // ex->Publish("{'method': 'list_users'}", "");
+            // ex->Publish("{'method': 'create_user'}", "");
+        // }
         
         
     } catch (AMQPException e) {

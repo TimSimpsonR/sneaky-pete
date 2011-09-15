@@ -29,7 +29,7 @@ class Guest {
         std::string delete_database(const std::string & database_name);
         std::string enable_root();
         std::string disable_root();
-        std::string is_root_enabled();
+        bool is_root_enabled();
 };
 
 class MySQLUser {

@@ -25,7 +25,7 @@ int main(int argc, const char* argv[]) {
         ex->setHeader("Content-type", "text/text");
         ex->setHeader("Content-encoding", "UTF-8");
         std::stringstream publish_string;
-        publish_string << "{'method': '" << method_name << "}";
+        publish_string << "{'method': '" << method_name << "'}";
         cout << publish_string.str() <<endl;
         ex->Publish(publish_string.str().c_str(), "");
 

@@ -58,6 +58,6 @@ sudo apt-get update
 sudo apt-get install rabbitmq-server
 
 # Needed?
-# sudo apt-get install mysql-server-5.1
+sudo apt-get install mysql-server-5.1
 
 sudo apt-get install valgrind

@@ -2,6 +2,7 @@
 #define __NOVAGUEST
 #include <cstdlib>
 #include <cstdio>
+#include <json/json.h>
 #include <string>
 #include <memory>
 #include <syslog.h>
@@ -49,6 +50,19 @@ typedef boost::shared_ptr<MySQLUser> MySQLUserPtr;
 typedef std::vector<MySQLUserPtr> MySQLUserList;
 typedef boost::shared_ptr<MySQLUserList> MySQLUserListPtr;
 
+class Guest;
+
+class MessageHandler {
+
+public:
+    MessageHandler();
+
+    void handle_message(json_object * json);
+
+private:
+    std::auto_ptr<Guest> guest;
+};
+
 class Guest {
 
     typedef std::auto_ptr<sql::PreparedStatement> PreparedStatementPtr;
@@ -60,6 +74,7 @@ class Guest {
     public:
         Guest();
         ~Guest();
+
         std::string create_user(const std::string & username, const std::string & password, const std::string & host);
         // You must delete the users that come from this list using something like `vector.clear();`
         MySQLUserListPtr list_users();

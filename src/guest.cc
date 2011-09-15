@@ -1,5 +1,7 @@
 #include "guest.h"
+#include <boost/foreach.hpp>
 #include <memory>
+#include <sstream>
 #include <uuid/uuid.h>
 
 using sql::PreparedStatement;
@@ -25,10 +27,86 @@ void MySQLUser::set_databases(const std::string & value) {
     this->databases = value;
 }
 
+MessageHandler::MessageHandler()
+:   guest(new Guest())
+{
+}
+
+void MessageHandler::handle_message(json_object * new_obj) {
+    json_object *method = json_object_object_get(new_obj, "method");
+    string method_name = json_object_to_json_string(method);
+    if (method_name == "\"create_user\"") {
+        try {
+            string guest_return = guest->create_user("username", "password", "%");
+            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR,"receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"list_users\"") {
+        try {
+            std::stringstream user_xml;
+            MySQLUserListPtr users = guest->list_users();
+            user_xml << "[";
+            BOOST_FOREACH(MySQLUserPtr & user, *users) {
+                user_xml << "{'name':'" << user->get_name()
+                         << "'},";
+            }
+            user_xml << "]";
+            syslog(LOG_INFO, "guest call %s", user_xml.str().c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"delete_user\"") {
+        try {
+            string guest_return = guest->delete_user("username");
+            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"list_databases\"") {
+        try {
+            string guest_return = guest->list_databases();
+            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"delete_database\"") {
+        try {
+            string guest_return = guest->delete_database("database_name");
+            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"enable_root\"") {
+        try {
+            string guest_return = guest->enable_root();
+            syslog(LOG_INFO, "roots new password %s", guest_return.c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"disable_root\"") {
+        try {
+            string guest_return = guest->disable_root();
+            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else if (method_name == "\"is_root_enabled\"") {
+        try {
+            bool enabled = guest->is_root_enabled();
+            syslog(LOG_INFO, "guest call %i", enabled);
+        } catch (sql::SQLException &e) {
+            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+        }
+    } else {
+        syslog(LOG_ERR, "Should not happen");
+    }
+}
+
 Guest::Guest() {
+    driver = get_driver_instance();
+    con = driver->connect("tcp://127.0.0.1:3306", "root", "");
     try {
-        driver = get_driver_instance();
-        con = driver->connect("tcp://127.0.0.1:3306", "root", "");
         // Connect to the MySQL test database
         con->setSchema("mysql");
     } catch (SQLException &e) {

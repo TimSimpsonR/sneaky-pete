@@ -18,10 +18,10 @@ BOOST_AUTO_TEST_CASE(TestFail)
 	mem[0] = 'x';
 	int x(255);
 	int y(255);
-	BOOST_CHECK_EQUAL(x, 2525);
+	BOOST_CHECK_EQUAL(x, 255);
 	BOOST_CHECK_EQUAL(y, 255);
 
 	BOOST_CHECK_EQUAL(x, 255);
 	BOOST_CHECK_EQUAL(y, 255);
-	// delete[] mem;
+	delete[] mem;
 }

@@ -23,12 +23,8 @@ lib lib_json : : <name>json ;
 lib lib_rabbitmq : : <name>rabbitmq ;
 lib lib_mysqlcppconn : : <name>mysqlcppconn ;
 lib lib_uuid : : <name>uuid ;
+lib lib_amqpcpp : : <name>amqpcpp ;
 
-# Non system libraries which are just some file somewhere we link to.
-lib lib_amqpcpp
-	:
-	: <file>$(LIB_HOME)/libamqpcpp.a
-	;
 
 alias dependencies
 	: lib_amqpcpp lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid

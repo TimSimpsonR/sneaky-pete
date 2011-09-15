@@ -1,5 +1,6 @@
 #include "guest.h"
 #include <AMQPcpp.h>
+#include <boost/foreach.hpp>
 #include <json/json.h>
 #include <sstream>
 
@@ -30,7 +31,6 @@ int main() {
                                       m->getHeader("Content-type").c_str(), m->getHeader("Content-encoding").c_str());
 
                     json_object *new_obj = json_tokener_parse(m->getMessage());
-                    syslog(LOG_INFO, "output of json %s", json_object_to_json_string(new_obj));
                     json_object *method = json_object_object_get(new_obj, "method");
                     string method_name = json_object_to_json_string(method);
 
@@ -44,14 +44,14 @@ int main() {
                     } else if (method_name == "\"list_users\"") {
                         try {
                             std::stringstream user_xml;
-                            vector<MySQLUser> users = g->list_users();
+                            MySQLUserListPtr users = g->list_users();
                             user_xml << "[";
-                            for (int i = 0; i < (int) users.size(); i++) {
-                                user_xml << "{'name':'" << users[i].name << "'},";
+                            BOOST_FOREACH(MySQLUserPtr & user, *users) {
+                                user_xml << "{'name':'" << user->get_name()
+                                         << "'},";
                             }
                             user_xml << "]";
                             syslog(LOG_INFO, "guest call %s", user_xml.str().c_str());
-                            users.clear();
                         } catch (sql::SQLException &e) {
                             syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
                         }

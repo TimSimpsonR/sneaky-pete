@@ -51,7 +51,7 @@ sudo apt-get install libboost-test-dev
 
 # Install some rabbit goodness!
 cd ~/
-echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee /etc/apt/sources.list
+echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee -a /etc/apt/sources.list
 wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
 sudo apt-key add rabbitmq-signing-key-public.asc
 sudo apt-get update

@@ -20,7 +20,7 @@ string Guest::create_user(const string & username,const string & password, const
         stmt->setString(1, host.c_str());
         stmt->setString(2, username.c_str());
         stmt->setString(3, password.c_str());
-        stmt->execute();
+        stmt->executeUpdate();
         stmt->close();
         delete stmt;
     } catch (sql::SQLException &e) {
@@ -89,16 +89,72 @@ string Guest::delete_database(const string & database_name) {
     return "Guest::delete_database method";
 }
 string Guest::enable_root() {
-    return "Guest::enable_root method";
+    sql::PreparedStatement *stmt;
+    try {
+        stmt = con->prepareStatement("insert into mysql.user (Host, User) values (?, ?)");
+        stmt->setString(1, "%");
+        stmt->setString(2, "root");
+        stmt->executeUpdate();
+        stmt->close();
+        delete stmt;
+    } catch (sql::SQLException &e) {
+        // Duplicate root@%
+        delete stmt;
+    }
+    
+    uuid_t id;
+    uuid_generate(id);
+    char *buf = new char[37];
+    uuid_unparse(id, buf);
+    uuid_clear(id);
+    
+    try {
+        stmt = con->prepareStatement("UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='root'");
+        stmt->setString(1, buf);
+        stmt->executeUpdate();
+        stmt->close();
+        delete stmt;
+        
+        syslog(LOG_INFO, "after first stmt");
+        
+        stmt = con->prepareStatement("GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;");
+        stmt->executeUpdate();
+        stmt->close();
+        delete stmt;
+    } catch (sql::SQLException &e) {
+        syslog(LOG_INFO, "in catch %s", e.what());
+        delete stmt;
+        throw e;
+    }
+    syslog(LOG_INFO, "after catch");
+    
+    return string(buf);
 }
 
 string Guest::disable_root() {
     uuid_t id;
+    sql::PreparedStatement *stmt;
     uuid_generate(id);
-    char *buf = new char[40];
+    char *buf = new char[37];
     uuid_unparse(id, buf);
-    syslog(LOG_INFO, "generate %s", buf);
     uuid_clear(id);
+    syslog(LOG_INFO, "generate %s", buf);
+    try {
+        stmt = con->prepareStatement("DELETE FROM mysql.user where User='root' and Host!='localhost'");
+        stmt->executeUpdate();
+        stmt->close();
+        delete stmt;
+        
+        stmt = con->prepareStatement("UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='root'");
+        stmt->setString(1, buf);
+        stmt->executeUpdate();
+        stmt->close();
+        delete stmt;
+    } catch (sql::SQLException &e) {
+        delete stmt;
+        throw e;
+    }
+    
     return "Guest::disable_root method";
 }
 

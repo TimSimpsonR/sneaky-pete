@@ -70,7 +70,7 @@ int main() {
                     } else if (method_name == "\"enable_root\"") {
                         try {
                             string guest_return = g->enable_root();
-                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                            syslog(LOG_INFO, "roots new password %s", guest_return.c_str());
                         } catch (sql::SQLException &e) {
                             syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
                         }

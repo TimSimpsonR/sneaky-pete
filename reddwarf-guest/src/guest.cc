@@ -1,4 +1,5 @@
 #include "guest.h"
+#include <uuid/uuid.h>
 using namespace std;
 
 Guest::Guest() {
@@ -90,9 +91,35 @@ string Guest::delete_database(const string & database_name) {
 string Guest::enable_root() {
     return "Guest::enable_root method";
 }
+
 string Guest::disable_root() {
+    uuid_t id;
+    uuid_generate(id);
+    char *buf = new char[40];
+    uuid_unparse(id, buf);
+    syslog(LOG_INFO, "generate %s", buf);
+    uuid_clear(id);
     return "Guest::disable_root method";
 }
-string Guest::is_root_enabled() {
+
+bool Guest::is_root_enabled() {
+    sql::PreparedStatement *stmt;
+    sql::ResultSet *res;
+    try {
+        stmt = con->prepareStatement("SELECT User FROM mysql.user where User = 'root' and host != 'localhost';");
+        res = stmt->executeQuery();
+        size_t row_count = res->rowsCount();
+        res->close();
+        stmt->close();
+        delete res;
+        delete stmt;
+        
+        return row_count != 0;
+    } catch (sql::SQLException &e) {
+        delete res;
+        delete stmt;
+        throw e;
+    }
+    
     return "Guest::is_root_enabled method";
 }

@@ -3,6 +3,7 @@ sudo apt-get install git-core
 sudo apt-get install autoconf
 sudo apt-get install libtool
 sudo apt-get install libboost1.40-dev
+sudo apt-get install uuid-dev
 sudo apt-get update
 
 # Install mysql stuff

@@ -32,17 +32,59 @@ int main() {
                     json_object *method = json_object_object_get(new_obj, "method");
                     string method_name = json_object_to_json_string(method);
 
-                    if (method_name == "\"list_users\"") {
+                    if (method_name == "\"create_user\"") {
                         try {
-                            string guest_return = g->list_users();
+                            string guest_return = g->create_user("username", "password", default_host);
                             syslog(LOG_INFO, "guest call %s", guest_return.c_str());
                         } catch (sql::SQLException &e) {
                             syslog(LOG_ERR,"receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
                         }
-                    } else if (method_name == "\"create_user\"") {
+                    } else if (method_name == "\"list_users\"") {
                         try {
-                            string guest_return = g->create_user("username", "password", default_host);
+                            string guest_return = g->list_users();
                             syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
+                    } else if (method_name == "\"delete_user\"") {
+                        try {
+                            string guest_return = g->delete_user("username");
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
+                    } else if (method_name == "\"list_databases\"") {
+                        try {
+                            string guest_return = g->list_databases();
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
+                    } else if (method_name == "\"delete_database\"") {
+                        try {
+                            string guest_return = g->delete_database("database_name");
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
+                    } else if (method_name == "\"enable_root\"") {
+                        try {
+                            string guest_return = g->enable_root();
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
+                    } else if (method_name == "\"disable_root\"") {
+                        try {
+                            string guest_return = g->disable_root();
+                            syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+                        } catch (sql::SQLException &e) {
+                            syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
+                        }
+                    } else if (method_name == "\"is_root_enabled\"") {
+                        try {
+                            bool enabled = g->is_root_enabled();
+                            syslog(LOG_INFO, "guest call %i", enabled);
                         } catch (sql::SQLException &e) {
                             syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(), e.getErrorCode(), e.getSQLState().c_str());
                         }

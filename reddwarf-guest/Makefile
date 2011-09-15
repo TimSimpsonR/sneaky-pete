@@ -17,7 +17,7 @@ SOURCES_DIR = src
 GUEST_OBJECTFILE = src/guest.o
 
 AMQPCPP_A_FILE  = $(AMQPCPP)/libamqpcpp.a
-COMPILE_ARGS = $(AMQPCPP_A_FILE) -lrabbitmq -lmysqlcppconn -ljson
+COMPILE_ARGS = $(AMQPCPP_A_FILE) -lrabbitmq -lmysqlcppconn -ljson -luuid
 
 guest:
 	$(CXX) $(CPPFLAGS) -g -c -o $(GUEST_OBJECTFILE) $(SOURCES_DIR)/guest.cc $(COMPILE_ARGS) 

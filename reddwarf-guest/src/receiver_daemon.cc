@@ -1,4 +1,5 @@
 #include "guest.h"
+#include "sql_guest.h"
 #include "receiver.h"
 #include <AMQPcpp.h>
 #include <boost/foreach.hpp>
@@ -7,7 +8,8 @@
 
 int main() {
     Receiver receiver("guest:guest@localhost:5672/", "guest.hostname", "%");
-    MessageHandler handler;
+    MySqlGuestPtr guest(new MySqlGuest());
+    MySqlMessageHandler handler(guest);
 
 #ifndef _DEBUG
     try {

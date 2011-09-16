@@ -2,6 +2,7 @@
 #include "receiver.h"
 #include <AMQPcpp.h>
 #include <sstream>
+#include <syslog.h>
 
 
 Receiver::Receiver(const char * host, const char * queue_name,

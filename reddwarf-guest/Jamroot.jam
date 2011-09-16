@@ -14,9 +14,6 @@ project
 		<variant>debug:<define>_DEBUG
 	;
 
-# Base names of the source files for libboost_date_time
-CPP_SOURCES = guest ;
-
 # Declare our dependencies
 
 # System libraries are found automatically by our toolset (GCC).
@@ -37,8 +34,8 @@ alias test_dependencies
 	;
 
 lib guest_lib
-    :   src/guest.cc
-        src/receiver.cc
+    :   src/receiver.cc
+        src/sql_guest.cc
     ;
 
 exe receiver

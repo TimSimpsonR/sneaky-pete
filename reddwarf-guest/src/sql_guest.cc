@@ -37,7 +37,9 @@ void MySQLUser::set_databases(const std::string & value) {
  *- MySqlGuest
  *---------------------------------------------------------------------------*/
 
-MySqlGuest::MySqlGuest() {
+MySqlGuest::MySqlGuest()
+:   driver(0), con(0)
+{
     driver = get_driver_instance();
     con = driver->connect("tcp://127.0.0.1:3306", "root", "");
     try {
@@ -48,7 +50,6 @@ MySqlGuest::MySqlGuest() {
         delete con;
         throw e;
     }
-
 }
 
 MySqlGuest::~MySqlGuest() {

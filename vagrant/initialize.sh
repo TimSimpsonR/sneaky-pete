@@ -47,6 +47,7 @@ sudo apt-get install libboost1.40-dev
 sudo apt-get install bjam
 sudo apt-get install boost-build
 sudo apt-get install libboost-test-dev
+sudo apt-get install libboost-thread1.40-dev
 
 
 # Install some rabbit goodness!

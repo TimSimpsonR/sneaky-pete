@@ -1,20 +1,24 @@
 #ifndef __NOVAGUEST_SQL_GUEST_H
 #define __NOVAGUEST_SQL_GUEST_H
+
+#include "guest.h"
+
 #include <cstdlib>
 #include <cstdio>
-#include <json/json.h>
-#include <string>
 #include <memory>
+#include <string>
 #include <syslog.h>
 #include <unistd.h>
 #include <vector>
-#include <mysql_connection.h>
+
 #include <boost/smart_ptr.hpp>
+#include <mysql_connection.h>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
 #include <cppconn/statement.h>
 #include <cppconn/prepared_statement.h>
+#include <json/json.h>
 #include <vector>
 
 

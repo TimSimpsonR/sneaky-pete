@@ -1,0 +1,143 @@
+COMPILER = "g++"
+COMPILER_FLAGS = -ftemplate-depth-128 -O0 -fno-inline -Wall -g -fPIC -D_DEBUG
+LIB_INCLUDES = -I"/usr/include" -I"include"
+
+NORMAL_COMPILE = $(COMPILER) $(COMPILER_FLAGS) $(LIB_INCLUDES)
+NORMAL_DEPENDENCIES = -luuid -lrabbitmq -lmysqlcppconn -ljson -lamqpcpp
+
+TEST_COMPILE = $(NORMAL_COMPILE) -DBOOST_TEST_DYN_LINK
+TEST_DEPENDENCIES = $(NORMAL_DEPENDENCIES) -lboost_unit_test_framework -lboost_thread
+
+OUTPUT_PATH = bin/make
+
+EXECUTABLE_DEPENDENCIES = $(OUTPUT_PATH)/libguest_lib.so $(OUTPUT_PATH)/memory_tests.run $(OUTPUT_PATH)/sql_guest_tests.passed $(OUTPUT_PATH)/send_and_receive.passed
+
+clean:
+	rm -f $(OUTPUT_PATH)
+
+##############################################################################
+# The main lib which is used by all tests and executables.
+##############################################################################
+
+receiver_o: $(OUTPUT_PATH) src/receiver.cc
+	$(NORMAL_COMPILE) -c -o $(OUTPUT_PATH)/receiver.o src/receiver.cc
+
+sql_guest_o: $(OUTPUT_PATH) src/sql_guest.cc
+	$(NORMAL_COMPILE) -c -o $(OUTPUT_PATH)/sql_guest.o src/sql_guest.cc
+
+guest_lib: $(OUTPUT_PATH)/sql_guest.o $(OUTPUT_PATH)/receiver.o
+	$(COMPILER) -o $(OUTPUT_PATH)/libguest_lib.so" \
+        -Wl,-h -Wl,libguest_lib.so -shared -Wl,--start-group \
+        $(OUTPUT_PATH)/receiver.o" \
+        $(OUTPUT_PATH)/sql_guest.o \
+        -Wl,-Bstatic  -Wl,-Bdynamic  -Wl,--end-group -g
+
+
+##############################################################################
+# send_and_receive tests
+##############################################################################
+
+send_and_receive_o: $(OUTPUT_PATH)/send_and_receive.o tests/send_and_receive.cc
+	$(TEST_COMPILE) -c -o "$(OUTPUT_PATH)/send_and_receive.o" tests/send_and_receive.cc
+
+send_and_receive: $(OUTPUT_PATH)/send_and_receive.o
+	$(COMPILER) -Wl,-R -Wl,"$(OUTPUT_PATH)" \
+    -Wl,-rpath-link -Wl,"$(OUTPUT_PATH)" \
+    -o "$(OUTPUT_PATH)/send_and_receive" \
+    -Wl,--start-group "$(OUTPUT_PATH)/send_and_receive.o" \
+    "$(OUTPUT_PATH)/libguest_lib.so"  \
+    -Wl,-Bstatic  -Wl,-Bdynamic $(TEST_DEPENDENCIES) -Wl,--end-group -g
+
+send_and_receive_passed: $(OUTPUT_PATH)/send_and_receive
+	LD_LIBRARY_PATH=$(OUTPUT_PATH):/usr/bin:/usr/lib:/usr/lib32:/usr/lib64:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+    valgrind --leak-check=full $(OUTPUT_PATH)/send_and_receive && touch $(OUTPUT_PATH)/send_and_receive.passed
+
+##############################################################################
+# sql_guest_tests
+##############################################################################
+
+sql_guest_tests_o: $(OUTPUT_PATH)/libguest_lib.so tests/sql_guest_tests.cc
+	$(TEST_COMPILE) -c -o "$(OUTPUT_PATH)/send_and_receive.o" tests/send_and_receive.cc
+
+sql_guest_tests: $(OUTPUT_PATH)/sql_guest_tests_o.o
+	$(COMPILER) -Wl,-R -Wl,"$(OUTPUT_PATH)" \
+    -Wl,-rpath-link -Wl,"$(OUTPUT_PATH)" \
+    -o "$(OUTPUT_PATH)/sql_guest" \
+    -Wl,--start-group "$(OUTPUT_PATH)/sql_guest.o" \
+    "$(OUTPUT_PATH)/libguest_lib.so"  \
+    -Wl,-Bstatic  -Wl,-Bdynamic $(TEST_DEPENDENCIES) -Wl,--end-group -g
+
+sql_guest_tests_passed: $(OUTPUT_PATH)/sql_guest_tests
+	LD_LIBRARY_PATH=$(OUTPUT_PATH):/usr/bin:/usr/lib:/usr/lib32:/usr/lib64:$LD_LIBRARY_PATH
+	export LD_LIBRARY_PATH
+	valgrind --leak-check=full $(OUTPUT_PATH)/sql_guest_tests_o && touch $(OUTPUT_PATH)/send_and_receive.passed
+
+
+##############################################################################
+# Memory Tests
+##############################################################################
+
+memory_tests_o: $(OUTPUT_PATH)/libguest_lib.so tests/memory_tests.cc
+	$(TEST_COMPILE) -c -o "$(OUTPUT_PATH)/memory_tests.o" tests/memory_tests.cc
+
+memory_tests: $(OUTPUT_PATH)/memory_tests_o
+	$(COMPILER) -Wl,-R -Wl,"$(OUTPUT_PATH)" \
+    -Wl,-rpath-link -Wl,"$(OUTPUT_PATH)" \
+    -o "$(OUTPUT_PATH)/memory_tests" \
+    -Wl,--start-group "$(OUTPUT_PATH)/memory_tests.o" \
+    "$(OUTPUT_PATH)/libguest_lib.so"  \
+    -Wl,-Bstatic  -Wl,-Bdynamic $(TEST_DEPENDENCIES) -Wl,--end-group -g
+
+memory_tests_passed: $(OUTPUT_PATH)/memory_tests
+	LD_LIBRARY_PATH=$(OUTPUT_PATH):/usr/bin:/usr/lib:/usr/lib32:/usr/lib64:$LD_LIBRARY_PATH
+	export LD_LIBRARY_PATH
+	"$(OUTPUT_PATH)/memory_tests"   > "$(OUTPUT_PATH)/memory_tests.output" 2>&1
+	status=$?
+	echo >> "$(OUTPUT_PATH)/memory_tests.output"
+	echo EXIT STATUS: $status >> "$(OUTPUT_PATH)/memory_tests.output"
+	if test $status -eq 0 ; then
+	    cp "$(OUTPUT_PATH)/memory_tests.output" "$(OUTPUT_PATH)/memory_tests.run"
+	fi
+	verbose=0
+	if test $status -ne 0 ; then
+	    verbose=1
+	fi
+	if test $verbose -eq 1 ; then
+	    echo ====== BEGIN OUTPUT ======
+	    cat "$(OUTPUT_PATH)/memory_tests.output"
+	    echo ====== END OUTPUT ======
+	fi
+	exit $status
+
+##############################################################################
+# Receiver daemon
+##############################################################################
+
+receiver_daemon_o: $(EXECUTABLE_DEPENDENCIES) $(OUTPUT_PATH)/receiver.o
+	$(NORMAL_COMPILE) -c -o $(OUTPUT_PATH)/receiver_daemon.o src/receiver_daemon.cc
+
+receiver: $(OUTPUT_PATH)/receiver_daemon.o
+	$(COMPILER) -Wl,-R -Wl,"$(OUTPUT_PATH)" \
+    -Wl,-rpath-link -Wl,"$(OUTPUT_PATH)" \
+    -o "$(OUTPUT_PATH)/receiver" \
+    -Wl,--start-group "$(OUTPUT_PATH)/receiver_daemon.o" \
+    "$(OUTPUT_PATH)/libguest_lib.so"  -Wl,-Bstatic  -Wl,-Bdynamic \
+    $(NORMAL_DEPENDENCIES) -Wl,--end-group -g
+
+
+##############################################################################
+# test_sender
+##############################################################################
+
+test_sender_o: $(EXECUTABLE_DEPENDENCIES) src/test_sender.cc
+	$(NORMAL_COMPILE) -c -o $(OUTPUT_PATH)/test_sender.o src/test_sender.cc
+
+
+test_sender: $(OUTPUT_PATH)/test_sender.o
+	$(COMPILER) -Wl,-R -Wl,"$(OUTPUT_PATH)" \
+    -Wl,-rpath-link -Wl,"$(OUTPUT_PATH)" \
+    -o "$(OUTPUT_PATH)/test_sender" \
+    -Wl,--start-group "$(OUTPUT_PATH)/test_sender.o" \
+    "$(OUTPUT_PATH)/libguest_lib.so"  -Wl,-Bstatic  -Wl,-Bdynamic \
+    $(NORMAL_DEPENDENCIES) -Wl,--end-group -g

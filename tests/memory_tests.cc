@@ -130,7 +130,7 @@ MemoryInfo run_fork(proc_func_ptr func) {
 }
 
 const int mapped_min = 8000;
-const int write_min = 832;
+const int write_min = 840;
 const int shared_min = 0;
 
 void empty() {

@@ -7,7 +7,8 @@ sudo apt-get update
 # Install deps
 sudo DEBIAN_FRONTEND=noninteractive apt-get --allow-unauthenticated -y install mercurial \
  git-core autoconf libtool uuid-dev libmysqlcppconn-dev g++ valgrind mysql-server-5.1 \
- libboost1.40-dev bjam boost-build libboost-test-dev libboost-thread1.40-dev rabbitmq-server
+ libboost1.40-dev bjam boost-build libboost-test-dev libboost-thread1.40-dev rabbitmq-server \
+ libconfuse-dev
 
 mkdir ~/build
 cd ~/build

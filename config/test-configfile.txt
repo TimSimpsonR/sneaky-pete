@@ -1,0 +1,2 @@
+amqp_uri="guest:guest@localhost:5672/"
+amqp_queue="guest.hostname"

@@ -25,9 +25,10 @@ lib lib_json : : <name>json ;
 lib lib_mysqlcppconn : : <name>mysqlcppconn ;
 lib lib_rabbitmq : : <name>rabbitmq ;
 lib lib_uuid : : <name>uuid ;
+lib lib_confuse : : <name>confuse ;
 
 alias dependencies
-	:   lib_amqpcpp lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid
+	:   lib_amqpcpp lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid lib_confuse
 	;
 
 alias test_dependencies
@@ -37,6 +38,7 @@ alias test_dependencies
 lib guest_lib
     :   src/receiver.cc
         src/sql_guest.cc
+        src/configfile.cc
     ;
 
 unit-test send_and_receive
@@ -56,6 +58,16 @@ unit-test sql_guest_tests
 	:   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"valgrind --leak-check=full"
 	;
+
+unit-test configfile_tests
+	:	dependencies
+        guest_lib
+		test_dependencies
+		tests/configfile_tests.cc
+	:   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"valgrind --leak-check=full"
+	;
+
 
 run     dependencies
         guest_lib

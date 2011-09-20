@@ -208,6 +208,7 @@ void open_sql_socket_connection() {
     sql::Driver * driver = get_driver_instance();
     sql::Connection *con = driver->connect("unix:///var/run/mysqld/mysqld.sock",
                                            "root", "");
+    con = 0;
 }
 
 BOOST_AUTO_TEST_CASE(SqlSocketTakesUpAFewBytesMaybe)

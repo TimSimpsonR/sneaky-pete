@@ -37,11 +37,11 @@ void MySQLUser::set_databases(const std::string & value) {
  *- MySqlGuest
  *---------------------------------------------------------------------------*/
 
-MySqlGuest::MySqlGuest()
+MySqlGuest::MySqlGuest(const std::string & uri, const std::string & username, const std::string & password)
 :   driver(0), con(0)
 {
     driver = get_driver_instance();
-    con = driver->connect("unix:///var/run/mysqld/mysqld.sock", "root", "");
+    con = driver->connect(uri, username, password);
     try {
         // Connect to the MySQL test database
         con->setSchema("mysql");

@@ -14,19 +14,7 @@
 
 
 /*
-vagrant@volume:/src$ bin/gcc-4.4.3/debug/receiver &
-[2] 4317
-vagrant@volume:/src$ cat /proc/4317/statm
-3678 627 521 20 0 2165 0
-
-pmap:
-mapped: 14712K    writeable/private: 9008K    shared: 0K
-
-vagrant@volume:/src$ cat /proc/4317/statm
-3678 627 521 20 0 2165 0
-
-
-pmap -d 4341 | grep mapped
+The goal of these tests are to show the memory usage of various components.
 */
 
 

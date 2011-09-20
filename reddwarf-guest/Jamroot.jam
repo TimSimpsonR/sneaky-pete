@@ -37,6 +37,7 @@ alias test_dependencies
 
 lib guest_lib
     :   src/receiver.cc
+        src/sender.cc
         src/sql_guest.cc
         src/configfile.cc
     ;
@@ -84,8 +85,8 @@ exe receiver
 	:	dependencies
 		guest_lib
 		src/receiver_daemon.cc
-    :   <link>shared:<dependency>sql_guest_tests
-	    <link>shared:<dependency>memory_tests
+    :   <dependency>sql_guest_tests
+	    <dependency>memory_tests
 	;
 
 

@@ -1,6 +1,7 @@
 #include "guest.h"
 #include "sql_guest.h"
 #include "receiver.h"
+#include "configfile.h"
 #include <AMQPcpp.h>
 #include <boost/foreach.hpp>
 #include <json/json.h>
@@ -11,8 +12,18 @@ const char error_message [] =
 "    \"error\":\"could not interpret message.\""
 "}";
 
-int main() {
-    Receiver receiver("guest:guest@localhost:5672/", "guest.hostname", "%");
+int main(int argc, const char* argv[]) {
+    std::string config_location = "config/test-configfile.txt";
+    if (argc >= 2) {
+        config_location = argv[1];
+    }
+
+    Configfile::Configfile configfile(config_location);
+    
+    std::string amqp_uri = configfile.get_string("amqp_uri");
+    std::string amqp_queue = configfile.get_string("amqp_queue");
+    
+    Receiver receiver(amqp_uri.c_str(), amqp_queue.c_str(), "%");
     MySqlGuestPtr guest(new MySqlGuest());
     MySqlMessageHandler handler(guest);
 
@@ -20,6 +31,7 @@ int main() {
     try {
         daemon(1,0);
 #endif
+        
         while(true) {
             syslog(LOG_INFO, "getting and getting");
             json_object * input = receiver.next_message();

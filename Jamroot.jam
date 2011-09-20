@@ -14,52 +14,75 @@ project
 		<variant>debug:<define>_DEBUG
 	;
 
-# Base names of the source files for libboost_date_time
-CPP_SOURCES = guest ;
-
 # Declare our dependencies
 
 # System libraries are found automatically by our toolset (GCC).
 # So for example, if you pass "-lrabbitmq" to gcc, here its "<name>rabbitmq."
-lib lib_json : : <name>json ;
-lib lib_rabbitmq : : <name>rabbitmq ;
-lib lib_mysqlcppconn : : <name>mysqlcppconn ;
-lib lib_uuid : : <name>uuid ;
 lib lib_amqpcpp : : <name>amqpcpp ;
+lib lib_boost_thread : : <name>boost_thread ;
 lib lib_boost_unit_test_framework : : <name>boost_unit_test_framework ;
+lib lib_json : : <name>json ;
+lib lib_mysqlcppconn : : <name>mysqlcppconn ;
+lib lib_rabbitmq : : <name>rabbitmq ;
+lib lib_uuid : : <name>uuid ;
 
 alias dependencies
-	: lib_amqpcpp lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid
+	:   lib_amqpcpp lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid
 	;
 
 alias test_dependencies
-	:	lib_boost_unit_test_framework
+	:	lib_boost_unit_test_framework lib_boost_thread
 	;
 
 lib guest_lib
-    :   src/guest.cc
-        src/receiver.cc
+    :   src/receiver.cc
+        src/sql_guest.cc
     ;
+
+unit-test send_and_receive
+	:	dependencies
+        guest_lib
+		test_dependencies
+		tests/send_and_receive.cc
+	:   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"valgrind --leak-check=full"
+	;
+
+unit-test sql_guest_tests
+	:	dependencies
+        guest_lib
+		test_dependencies
+		tests/sql_guest_tests.cc
+	:   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"valgrind --leak-check=full"
+	;
+
+run     dependencies
+        guest_lib
+        test_dependencies
+        tests/memory_tests.cc
+    :   # Command line arguments.
+    :   # input files (?)
+    :   <define>BOOST_TEST_DYN_LINK
+    :   memory_tests  # The target name is placed here, for some reason. :(
+    ;
+
 
 exe receiver
 	:	dependencies
 		guest_lib
 		src/receiver_daemon.cc
+    :   <link>shared:<dependency>sql_guest_tests
+	    <link>shared:<dependency>memory_tests
 	;
 
-unit-test send_and_receive
-	:	dependencies
-		test_dependencies
-		tests/send_and_receive.cc
-	:   <define>BOOST_TEST_DYN_LINK
-        <testing.launcher>valgrind
-	;
 
 exe sender
 	:	dependencies
 		guest_lib
 		src/test_sender.cc
-	:   <dependency>send_and_receive
+	:   <link>shared:<dependency>sql_guest_tests
+	    <link>shared:<dependency>memory_tests
 	;
 
 

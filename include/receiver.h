@@ -15,7 +15,7 @@ public:
     ~Receiver();
 
     /** Finishes a message. */
-    void finish_message(json_object * obj);
+    void finish_message(json_object * arguments, json_object * output);
 
     /** Grabs the next message. Caller is responsible for calling ack. */
     json_object * next_message();

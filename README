@@ -1,4 +1,34 @@
-Welcome sneakers. This is a guest. This is only a guest. 
+Welcome sneakers. This is a guest. This is only a guest.
 
 PS when running make, be sure to declare the LIB_HOME, LIB_HOME=/usr/local/lib
 
+
+Setting up Your Environment
+---------------------------
+
+The easiest way is to use Vagrant to create a VM. Once you're inside the VM,
+running the script /src/vagrant/initialize.sh should install all tools and
+dependencies.
+
+
+How to Build
+------------
+
+This can currently be built with both Make and Boost Build (mostly because I
+know Boost Build better than make. ~Tim).
+
+To run with Make, simply type "make" in the home directory.
+
+To run with Boost Build, type "Boost Build."
+
+
+Understanding the Unit Tests
+----------------------------
+
+The unit tests currently use Boost Test executed with Valgrind to detect
+memory leaks. These tests do not currently cause the build to fail if there is
+a leak (Working on that. ~Tim).
+
+The important thing is that "definetely lost," "indirectly lost", and
+"possibly lost" all be 0 bytes. Sometimes "still reachable" may be more than
+zero due to some libraries containing pointers to freed memory on program exit.

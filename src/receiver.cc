@@ -2,6 +2,7 @@
 #include "receiver.h"
 #include <AMQPcpp.h>
 #include <sstream>
+#include <syslog.h>
 
 
 Receiver::Receiver(const char * host, const char * queue_name,
@@ -21,11 +22,12 @@ Receiver::Receiver(const char * host, const char * queue_name,
 Receiver::~Receiver() {
 }
 
-void Receiver::finish_message(json_object * obj) {
+void Receiver::finish_message(json_object * arguments, json_object * output) {
     if (current_message == 0) {
         throw std::exception();
     }
-    json_object_put(obj);
+    json_object_put(arguments);
+    json_object_put(output);
     temp_queue->Ack(current_message->getDeliveryTag());
 }
 

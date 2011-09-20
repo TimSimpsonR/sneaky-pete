@@ -63,11 +63,24 @@ unit-test sql_guest_tests
         <testing.launcher>"valgrind --leak-check=full"
 	;
 
+run     dependencies
+        guest_lib
+        test_dependencies
+        tests/memory_tests.cc
+    :   # Command line arguments.
+    :   # input files (?)
+    :   <define>BOOST_TEST_DYN_LINK
+    :   memory_tests  # The target name is placed here, for some reason. :(
+    ;
+
+
+
 exe sender
 	:	dependencies
 		guest_lib
 		src/test_sender.cc
 	:   <dependency>sql_guest_tests
+	    <dependency>memory_tests
 	;
 
 

@@ -1,16 +1,13 @@
-sudo apt-get install mercurial
-sudo apt-get install git-core
-sudo apt-get install autoconf
-sudo apt-get install libtool
-sudo apt-get install uuid-dev
-
-
+# Add rabbit debian repo
+echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee -a /etc/apt/sources.list
+wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+sudo apt-key add rabbitmq-signing-key-public.asc
 sudo apt-get update
 
-# Install mysql stuff
-sudo apt-get install libmysqlcppconn-dev --fix-missing
-
-# Install rabbitmq stuff
+# Install deps
+sudo DEBIAN_FRONTEND=noninteractive apt-get --allow-unauthenticated -y install mercurial \
+ git-core autoconf libtool uuid-dev libmysqlcppconn-dev g++ valgrind mysql-server-5.1 \
+ libboost1.40-dev bjam boost-build libboost-test-dev libboost-thread1.40-dev rabbitmq-server
 
 mkdir ~/build
 cd ~/build
@@ -39,26 +36,12 @@ cd json-c
 sh autogen.sh
 ./configure
 make
-make install
+sudo make install
 
 
 # Install Boost
-sudo apt-get install libboost1.40-dev
-sudo apt-get install bjam
-sudo apt-get install boost-build
-sudo apt-get install libboost-test-dev
-sudo apt-get install libboost-thread1.40-dev
+
 
 
 # Install some rabbit goodness!
 cd ~/
-echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee -a /etc/apt/sources.list
-wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
-sudo apt-key add rabbitmq-signing-key-public.asc
-sudo apt-get update
-sudo apt-get install rabbitmq-server
-
-# Needed?
-sudo apt-get install mysql-server-5.1
-
-sudo apt-get install valgrind

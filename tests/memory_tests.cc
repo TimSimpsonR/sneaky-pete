@@ -204,6 +204,22 @@ BOOST_AUTO_TEST_CASE(SqlTakesUpAFewBytes)
               expected_diff);
 }
 
+void open_sql_socket_connection() {
+    sql::Driver * driver = get_driver_instance();
+    sql::Connection *con = driver->connect("unix:///var/run/mysqld/mysqld.sock",
+                                           "root", "");
+}
+
+BOOST_AUTO_TEST_CASE(SqlSocketTakesUpAFewBytesMaybe)
+{
+    MemoryInfo expected_diff;
+    expected_diff.mapped = (int)(8.5 * 1024);
+    expected_diff.writeable_private = (int)(8.5 * 1024);
+    expected_diff.shared = 0;
+    test_proc("Merely opening a SQL Socket connection", open_sql_socket_connection,
+              expected_diff);
+}
+
 #define JSON_OBJECT_COUNT 10000
 #define STR_VALUE(arg)  #arg
 #define STR_MACRO(name) STR_VALUE(name)

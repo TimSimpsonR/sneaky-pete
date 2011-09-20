@@ -41,7 +41,7 @@ MySqlGuest::MySqlGuest()
 :   driver(0), con(0)
 {
     driver = get_driver_instance();
-    con = driver->connect("tcp://127.0.0.1:3306", "root", "");
+    con = driver->connect("unix:///var/run/mysqld/mysqld.sock", "root", "");
     try {
         // Connect to the MySQL test database
         con->setSchema("mysql");

@@ -4,6 +4,9 @@ Configfile::Configfile(const std::string & config_path) {
     cfg_opt_t opts[] = {
         CFG_STR("amqp_uri", "guest:guest@localhost:5672/", CFGF_NONE),
         CFG_STR("amqp_queue", "guest.hostname", CFGF_NONE),
+        CFG_STR("mysql_uri", "unix:///var/run/mysqld/mysqld.sock", CFGF_NONE),
+        CFG_STR("mysql_user", "root", CFGF_NONE),
+        CFG_STR("mysql_password", "", CFGF_NONE),
         CFG_END()
     };
     cfg = cfg_init(opts, CFGF_NOCASE);

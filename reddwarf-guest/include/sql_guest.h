@@ -57,7 +57,7 @@ typedef boost::shared_ptr<MySQLUserList> MySQLUserListPtr;
 class MySqlGuest {
 
     public:
-        MySqlGuest();
+        MySqlGuest(const std::string & uri, const std::string & username, const std::string & password);
         ~MySqlGuest();
 
         std::string create_user(const std::string & username, const std::string & password, const std::string & host);

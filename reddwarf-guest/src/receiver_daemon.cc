@@ -22,9 +22,12 @@ int main(int argc, const char* argv[]) {
     
     std::string amqp_uri = configfile.get_string("amqp_uri");
     std::string amqp_queue = configfile.get_string("amqp_queue");
+    std::string mysql_uri = configfile.get_string("mysql_uri");
+    std::string mysql_user = configfile.get_string("mysql_user");
+    std::string mysql_password = configfile.get_string("mysql_password");
     
     Receiver receiver(amqp_uri.c_str(), amqp_queue.c_str(), "%");
-    MySqlGuestPtr guest(new MySqlGuest());
+    MySqlGuestPtr guest(new MySqlGuest(mysql_uri, mysql_user, mysql_password));
     MySqlMessageHandler handler(guest);
 
 #ifndef _DEBUG

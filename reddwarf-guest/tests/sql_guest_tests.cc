@@ -16,10 +16,10 @@
     list_users
 */
 
-MySqlGuestPtr create_sql() {
-    MySqlGuestPtr guest(new MySqlGuest());
-    return guest;
-}
+// MySqlGuestPtr create_sql() {
+    // MySqlGuestPtr guest(new MySqlGuest());
+    // return guest;
+// }
 
 BOOST_AUTO_TEST_CASE(create_database)
 {

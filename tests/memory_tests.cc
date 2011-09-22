@@ -289,20 +289,6 @@ BOOST_AUTO_TEST_CASE(JsonObject) {
 }
 
 
-void run_amqp() {
-    AMQP amqp("guest:guest@localhost:5672/");
-    AMQPQueue * temp_queue = amqp.createQueue("Bert");
-    temp_queue = 0;
-}
-
-BOOST_AUTO_TEST_CASE(AmqpTest) {
-    MemoryInfo expected_diff;
-    expected_diff.mapped = (int) 210;
-    expected_diff.writeable_private = (int) 160;
-    expected_diff.shared = 0;
-    test_proc("Simply opening AMQP", run_amqp, expected_diff);
-}
-
 #define BOOST_PTR_COUNT 10000
 #define BOOST_PTR_COUNT_STR  STR_MACRO(BOOST_PTR_COUNT)
 

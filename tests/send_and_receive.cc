@@ -40,7 +40,7 @@ struct Daemon {
     }
 
 };
-
+#ifdef NOT_NOW
 
 BOOST_AUTO_TEST_CASE(Flood)
 {
@@ -73,49 +73,60 @@ BOOST_AUTO_TEST_CASE(AMQPleaker) {
     queue->Bind(exchange_name, "");
 }
 
-/*BOOST_AUTO_TEST_CASE(DefiningASender) {
-    Sender sender("guest:guest@localhost:5672/", "guest.hostname_exchange",
-                  "guest.hostname");
-}*/
 
-#ifdef FDJGKJGDFLJ
-BOOST_AUTO_TEST_CASE(SendingANormalMessage)
+#endif
+
+/** Making sure we can construct and destruct these types without leaking. */
+BOOST_AUTO_TEST_CASE(ConstructorAndDestructingASender) {
+    Sender sender("localhost", 5672, "guest", "guest", "guest.hostname_exchange",
+                  "guest.hostname", "");
+}
+
+#ifdef gfsghsrhsfh
+BOOST_AUTO_TEST_CASE(ConstructorAndDestructingAReceiver) {
+    Receiver receiver("guest:guest@localhost:5672/",
+                      "guest.hostname_exchange", "%");
+}
+
+
+
+BOOST_AUTO_TEST_CASE(SendingANormalMessage_NEW)
 {
-    Sender sender("guest:guest@localhost:5672/", "guest.hostname_exchange",
-                  "guest.hostname");/*
-    Receiver receiver("guest:guest@localhost:5672/", "guest.hostname", "%");
-*/
+    Log log;
+
+    Receiver receiver("localhost", 5672, "guest", "guest", "guest.hostname");
+    log.info("TEST - Created receiver");
+    Sender sender("localhost", 5672, "guest", "guest", "guest.hostname_exchange",
+                  "guest.hostname", "");
+
+    log.info("TEST - Created sender");
     const char MESSAGE_ONE [] =
     "{"
     "    'method':'list_users'"
     "}";
     json_object * send_object = json_object_new_string(MESSAGE_ONE);
-  //  sender.send(send_object);
+    sender.send(send_object);
+    log.info("TEST - send obj");
     {
-        /*
+
         json_object * obj = receiver.next_message();
-        BOOST_REQUIRE_MESSAGE((bool)json_object_is_type(obj, json_type_object),
+        BOOST_CHECK_MESSAGE(json_object_is_type(obj, json_type_object) != 0,
                               "Must receive an object.");
+
         json_object * method_obj = json_object_object_get(obj, "method");
-        BOOST_REQUIRE_NE(method_obj, (json_object *) 0);
-        const char * method_str = json_object_to_json_string(method_obj);
-        BOOST_REQUIRE_EQUAL(method_str, "list_users");
+        BOOST_CHECK_NE(method_obj, (json_object *) 0);
+        const char * method_str = json_object_get_string(method_obj);
+        BOOST_CHECK_EQUAL(method_str, "list_users");
+
         const char RESPONSE [] =
         "{"
         "    'status':'ok'"
         "}";
         json_object * rtn_obj = json_object_new_string(RESPONSE);
-        receiver.finish_message(obj, rtn_obj);*/
+        receiver.finish_message(obj, rtn_obj);
     }
 
     json_object_put(send_object);
-
-	// FROG
-    //    sql::Driver * driver = get_driver_instance();
-
-      //  sql::Connection *con = driver->connect("tcp://127.0.0.1:3306", "root", "");
-        //delete con;
-        //delete driver;
-        // FROG
 }
+
 #endif

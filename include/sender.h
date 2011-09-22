@@ -1,13 +1,17 @@
 #ifndef __NOVAGUEST_SENDER_H
 #define __NOVAGUEST_SENDER_H
 
-#include <AMQPcpp.h>
+#include "amqp_helpers_ptr.h"
 #include <json/json.h>
+#include "log.h"
+
 
 class Sender {
     public:
-        Sender(const char * host_name, const char * exchange_name,
-               const char * queue_name);
+        Sender(const char * host_name, int port,
+               const char * user_name, const char * password,
+               const char * exchange_name, const char * queue_name,
+               const char * routing_key);
 
         ~Sender();
 
@@ -16,12 +20,12 @@ class Sender {
         void send(const char * publish_string);
 
     private:
-        //TODO(tim.simpson): What is the policy regarding ex and queue?
-        //                   Do we need to free them somehow?
-        AMQP amqp;
-        AMQPExchange * ex;
+        AmqpChannelPtr exchange;
         const std::string exchange_name;
-        AMQPQueue * queue;
+        Log log;
+        AmqpChannelPtr queue;
+        const std::string queue_name;
+        const std::string routing_key;
 };
 
 #endif

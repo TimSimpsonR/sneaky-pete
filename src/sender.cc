@@ -1,34 +1,42 @@
 #include "sender.h"
+#include "amqp_helpers.h"
+#include <sstream>
 
 
-Sender::Sender(const char * host_name, const char * exchange_name,
-               const char * queue_name)
-:   amqp(host_name),
-    ex(0),
+Sender::Sender(const char * host_name, int port,
+               const char * user_name, const char * password,
+               const char * exchange_name, const char * queue_name,
+               const char * routing_key)
+:   exchange(),
     exchange_name(exchange_name),
-    queue(0)
+    log(),
+    queue(),
+    queue_name(queue_name),
+    routing_key(routing_key)
 {
-    ex = amqp.createExchange(exchange_name);
-    ex->Declare(exchange_name, "direct");
-    //Make sure the exchange was bound to the queue to actually send the messages thru
-    queue = amqp.createQueue(queue_name);
-    queue->Declare();
-    queue->Bind(exchange_name, "");
+    AmqpConnectionPtr connection = AmqpConnection::create(host_name, port,
+                                                          user_name, password);
+    exchange = connection->new_channel();
+    exchange->declare_exchange(exchange_name);
+
+    queue = connection->new_channel();
+    queue->declare_queue(queue_name);
+    queue->bind_queue_to_exchange(queue_name, exchange_name, routing_key);
 }
 
 Sender::~Sender() {
-    delete queue;
-    delete ex;
 }
 
 void Sender::send(const char * publish_string) {
-    ex->setHeader("Delivery-mode", 2);
-    ex->setHeader("Content-type", "text/text");
-    ex->setHeader("Content-encoding", "UTF-8");
-    ex->Publish(publish_string, "");
+    exchange->publish(exchange_name.c_str(), routing_key.c_str(),
+                      publish_string);
 }
 
+
 void Sender::send(json_object * publish_object) {
-    const char * str = json_object_to_json_string(publish_object);
+    const char * str = json_object_get_string(publish_object);
+    std::stringstream msg;
+    msg << "Sending message " << str;
+    log.info(msg.str());
     send(str);
 }

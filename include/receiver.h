@@ -1,16 +1,18 @@
 #ifndef __NOVAGUEST_RECEIVER_H
 #define __NOVAGUEST_RECEIVER_H
 
-#include <AMQPcpp.h>
+#include "amqp_helpers_ptr.h"
 #include <json/json.h>
+#include "log.h"
 #include <string>
 
 
 class Receiver {
 
 public:
-    Receiver(const char * host, const char * queue_name,
-             const char * default_host);
+    Receiver(const char * host, int port,
+             const char * user_name, const char * password,
+             const char * queue_name);
 
     ~Receiver();
 
@@ -21,12 +23,11 @@ public:
     json_object * next_message();
 
 private:
-    AMQP amqp;
-    AMQPMessage * current_message;
-    const std::string default_host;
-    const std::string host;
+    AmqpConnectionPtr connection;
+    int last_delivery_tag;
+    Log log;
+    AmqpChannelPtr queue;
     const std::string queue_name;
-    AMQPQueue * temp_queue;
 
 };
 

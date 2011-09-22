@@ -1,51 +1,44 @@
-#include "guest.h"
 #include "receiver.h"
-#include <AMQPcpp.h>
+#include "amqp_helpers.h"
 #include <sstream>
-#include <syslog.h>
 
 
-Receiver::Receiver(const char * host, const char * queue_name,
-                   const char * default_host)
-:   amqp(host),
-    current_message(0),
-    default_host(default_host),
-    host(host),
-    queue_name(queue_name),
-    temp_queue(0)
+Receiver::Receiver(const char * host, int port,
+                   const char * user_name, const char * password,
+                   const char * queue_name)
+:   connection(),
+    last_delivery_tag(-1),
+    log(),
+    queue(),
+    queue_name(queue_name)
 {
-    temp_queue = amqp.createQueue(queue_name);
-    //Assume the queue is already declared.
-    temp_queue->Declare();
+    connection = AmqpConnection::create(host, port, user_name, password);
 }
 
 Receiver::~Receiver() {
 }
 
 void Receiver::finish_message(json_object * arguments, json_object * output) {
-    if (current_message == 0) {
-        throw std::exception();
-    }
-    json_object_put(arguments);
-    json_object_put(output);
-    temp_queue->Ack(current_message->getDeliveryTag());
+    queue->ack_message(last_delivery_tag);
 }
 
 json_object * Receiver::next_message() {
-    if (current_message != 0) {
-        temp_queue->Get();
+    queue = connection->new_channel();
+    AmqpQueueMessagePtr msg;
+    while(!msg) {
+        msg = queue->get_message(queue_name.c_str());
+        log.info("Received an empty message.");
     }
-    while (current_message == 0 || current_message->getMessageCount() < 0) {
-        temp_queue->Get();
-        current_message = temp_queue->getMessage();
-    }
-    syslog(LOG_INFO, "message %s, key %s, tag %i, ex %s, c-type %s, c-enc %s",
-                     current_message->getMessage(),
-                     current_message->getRoutingKey().c_str(),
-                     current_message->getDeliveryTag(),
-                     current_message->getExchange().c_str(),
-                     current_message->getHeader("Content-type").c_str(),
-                     current_message->getHeader("Content-encoding").c_str());
-    json_object *new_obj = json_tokener_parse(current_message->getMessage());
+    std::stringstream log_msg;
+    log_msg << "Received message "
+        << ", key " << msg->routing_key
+        << ", tag " << msg->delivery_tag
+        << ", ex " << msg->exchange
+        << ", content_type " << msg->content_type
+        << ", message " << msg->message;
+    log.info(log_msg.str());
+    json_object *new_obj = json_tokener_parse(msg->message.c_str());
+
+    last_delivery_tag = msg->delivery_tag;
     return new_obj;
 }

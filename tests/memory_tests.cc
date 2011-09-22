@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(baseline)
 void open_sql_connection() {
     sql::Driver * driver = get_driver_instance();
     sql::Connection *con = driver->connect("tcp://127.0.0.1:3306",
-                                           "root", "");
+                                           "root", "test2");
     con = 0;
 }
 
@@ -194,8 +194,9 @@ BOOST_AUTO_TEST_CASE(SqlTakesUpAFewBytes)
 
 void open_sql_socket_connection() {
     sql::Driver * driver = get_driver_instance();
+    //TODO(hub-cap): fix this to read from my.cnf!
     sql::Connection *con = driver->connect("unix:///var/run/mysqld/mysqld.sock",
-                                           "root", "");
+                                           "root", "test2");
     con = 0;
 }
 

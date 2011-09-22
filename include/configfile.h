@@ -10,7 +10,7 @@ public:
     Configfile();
     ~Configfile();
     std::string get_string(const std::string & key);
-
+    int get_int(const std::string & key);
 private:
     cfg_t *cfg;
 

@@ -20,19 +20,17 @@ int main(int argc, const char* argv[]) {
 
     Configfile::Configfile configfile(config_location);
 
-    std::string amqp_uri = configfile.get_string("amqp_uri");
+    std::string amqp_host = configfile.get_string("amqp_host");
     int amqp_port = configfile.get_int("amqp_port");
     std::string amqp_user_name = configfile.get_string("amqp_user_name");
     std::string amqp_password = configfile.get_string("amqp_password");
     std::string amqp_queue = configfile.get_string("amqp_queue");
 
-    Receiver receiver(amqp_uri, amqp_port, amqp_user_name, amqp_password,
+    Receiver receiver(amqp_host.c_str(), amqp_port, amqp_user_name.c_str(), amqp_password.c_str(),
                       amqp_queue.c_str());
 
     std::string mysql_uri = configfile.get_string("mysql_uri");
-    std::string mysql_user = configfile.get_string("mysql_user");
-    std::string mysql_password = configfile.get_string("mysql_password");
-    MySqlGuestPtr guest(new MySqlGuest(mysql_uri, mysql_user, mysql_password));
+    MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
 
     MySqlMessageHandler handler(guest);
 

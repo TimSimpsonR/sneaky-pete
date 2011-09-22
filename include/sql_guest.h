@@ -50,9 +50,42 @@ private:
     std::string databases;
 };
 
+class MySQLDatabase {
+public:
+    MySQLDatabase();
+
+    inline const std::string & get_name() const {
+        return name;
+    }
+
+    inline const std::string & get_collation() const {
+        return collation;
+    }
+
+    inline const std::string & get_charset() const {
+        return charset;
+    }
+
+    void set_name(const std::string & value);
+
+    void set_collation(const std::string & value);
+
+    void set_charset(const std::string & value);
+
+private:
+    std::string name;
+    std::string collation;
+    std::string charset;
+};
+
 typedef boost::shared_ptr<MySQLUser> MySQLUserPtr;
 typedef std::vector<MySQLUserPtr> MySQLUserList;
 typedef boost::shared_ptr<MySQLUserList> MySQLUserListPtr;
+
+typedef boost::shared_ptr<MySQLDatabase> MySQLDatabasePtr;
+typedef std::vector<MySQLDatabasePtr> MySQLDatabaseList;
+typedef boost::shared_ptr<MySQLDatabaseList> MySQLDatabaseListPtr;
+
 
 class MySqlGuest {
 
@@ -61,11 +94,10 @@ class MySqlGuest {
         ~MySqlGuest();
 
         std::string create_user(const std::string & username, const std::string & password, const std::string & host);
-        // You must delete the users that come from this list using something like `vector.clear();`
         MySQLUserListPtr list_users();
         std::string delete_user(const std::string & username);
         std::string create_database(const std::string & database_name, const std::string & character_set, const std::string & collate);
-        std::string list_databases();
+        MySQLDatabaseListPtr list_databases();
         std::string delete_database(const std::string & database_name);
         std::string enable_root();
         std::string disable_root();

@@ -34,6 +34,28 @@ void MySQLUser::set_databases(const std::string & value) {
 
 
 /**---------------------------------------------------------------------------
+ *- MySQLDatabase
+ *---------------------------------------------------------------------------*/
+
+MySQLDatabase::MySQLDatabase()
+: name(""), collation(""), charset("")
+{
+}
+
+void MySQLDatabase::set_name(const std::string & value) {
+    this->name = value;
+}
+
+void MySQLDatabase::set_collation(const std::string & value) {
+    this->collation = value;
+}
+
+void MySQLDatabase::set_charset(const std::string & value) {
+    this->charset = value;
+}
+
+
+/**---------------------------------------------------------------------------
  *- MySqlGuest
  *---------------------------------------------------------------------------*/
 
@@ -104,8 +126,31 @@ string MySqlGuest::create_database(const string & database_name, const string & 
     stmt->close();
     return "MySqlGuest::create_database method";
 }
-string MySqlGuest::list_databases() {
-    return "MySqlGuest::list_databases method";
+MySQLDatabaseListPtr MySqlGuest::list_databases() {
+    MySQLDatabaseListPtr databases(new MySQLDatabaseList());
+    PreparedStatementPtr stmt = prepare_statement("SELECT"
+    "                schema_name as name,"
+    "                default_character_set_name as charset,"
+    "                default_collation_name as collation"
+    "            FROM"
+    "                information_schema.schemata"
+    "            WHERE"
+    "                schema_name not in"
+    "                ('mysql', 'information_schema', 'lost+found')"
+    "            ORDER BY"
+    "                schema_name ASC;");
+
+    auto_ptr<ResultSet> res(stmt->executeQuery());
+    while (res->next()) {
+        MySQLDatabasePtr database(new MySQLDatabase());
+        database->set_name(res->getString("name"));
+        database->set_collation(res->getString("collation"));
+        database->set_charset(res->getString("charset"));
+        databases->push_back(database);
+    }
+    res->close();
+    stmt->close();
+    return databases;
 }
 
 string MySqlGuest::delete_database(const string & database_name) {
@@ -147,7 +192,6 @@ string MySqlGuest::enable_root() {
 
 string MySqlGuest::disable_root() {
     uuid_t id;
-    sql::PreparedStatement *stmt;
     uuid_generate(id);
     char *buf = new char[37];
     uuid_unparse(id, buf);
@@ -161,7 +205,7 @@ string MySqlGuest::disable_root() {
     }
 
     {
-        stmt = con->prepareStatement(
+        PreparedStatementPtr stmt = prepare_statement(
             "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='root'");
         stmt->setString(1, buf);
         stmt->executeUpdate();
@@ -171,22 +215,14 @@ string MySqlGuest::disable_root() {
 }
 
 bool MySqlGuest::is_root_enabled() {
-    sql::ResultSet *res;
-    try {
-        PreparedStatementPtr stmt = prepare_statement(
-            "SELECT User FROM mysql.user where User = 'root' "
-            "and host != 'localhost';");
-        res = stmt->executeQuery();
-        size_t row_count = res->rowsCount();
-        res->close();
-        stmt->close();
-        delete res;
-        return row_count != 0;
-    } catch (sql::SQLException &e) {
-        delete res;
-        throw e;
-    }
-    return "Guest::is_root_enabled method";
+    PreparedStatementPtr stmt = prepare_statement(
+        "SELECT User FROM mysql.user where User = 'root' "
+        "and host != 'localhost';");
+    auto_ptr<ResultSet> res(stmt->executeQuery());
+    size_t row_count = res->rowsCount();
+    res->close();
+    stmt->close();
+    return row_count != 0;
 }
 
 /**---------------------------------------------------------------------------
@@ -232,8 +268,17 @@ namespace {
     }
 
     JSON_METHOD(list_databases) {
-        string guest_return = guest->list_databases();
-        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        std::stringstream database_xml;
+        MySQLDatabaseListPtr databases = guest->list_databases();
+        database_xml << "[";
+        BOOST_FOREACH(MySQLDatabasePtr & database, *databases) {
+            database_xml << "{'name':'" << database->get_name()
+                         << "', 'collation':'" << database->get_collation()
+                         << "', 'charset':'" << database->get_charset()
+                     << "'},";
+        }
+        database_xml << "]";
+        syslog(LOG_INFO, "guest call %s", database_xml.str().c_str());
         return json_object_new_object();
     }
 
@@ -294,13 +339,15 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr guest)
 
 json_object * MySqlMessageHandler::handle_message(json_object * arguments) {
     json_object *method = json_object_object_get(arguments, "method");
-    string method_name = json_object_to_json_string(method);
+    string method_name = json_object_get_string(method);
 
     MethodMap::iterator method_itr = methods.find(method_name);
     if (method_itr != methods.end()) {
         MethodPtr & method = method_itr->second;  // value
+        syslog(LOG_INFO, "Executing method %s", method_name.c_str());
         return (*(method))(this->guest, arguments);
     } else {
+        syslog(LOG_INFO, "Couldnt find a method for %s", method_name.c_str());
         return 0;
     }
 }

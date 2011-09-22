@@ -90,7 +90,7 @@ typedef boost::shared_ptr<MySQLDatabaseList> MySQLDatabaseListPtr;
 class MySqlGuest {
 
     public:
-        MySqlGuest(const std::string & uri, const std::string & username, const std::string & password);
+        MySqlGuest(const std::string & uri);
         ~MySqlGuest();
 
         std::string create_user(const std::string & username, const std::string & password, const std::string & host);
@@ -110,6 +110,7 @@ class MySqlGuest {
         sql::Connection *con;
 
         PreparedStatementPtr prepare_statement(const char * text);
+        void get_username_and_password_from_config_file(std::string &username, std::string &password);
 };
 
 typedef boost::shared_ptr<MySqlGuest> MySqlGuestPtr;

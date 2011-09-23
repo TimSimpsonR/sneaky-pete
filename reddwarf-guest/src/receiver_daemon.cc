@@ -3,8 +3,6 @@
 #include "receiver.h"
 #include "configfile.h"
 #include "log.h"
-#include <AMQPcpp.h>
-#include <boost/foreach.hpp>
 #include <json/json.h>
 #include <sstream>
 
@@ -59,10 +57,8 @@ int main(int argc, const char* argv[]) {
             receiver.finish_message(input, output);
         }
 #ifndef _DEBUG
-    } catch (AMQPException e) {
-        log.error2("Exception! Code %i, message = %s",
-                       e.getReplyCode(),
-                       e.getMessage().c_str());
+    } catch (const std::exception & e) {
+        log.error2("Error: %s", e.what());
     }
 #endif
     return 0;

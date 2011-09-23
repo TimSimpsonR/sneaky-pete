@@ -8,6 +8,22 @@
 #include <syslog.h>
 
 
+void Log::debug(const char* format, ... ) {
+    #ifdef _DEBUG
+        va_list args;
+        va_start(args, format);
+        const int BUFF_SIZE = 1024;
+        char buf[BUFF_SIZE];
+        vsnprintf(buf, BUFF_SIZE, format, args);
+
+        #ifdef _DEBUG
+            std::cout << buf << std::endl;
+        #endif
+
+        va_end(args);
+    #endif
+}
+
 void Log::info(const std::string & msg) {
     #ifdef _DEBUG
         std::cout << msg << std::endl;

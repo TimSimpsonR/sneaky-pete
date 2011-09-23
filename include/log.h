@@ -6,6 +6,7 @@
 class Log {
 
     public:
+        void debug(const char* format, ... );
         void info(const std::string & msg);
         void info2(const char* format, ... );
         void error(const std::string & msg);

@@ -14,7 +14,7 @@ const char error_message [] =
 
 int main(int argc, const char* argv[]) {
     Log log;
-    std::string config_location = "config/test-configfile.txt";
+    const char * config_location = "config/test-configfile.txt";
     if (argc >= 2) {
         config_location = argv[1];
     }
@@ -40,20 +40,31 @@ int main(int argc, const char* argv[]) {
     try {
         daemon(1,0);
 #endif
-
-        while(true) {
+        bool quit = false;
+        while(!quit) {
             log.info("getting and getting");
             json_object * input = receiver.next_message();
-            log.info2("output of json %s", json_object_to_json_string(input));
+            log.info2("output of json %s", json_object_get_string(input));
             json_object * output = 0;
             #ifndef _DEBUG
             try {
             #endif
+
+            #ifdef _DEBUG
+                json_object * method_obj = json_object_object_get(input, "method");
+                std::string method_str(json_object_get_string(method_obj));
+                log.info2("method=%s", method_str.c_str());
+                if (method_str == "exit") {
+                    quit = true;
+                }
+            #endif
+
                 output = handler.handle_message(input);
             #ifndef _DEBUG
             } catch(sql::SQLException & e) {
                 log.info2("receiver exception is %s %i %s", e.what(),
                             e.getErrorCode(), e.getSQLState().c_str());
+                output = json_tokener_parse(error_message);
             }
             #endif
             receiver.finish_message(input, output);

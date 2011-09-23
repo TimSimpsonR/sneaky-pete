@@ -71,6 +71,15 @@ unit-test configfile_tests
         <testing.launcher>"valgrind --leak-check=full"
 	;
 
+unit-test log_tests
+	:	dependencies
+        guest_lib
+		test_dependencies
+		tests/log_tests.cc
+	:   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"valgrind --leak-check=full"
+	;
+
 
 run     dependencies
         guest_lib

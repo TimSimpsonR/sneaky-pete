@@ -2,6 +2,7 @@
 #include "sql_guest.h"
 #include "receiver.h"
 #include "configfile.h"
+#include "log.h"
 #include <AMQPcpp.h>
 #include <boost/foreach.hpp>
 #include <json/json.h>
@@ -13,6 +14,7 @@ const char error_message [] =
 "}";
 
 int main(int argc, const char* argv[]) {
+    Log log;
     std::string config_location = "config/test-configfile.txt";
     if (argc >= 2) {
         config_location = argv[1];
@@ -40,10 +42,11 @@ int main(int argc, const char* argv[]) {
 #endif
 
         while(true) {
-            syslog(LOG_INFO, "getting and getting");
+            log.info("getting and getting");
             json_object * input = receiver.next_message();
-            syslog(LOG_INFO, "output of json %s",
-                   json_object_to_json_string(input));
+            std::stringstream log_msg;
+            log_msg << "output of json " << json_object_to_json_string(input);
+            log.info(log_msg.str());
             json_object * output = 0;
             #ifndef _DEBUG
             try {
@@ -51,8 +54,11 @@ int main(int argc, const char* argv[]) {
                 output = handler.handle_message(input);
             #ifndef _DEBUG
             } catch(sql::SQLException & e) {
-                syslog(LOG_ERR, "receiver exception is %s %i %s", e.what(),
-                       e.getErrorCode(), e.getSQLState().c_str());
+                std::stringstream log_msg;
+                log_msg << "receiver exception is " << e.what()
+                       << ", code " << e.getErrorCode()
+                       << ", sqlstate " << e.getSQLState().c_str();
+                log.info(log_msg.str());
                 output = json_object_new_string(error_message);
             }
             #endif
@@ -60,9 +66,10 @@ int main(int argc, const char* argv[]) {
         }
 #ifndef _DEBUG
     } catch (AMQPException e) {
-        syslog(LOG_ERR,"Exception! Code %i, message = %s",
-               e.getReplyCode(),
-               e.getMessage().c_str());
+        std::stringstream log_msg;
+        log_msg << "AMQPException code " << e.getReplyCode()
+        << ", message ", << e.getMessage().c_str();
+        log.error(log_msg.str());
     }
 #endif
     return 0;

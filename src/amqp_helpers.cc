@@ -87,7 +87,7 @@ AmqpConnection::AmqpConnection(const char * host_name, const int port,
     amqp_set_sockfd(connection, sockfd);
 
     // Login
-    amqp_check(amqp_login(connection, "/", 0, 131072, 0,
+    amqp_check(amqp_login(connection, "/", 0, 1024 * 4, 0,
                      AMQP_SASL_METHOD_PLAIN, user_name, password),
                AmqpException::LOGIN_FAILED);
 
@@ -106,6 +106,9 @@ AmqpConnection::~AmqpConnection() {
 }
 
 void AmqpConnection::check_references(AmqpConnection * ref) {
+    ref->log.debug("Checking the references to AmqpConnection, which has "
+                   "a reference_count of %d and owns %d channels.",
+                   ref->reference_count, ref->channels.size());
     if (ref->reference_count <= 0 && ref->channels.size() <= 0) {
         delete ref;
     }
@@ -188,6 +191,9 @@ void intrusive_ptr_add_ref(AmqpChannel * ref) {
 void intrusive_ptr_release(AmqpChannel * ref) {
     ref->reference_count --;
     if (ref->reference_count <= 0) {
+        ref->parent->log.debug("Releasing reference to channel # %d. "
+                               "Reference count is now %d.",
+                               ref->channel_number, ref->reference_count);
         ref->parent->remove_channel(ref);
     }
 }
@@ -197,6 +203,7 @@ AmqpChannel::AmqpChannel(AmqpConnection * parent, const int channel_number)
   reference_count(0)
 {
     amqp_connection_state_t conn = parent->get_connection();
+    parent->log.debug("Opening new channel with # %d.", channel_number);
     amqp_channel_open(conn, channel_number);
     amqp_check(amqp_get_rpc_reply(conn), AmqpException::OPEN_CHANNEL_FAILED);
     is_open = true;
@@ -218,6 +225,7 @@ void AmqpChannel::ack_message(int delivery_tag) {
 
 void AmqpChannel::close() {
     if (is_open) {
+        parent->log.debug("Closing channel #%d", channel_number);
         amqp_connection_state_t conn = parent->get_connection();
         amqp_check(amqp_channel_close(conn, channel_number, AMQP_REPLY_SUCCESS),
                    AmqpException::CLOSE_CHANNEL_FAILED);
@@ -282,11 +290,13 @@ void AmqpChannel::declare_queue(const char * queue_name) {
 }
 
 AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
+    AmqpQueueMessagePtr no;
+
     amqp_connection_state_t conn = parent->get_connection();
     amqp_basic_consume(conn, channel_number,
                        amqp_cstring_bytes(queue_name),
                        AMQP_EMPTY_BYTES,
-                       0, 0, 0, AMQP_EMPTY_TABLE);
+                       1, 0, 0, AMQP_EMPTY_TABLE);
 
     amqp_check(amqp_get_rpc_reply(conn), AmqpException::CONSUME);
     // use select to not block
@@ -297,6 +307,7 @@ AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
     int result = amqp_simple_wait_frame(conn, &frame);
 
     AmqpQueueMessagePtr rtn;
+
     if (result < 0) {
         return rtn;
     }

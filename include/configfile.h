@@ -6,7 +6,7 @@
 
 class Configfile {
 public:
-    Configfile(const std::string & config_path);
+    Configfile(const char * config_path);
     ~Configfile();
     int get_int(const std::string & key);
     std::string get_string(const std::string & key);

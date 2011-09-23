@@ -22,6 +22,25 @@
 #include <vector>
 
 
+class MySqlGuestException : public std::exception {
+
+    public:
+        enum Code {
+            MY_CNF_FILE_NOT_FOUND
+        };
+
+        MySqlGuestException(Code code) throw();
+
+        virtual ~MySqlGuestException() throw();
+
+        virtual const char * what() const throw();
+
+    private:
+
+        Code code;
+};
+
+
 class MySQLUser {
 public:
     MySQLUser();
@@ -91,6 +110,7 @@ class MySqlGuest {
 
     public:
         MySqlGuest(const std::string & uri);
+        MySqlGuest(const MySqlGuest & other);
         ~MySqlGuest();
 
         std::string create_user(const std::string & username, const std::string & password, const std::string & host);
@@ -110,7 +130,6 @@ class MySqlGuest {
         sql::Connection *con;
 
         PreparedStatementPtr prepare_statement(const char * text);
-        void get_username_and_password_from_config_file(std::string &username, std::string &password);
 };
 
 typedef boost::shared_ptr<MySqlGuest> MySqlGuestPtr;
@@ -119,6 +138,7 @@ class MySqlMessageHandler : public MessageHandler {
 
     public:
         MySqlMessageHandler(MySqlGuestPtr guest);
+        MySqlMessageHandler(const MySqlMessageHandler & other);
 
         virtual json_object * handle_message(json_object * json);
 

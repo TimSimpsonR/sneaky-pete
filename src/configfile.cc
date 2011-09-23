@@ -1,7 +1,8 @@
 #include "configfile.h"
 #include "guest_exception.h"
 
-Configfile::Configfile(const std::string & config_path) {
+
+Configfile::Configfile(const char * config_path) {
     cfg_opt_t opts[] = {
         CFG_STR("amqp_host", "localhost", CFGF_NONE),
         CFG_INT("amqp_port", 5672, CFGF_NONE),
@@ -12,7 +13,7 @@ Configfile::Configfile(const std::string & config_path) {
         CFG_END()
     };
     cfg = cfg_init(opts, CFGF_NOCASE);
-    if (cfg_parse(cfg, config_path.c_str()) != CFG_SUCCESS) {
+    if (cfg_parse(cfg, config_path) != CFG_SUCCESS) {
         throw GuestException(GuestException::CONFIG_FILE_PARSE_ERROR);
     }
 }
@@ -26,5 +27,6 @@ int Configfile::get_int(const std::string & key) {
 }
 
 std::string Configfile::get_string(const std::string & key) {
-    return cfg_getstr(cfg, key.c_str());
+    std::string rtn(cfg_getstr(cfg, key.c_str()));
+    return rtn;
 }

@@ -2,7 +2,10 @@
 #include <boost/test/unit_test.hpp>
 
 #include "sql_guest.h"
+#include "configfile.h"
 
+
+using namespace std;
 
 /** TODO(tim.simpson): Write tests for the following functions:
     create_database,
@@ -16,13 +19,26 @@
     list_users
 */
 
-// MySqlGuestPtr create_sql() {
-    // MySqlGuestPtr guest(new MySqlGuest());
-    // return guest;
-// }
+MessageHandlerPtr create_sql() {
+    const string config_location = "config/test-configfile.txt";
+    Configfile configfile(config_location);
+    std::string mysql_uri = configfile.get_string("mysql_uri");
+    MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
+    MessageHandlerPtr rtn(new MySqlMessageHandler(guest));
+    return rtn;
+}
+
 
 BOOST_AUTO_TEST_CASE(create_database)
 {
-    //MySqlGuestPtr guest = create_sql();
-    //guest->create_database("");
+    MessageHandlerPtr sql = create_sql();
+    for(int i = 0; i < 1000; i ++) {
+        json_object * input = json_tokener_parse(
+            "{'method':'is_root_enabled'}");
+        json_object * output = sql->handle_message(input);
+        const char * str_output = json_object_to_json_string(output);
+        BOOST_CHECK_EQUAL(str_output, "{ }");
+        json_object_put(output);
+        json_object_put(input);
+    }
 }

@@ -9,6 +9,7 @@ class Log {
         void info(const std::string & msg);
         void info2(const char* format, ... );
         void error(const std::string & msg);
+        void error2(const char* format, ... );
 
 };
 

@@ -44,9 +44,7 @@ int main(int argc, const char* argv[]) {
         while(true) {
             log.info("getting and getting");
             json_object * input = receiver.next_message();
-            std::stringstream log_msg;
-            log_msg << "output of json " << json_object_to_json_string(input);
-            log.info(log_msg.str());
+            log.info2("output of json %s", json_object_to_json_string(input));
             json_object * output = 0;
             #ifndef _DEBUG
             try {
@@ -54,22 +52,17 @@ int main(int argc, const char* argv[]) {
                 output = handler.handle_message(input);
             #ifndef _DEBUG
             } catch(sql::SQLException & e) {
-                std::stringstream log_msg;
-                log_msg << "receiver exception is " << e.what()
-                       << ", code " << e.getErrorCode()
-                       << ", sqlstate " << e.getSQLState().c_str();
-                log.info(log_msg.str());
-                output = json_object_new_string(error_message);
+                log.info2("receiver exception is %s %i %s", e.what(),
+                            e.getErrorCode(), e.getSQLState().c_str());
             }
             #endif
             receiver.finish_message(input, output);
         }
 #ifndef _DEBUG
     } catch (AMQPException e) {
-        std::stringstream log_msg;
-        log_msg << "AMQPException code " << e.getReplyCode()
-        << ", message ", << e.getMessage().c_str();
-        log.error(log_msg.str());
+        log.error2("Exception! Code %i, message = %s",
+                       e.getReplyCode(),
+                       e.getMessage().c_str());
     }
 #endif
     return 0;

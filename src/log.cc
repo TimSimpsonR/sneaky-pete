@@ -16,12 +16,11 @@ void Log::info(const std::string & msg) {
 }
 
 void Log::info2(const char* format, ... ) {
-    
     va_list args;
     va_start(args, format);
     const int BUFF_SIZE = 1024;
     char buf[BUFF_SIZE];
-    int read = vsnprintf(buf, BUFF_SIZE, format, args);
+    vsnprintf(buf, BUFF_SIZE, format, args);
 
     #ifdef _DEBUG
         std::cout << buf << std::endl;
@@ -37,4 +36,19 @@ void Log::error(const std::string & msg) {
         std::cerr << msg << std::endl;
     #endif
     syslog(LOG_ERR, "%s", msg.c_str());
+}
+
+void Log::error2(const char* format, ... ) {
+    va_list args;
+    va_start(args, format);
+    const int BUFF_SIZE = 1024;
+    char buf[BUFF_SIZE];
+    vsnprintf(buf, BUFF_SIZE, format, args);
+
+    #ifdef _DEBUG
+        std::cerr << buf << std::endl;
+    #endif
+    
+    syslog(LOG_ERR, "%s", buf);
+    va_end(args);
 }

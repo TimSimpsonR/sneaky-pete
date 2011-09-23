@@ -56,24 +56,6 @@ BOOST_AUTO_TEST_CASE(Flood)
     daemon_thread.timed_join(timeout);
 }
 
-
-BOOST_AUTO_TEST_CASE(AMQPleaker) {
-    /** Tests a leak in AMQPCpp. */
-
-    AMQPExchange * ex = 0;
-    AMQP amqp("guest:guest@localhost:5672/");
-    const std::string exchange_name = "guest.hostname_exchange";
-
-    AMQPQueue *queue = amqp.createQueue("guest.hostname");
-    queue->Declare();
-
-    ex = amqp.createExchange(exchange_name);
-    ex->Declare(exchange_name, "direct");
-
-    queue->Bind(exchange_name, "");
-}
-
-
 #endif
 
 /** Making sure we can construct and destruct these types without leaking. */
@@ -82,12 +64,11 @@ BOOST_AUTO_TEST_CASE(ConstructorAndDestructingASender) {
                   "guest.hostname", "");
 }
 
-#ifdef gfsghsrhsfh
-BOOST_AUTO_TEST_CASE(ConstructorAndDestructingAReceiver) {
-    Receiver receiver("guest:guest@localhost:5672/",
-                      "guest.hostname_exchange", "%");
-}
 
+BOOST_AUTO_TEST_CASE(ConstructorAndDestructingAReceiver) {
+    Receiver receiver("localhost", 5672, "guest", "guest",
+                      "guest.hostname");
+}
 
 
 BOOST_AUTO_TEST_CASE(SendingANormalMessage_NEW)
@@ -129,4 +110,3 @@ BOOST_AUTO_TEST_CASE(SendingANormalMessage_NEW)
     json_object_put(send_object);
 }
 
-#endif

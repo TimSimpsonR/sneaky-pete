@@ -99,7 +99,9 @@ MemoryInfo run_fork(proc_func_ptr func) {
 
     // Wait for Child to finish work.
     ssize_t size = read(parent_pipe[0], buf, 4);
-    BOOST_REQUIRE_EQUAL(size, 4);
+    BOOST_REQUIRE_MESSAGE(size == 4,
+        "Could not read from pipe! This probably means the forked program "
+        "crashed.");
     BOOST_REQUIRE_EQUAL(buf, "DONE");
     close(parent_pipe[0]);
 
@@ -199,6 +201,7 @@ void open_sql_socket_connection() {
                                            "root", "test2");
     con = 0;
 }
+/*
 
 BOOST_AUTO_TEST_CASE(SqlSocketTakesUpAFewBytesMaybe)
 {
@@ -208,7 +211,7 @@ BOOST_AUTO_TEST_CASE(SqlSocketTakesUpAFewBytesMaybe)
     expected_diff.shared = 0;
     test_proc("Merely opening a SQL Socket connection", open_sql_socket_connection,
               expected_diff);
-}
+}*/
 
 #define JSON_OBJECT_COUNT 10000
 #define STR_VALUE(arg)  #arg

@@ -31,4 +31,11 @@ BOOST_AUTO_TEST_CASE(test_log_info2)
     "A VERY LONG TEST"
     "A VERY LONG TEST"
     ": %i", "is", 1);
+
+    std::string biggest;
+    for (int i = 0; i < 2048; i ++) {
+        biggest.append("A");
+    }
+
+    log.info2("this is %s big test", biggest.c_str());
 }

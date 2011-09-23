@@ -42,6 +42,7 @@ lib guest_lib
         src/sql_guest.cc
         src/configfile.cc
         src/log.cc
+        src/guest_exception.cc
     ;
 
 unit-test send_and_receive

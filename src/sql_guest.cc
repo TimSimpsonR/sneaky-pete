@@ -62,15 +62,73 @@ void MySQLDatabase::set_charset(const std::string & value) {
  *- MySqlGuest
  *---------------------------------------------------------------------------*/
 
+namespace {
+
+    void trim(string & str, char bad_char) {
+        if (str.length() >= 2 && str[0] == bad_char
+            && str[str.length() - 1] == bad_char) {
+                str.erase(0, 1);
+                str.erase(str.length() - 1, str.length());
+        }
+    }
+
+    void get_username_and_password_from_config_file(string & user,
+                                                    string & password) {
+        const char *pattern = "^\\w+\\s*=\\s*(.*)$";
+        regex_t regex;
+        // 2 matches, the 2nd is the ()
+        int num_matches = 2;
+        regmatch_t matches[num_matches];
+        regcomp(&regex, pattern, REG_EXTENDED);
+
+        FILE *fp=fopen("/etc/mysql/my.cnf","r");
+        char  tmp[256]={0x0};
+        bool is_in_client = false;
+        while(fp!=NULL && fgets(tmp, sizeof(tmp),fp) != NULL)
+        {
+            if (strstr(tmp, "[client]")) {
+                is_in_client = true;
+            }
+            if (strstr(tmp, "[mysqld]")) {
+                is_in_client = false;
+            }
+
+            if (is_in_client && strstr(tmp, "user")) {
+                regexec(&regex, tmp, num_matches, matches, 0);
+                const char* begin_of_new_string = tmp+matches[num_matches-1].rm_so;
+                size_t match_size = matches[num_matches-1].rm_eo - matches[num_matches-1].rm_so - 1;
+                user.append(begin_of_new_string, match_size);
+            }
+            if (is_in_client && strstr(tmp, "password")) {
+                regexec(&regex, tmp, num_matches, matches, 0);
+                const char* begin_of_new_string = tmp+matches[num_matches-1].rm_so;
+                size_t match_size = matches[num_matches-1].rm_eo - matches[num_matches-1].rm_so - 1;
+                password.append(begin_of_new_string, match_size);
+            }
+        }
+        if(fp!=NULL) {
+            //TODO(tim.simpson): If exception is thrown file is not closed.
+            fclose(fp);
+        }
+
+        trim(user, '\'');
+        trim(user, '"');
+        trim(password, '\'');
+        trim(password, '"');
+    }
+}
+
 MySqlGuest::MySqlGuest(const std::string & uri)
 :   driver(0), con(0)
 {
     string user;
     string password;
-    
+
     get_username_and_password_from_config_file(user, password);
     log.info2("got these back %s, %s", user.c_str(), password.c_str());
     driver = get_driver_instance();
+    log.info2("Connecting to %s with username:%s, password:%s",
+              uri.c_str(), user.c_str(), password.c_str());
     con = driver->connect(uri, user, password);
     try {
         // Connect to the MySQL test database
@@ -86,41 +144,6 @@ MySqlGuest::~MySqlGuest() {
     delete con;
 }
 
-void MySqlGuest::get_username_and_password_from_config_file(string &user, string &password) {
-    const char *pattern = "^\\w+\\s*=\\s*(.*)$";
-    regex_t regex;
-    // 2 matches, the 2nd is the ()
-    int num_matches = 2;
-    regmatch_t matches[num_matches];
-    regcomp(&regex, pattern, REG_EXTENDED);
-    
-    FILE *fp=fopen("/etc/mysql/my.cnf","r");
-    char  tmp[256]={0x0};
-    bool is_in_client = false;
-    while(fp!=NULL && fgets(tmp, sizeof(tmp),fp) != NULL)
-    {
-        if (strstr(tmp, "[client]")) {
-            is_in_client = true;
-        }
-        if (strstr(tmp, "[mysqld]")) {
-            is_in_client = false;
-        }
-        
-        if (is_in_client && strstr(tmp, "user")) {
-            regexec(&regex, tmp, num_matches, matches, 0);
-            const char* begin_of_new_string = tmp+matches[num_matches-1].rm_so;
-            size_t match_size = matches[num_matches-1].rm_eo - matches[num_matches-1].rm_so - 1;
-            user.append(begin_of_new_string, match_size);
-        }
-        if (is_in_client && strstr(tmp, "password")) {
-            regexec(&regex, tmp, num_matches, matches, 0);
-            const char* begin_of_new_string = tmp+matches[num_matches-1].rm_so;
-            size_t match_size = matches[num_matches-1].rm_eo - matches[num_matches-1].rm_so - 1;
-            password.append(begin_of_new_string, match_size);
-        }
-    }
-    if(fp!=NULL) fclose(fp);
-}
 
 MySqlGuest::PreparedStatementPtr MySqlGuest::prepare_statement(const char * text) {
     auto_ptr<PreparedStatement> stmt(con->prepareStatement(text));

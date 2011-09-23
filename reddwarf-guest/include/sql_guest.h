@@ -110,7 +110,6 @@ class MySqlGuest {
         sql::Connection *con;
 
         PreparedStatementPtr prepare_statement(const char * text);
-        void get_username_and_password_from_config_file(std::string &username, std::string &password);
 };
 
 typedef boost::shared_ptr<MySqlGuest> MySqlGuestPtr;

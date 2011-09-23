@@ -1,4 +1,5 @@
 #include "guest.h"
+#include "log.h"
 #include <boost/foreach.hpp>
 #include <memory>
 #include "sql_guest.h"
@@ -11,6 +12,7 @@ using sql::ResultSet;
 using sql::SQLException;
 using namespace std;
 
+Log log;
 
 /**---------------------------------------------------------------------------
  *- MySQLUser
@@ -67,14 +69,14 @@ MySqlGuest::MySqlGuest(const std::string & uri)
     string password;
     
     get_username_and_password_from_config_file(user, password);
-    syslog(LOG_INFO, "got these back %s, %s", user.c_str(), password.c_str());
+    log.info2("got these back %s, %s", user.c_str(), password.c_str());
     driver = get_driver_instance();
     con = driver->connect(uri, user, password);
     try {
         // Connect to the MySQL test database
         con->setSchema("mysql");
     } catch (SQLException &e) {
-        syslog(LOG_ERR, "Error with connection %s", e.what());
+        log.info2("Error with connection %s", e.what());
         delete con;
         throw e;
     }
@@ -238,7 +240,7 @@ string MySqlGuest::disable_root() {
     char *buf = new char[37];
     uuid_unparse(id, buf);
     uuid_clear(id);
-    syslog(LOG_INFO, "generate %s", buf);
+    log.info2("generate %s", buf);
     {
         PreparedStatementPtr stmt = prepare_statement(
             "DELETE FROM mysql.user where User='root' and Host!='localhost'");
@@ -280,13 +282,13 @@ bool MySqlGuest::is_root_enabled() {
 namespace {
 
     JSON_METHOD(create_database) {
-        syslog(LOG_INFO, "guest create_database"); //", guest->create_database().c_str());
+        log.info2("guest create_database"); //", guest->create_database().c_str());
         return json_object_new_object();
     }
 
     JSON_METHOD(create_user) {
         string guest_return = guest->create_user("username", "password", "%");
-        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        log.info2("guest call %s", guest_return.c_str());
         return json_object_new_object();
     }
 
@@ -299,13 +301,13 @@ namespace {
                      << "'},";
         }
         user_xml << "]";
-        syslog(LOG_INFO, "guest call %s", user_xml.str().c_str());
+        log.info2("guest call %s", user_xml.str().c_str());
         return json_object_new_object();
     }
 
     JSON_METHOD(delete_user) {
         string guest_return = guest->delete_user("username");
-        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        log.info2("guest call %s", guest_return.c_str());
         return json_object_new_object();
     }
 
@@ -320,31 +322,31 @@ namespace {
                      << "'},";
         }
         database_xml << "]";
-        syslog(LOG_INFO, "guest call %s", database_xml.str().c_str());
+        log.info2("guest call %s", database_xml.str().c_str());
         return json_object_new_object();
     }
 
     JSON_METHOD(delete_database) {
         string guest_return = guest->delete_database("database_name");
-        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        log.info2("guest call %s", guest_return.c_str());
         return json_object_new_object();
     }
 
     JSON_METHOD(enable_root) {
         string guest_return = guest->enable_root();
-        syslog(LOG_INFO, "roots new password %s", guest_return.c_str());
+        log.info2("roots new password %s", guest_return.c_str());
         return json_object_new_object();
     }
 
     JSON_METHOD(disable_root) {
         string guest_return = guest->disable_root();
-        syslog(LOG_INFO, "guest call %s", guest_return.c_str());
+        log.info2( "guest call %s", guest_return.c_str());
         return json_object_new_object();
     }
 
     JSON_METHOD(is_root_enabled) {
         bool enabled = guest->is_root_enabled();
-        syslog(LOG_INFO, "guest call %i", enabled);
+        log.info2( "guest call %i", enabled);
         return json_object_new_object();
     }
 
@@ -373,7 +375,7 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr guest)
     };
     const MethodEntry * itr = static_method_entries;
     while(itr->name != 0) {
-        syslog(LOG_INFO, "Registering method %s", itr->name);
+        log.info2( "Registering method %s", itr->name);
         methods[itr->name] = itr->ptr;
         itr ++;
     }
@@ -386,10 +388,10 @@ json_object * MySqlMessageHandler::handle_message(json_object * arguments) {
     MethodMap::iterator method_itr = methods.find(method_name);
     if (method_itr != methods.end()) {
         MethodPtr & method = method_itr->second;  // value
-        syslog(LOG_INFO, "Executing method %s", method_name.c_str());
+        log.info2( "Executing method %s", method_name.c_str());
         return (*(method))(this->guest, arguments);
     } else {
-        syslog(LOG_INFO, "Couldnt find a method for %s", method_name.c_str());
+        log.info2( "Couldnt find a method for %s", method_name.c_str());
         return 0;
     }
 }

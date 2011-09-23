@@ -1,10 +1,12 @@
 #include "log.h"
-
-#include <iostream>
-#include <syslog.h>
+#ifdef _DEBUG
+    #include <iostream>
+#endif
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <syslog.h>
+
 
 void Log::info(const std::string & msg) {
     #ifdef _DEBUG
@@ -23,7 +25,7 @@ void Log::info2(const char* format, ... ) {
     #ifdef _DEBUG
         std::cout << buf << std::endl;
     #endif
-    
+
     syslog(LOG_INFO, "%s", buf);
     va_end(args);
 }
@@ -46,7 +48,7 @@ void Log::error2(const char* format, ... ) {
     #ifdef _DEBUG
         std::cerr << buf << std::endl;
     #endif
-    
+
     syslog(LOG_ERR, "%s", buf);
     va_end(args);
 }

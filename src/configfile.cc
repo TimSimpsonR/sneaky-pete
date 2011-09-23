@@ -1,4 +1,5 @@
 #include "configfile.h"
+#include "guest_exception.h"
 
 Configfile::Configfile(const std::string & config_path) {
     cfg_opt_t opts[] = {
@@ -11,17 +12,19 @@ Configfile::Configfile(const std::string & config_path) {
         CFG_END()
     };
     cfg = cfg_init(opts, CFGF_NOCASE);
-    cfg_parse(cfg, config_path.c_str());
+    if (cfg_parse(cfg, config_path.c_str()) != CFG_SUCCESS) {
+        throw GuestException(GuestException::CONFIG_FILE_PARSE_ERROR);
+    }
 }
 
 Configfile::~Configfile() {
     cfg_free(cfg);
 }
 
-std::string Configfile::get_string(const std::string & key) {
-    return cfg_getstr(cfg, key.c_str());
-}
-
 int Configfile::get_int(const std::string & key) {
     return cfg_getint(cfg, key.c_str());
+}
+
+std::string Configfile::get_string(const std::string & key) {
+    return cfg_getstr(cfg, key.c_str());
 }

@@ -20,6 +20,8 @@ Receiver::~Receiver() {
 
 void Receiver::finish_message(json_object * arguments, json_object * output) {
     queue->ack_message(last_delivery_tag);
+    json_object_put(arguments);
+    json_object_put(output);
 }
 
 json_object * Receiver::next_message() {

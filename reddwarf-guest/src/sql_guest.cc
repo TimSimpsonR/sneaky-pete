@@ -1,11 +1,14 @@
 #include "guest.h"
 #include "log.h"
 #include <boost/foreach.hpp>
+#include <fstream>
+#include <iostream>
 #include <memory>
 #include "sql_guest.h"
 #include <sstream>
 #include <regex.h>
 #include <uuid/uuid.h>
+
 
 using sql::PreparedStatement;
 using sql::ResultSet;
@@ -13,6 +16,27 @@ using sql::SQLException;
 using namespace std;
 
 Log log;
+
+
+/**---------------------------------------------------------------------------
+ *- MySqlGuestException
+ *---------------------------------------------------------------------------*/
+
+MySqlGuestException::MySqlGuestException(MySqlGuestException::Code code) throw()
+: code(code) {
+}
+
+MySqlGuestException::~MySqlGuestException() throw() {
+}
+
+const char * MySqlGuestException::what() const throw() {
+    switch(code) {
+        case MY_CNF_FILE_NOT_FOUND:
+            return "my.cnf file not found.";
+        default:
+            return "MySqlGuest failure.";
+    }
+}
 
 /**---------------------------------------------------------------------------
  *- MySQLUser
@@ -64,57 +88,56 @@ void MySQLDatabase::set_charset(const std::string & value) {
 
 namespace {
 
-    void trim(string & str, char bad_char) {
-        if (str.length() >= 2 && str[0] == bad_char
-            && str[str.length() - 1] == bad_char) {
-                str.erase(0, 1);
-                str.erase(str.length() - 1, str.length());
+    void append_match_to_string(string & str, regex_t regex,
+                                const char * line) {
+        // 2 matches, the 2nd is the ()
+        int num_matches = 2;
+        regmatch_t matches[num_matches];
+        if (regexec(&regex, line, num_matches, matches, 0) == 0) {
+            const regoff_t & start_index = matches[num_matches-1].rm_so;
+            const regoff_t & end_index = matches[num_matches-1].rm_eo;
+            const char* begin_of_new_string = line + start_index;
+            const regoff_t match_size = end_index - start_index;
+            if (match_size > 0) {
+                str.append(begin_of_new_string, match_size);
+            }
         }
     }
 
     void get_username_and_password_from_config_file(string & user,
                                                     string & password) {
-        const char *pattern = "^\\w+\\s*=\\s*(.*)$";
+        const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
         regex_t regex;
-        // 2 matches, the 2nd is the ()
-        int num_matches = 2;
-        regmatch_t matches[num_matches];
         regcomp(&regex, pattern, REG_EXTENDED);
 
-        FILE *fp=fopen("/etc/mysql/my.cnf","r");
-        char  tmp[256]={0x0};
+        ifstream my_cnf("/etc/mysql/my.cnf");
+        if (!my_cnf.is_open()) {
+            throw MySqlGuestException(MySqlGuestException::MY_CNF_FILE_NOT_FOUND);
+        }
+        std::string line;
+        //char  tmp[256]={0x0};
         bool is_in_client = false;
-        while(fp!=NULL && fgets(tmp, sizeof(tmp),fp) != NULL)
-        {
-            if (strstr(tmp, "[client]")) {
+        while(my_cnf.good()) {
+        //while(fp!=NULL && fgets(tmp, sizeof(tmp) -1,fp) != NULL)
+        //{
+            getline(my_cnf, line);
+            if (strstr(line.c_str(), "[client]")) {
                 is_in_client = true;
             }
-            if (strstr(tmp, "[mysqld]")) {
+            if (strstr(line.c_str(), "[mysqld]")) {
                 is_in_client = false;
             }
-
-            if (is_in_client && strstr(tmp, "user")) {
-                regexec(&regex, tmp, num_matches, matches, 0);
-                const char* begin_of_new_string = tmp+matches[num_matches-1].rm_so;
-                size_t match_size = matches[num_matches-1].rm_eo - matches[num_matches-1].rm_so - 1;
-                user.append(begin_of_new_string, match_size);
+            // Be careful - end index is non-inclusive.
+            if (is_in_client && strstr(line.c_str(), "user")) {
+                append_match_to_string(user, regex, line.c_str());
             }
-            if (is_in_client && strstr(tmp, "password")) {
-                regexec(&regex, tmp, num_matches, matches, 0);
-                const char* begin_of_new_string = tmp+matches[num_matches-1].rm_so;
-                size_t match_size = matches[num_matches-1].rm_eo - matches[num_matches-1].rm_so - 1;
-                password.append(begin_of_new_string, match_size);
+            if (is_in_client && strstr(line.c_str(), "password")) {
+                append_match_to_string(password, regex, line.c_str());
             }
         }
-        if(fp!=NULL) {
-            //TODO(tim.simpson): If exception is thrown file is not closed.
-            fclose(fp);
-        }
+        my_cnf.close();
 
-        trim(user, '\'');
-        trim(user, '"');
-        trim(password, '\'');
-        trim(password, '"');
+        regfree(&regex);
     }
 }
 

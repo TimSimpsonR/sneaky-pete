@@ -13,6 +13,7 @@ Receiver::Receiver(const char * host, int port,
     queue_name(queue_name)
 {
     connection = AmqpConnection::create(host, port, user_name, password);
+    queue = connection->new_channel();
 }
 
 Receiver::~Receiver() {
@@ -25,7 +26,6 @@ void Receiver::finish_message(json_object * arguments, json_object * output) {
 }
 
 json_object * Receiver::next_message() {
-    queue = connection->new_channel();
     AmqpQueueMessagePtr msg;
     while(!msg) {
         msg = queue->get_message(queue_name.c_str());

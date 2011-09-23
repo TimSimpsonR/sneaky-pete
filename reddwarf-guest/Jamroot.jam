@@ -110,4 +110,12 @@ exe sender
 	    #<link>shared:<dependency>memory_tests
 	;
 
+# Run this in Valgrind to find possible leaks.
+exe leak_tester
+	:	dependencies
+		guest_lib
+		src/leak_tester.cc
+	:   #<link>shared:<dependency>sql_guest_tests
+	    #<link>shared:<dependency>memory_tests
+	;
 

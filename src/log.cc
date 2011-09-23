@@ -1,12 +1,10 @@
 #include "log.h"
 
 #include <iostream>
-#ifdef _DEBUG
 #include <syslog.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#endif
+#include <stdio.h>
 
 void Log::info(const std::string & msg) {
     #ifdef _DEBUG

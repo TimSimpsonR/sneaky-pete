@@ -1,8 +1,12 @@
-#include "amqp_helpers.h"
+#include "nova/rpc/amqp.h"
 #include <algorithm>
 #include <boost/foreach.hpp>
 #include <limits>
 #include <sstream>
+
+
+namespace nova { namespace rpc {
+
 
 /**---------------------------------------------------------------------------
  *- AmqpException
@@ -380,3 +384,5 @@ void AmqpChannel::publish(const char * exchange_name,
         throw AmqpException(AmqpException::PUBLISH_FAILURE);
     }
 }
+
+} } // end namespace

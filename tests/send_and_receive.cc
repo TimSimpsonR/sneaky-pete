@@ -3,13 +3,17 @@
 
 #include <boost/date_time.hpp>
 #include <boost/thread.hpp>
-#include "receiver.h"
-#include "sender.h"
-#include "sql_guest.h"
+#include "nova/rpc/receiver.h"
+#include "nova/rpc/sender.h"
+#include "nova/guest/sql_guest.h"
 
+using nova::Log;
+using namespace nova::guest;
+using namespace nova::rpc;
 using boost::posix_time::milliseconds;
 using boost::posix_time::time_duration;
 using boost::thread;
+
 
 struct Daemon {
 

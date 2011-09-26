@@ -1,21 +1,25 @@
-#include "guest.h"
-#include "log.h"
+#include "nova/guest/guest.h"
+#include "nova/log.h"
 #include <boost/foreach.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include "sql_guest.h"
+#include "nova/guest/sql_guest.h"
 #include <sstream>
 #include <regex.h>
 #include <uuid/uuid.h>
 
 
+using nova::Log;
 using sql::PreparedStatement;
 using sql::ResultSet;
 using sql::SQLException;
 using namespace std;
 
 Log log;
+
+
+namespace nova { namespace guest {
 
 
 /**---------------------------------------------------------------------------
@@ -441,3 +445,5 @@ json_object * MySqlMessageHandler::handle_message(json_object * arguments) {
         return 0;
     }
 }
+
+} } // end namespace

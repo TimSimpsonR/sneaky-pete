@@ -1,6 +1,9 @@
-#include "configfile.h"
-#include "guest_exception.h"
+#include "nova/configfile.h"
+#include "nova/guest/guest_exception.h"
 
+
+using nova::Configfile;
+using nova::guest::GuestException;
 
 Configfile::Configfile(const char * config_path) {
     cfg_opt_t opts[] = {

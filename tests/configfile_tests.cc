@@ -1,6 +1,9 @@
 #define BOOST_TEST_MODULE Configfile_Tests
 #include <boost/test/unit_test.hpp>
-#include "configfile.h"
+#include "nova/configfile.h"
+
+
+using nova::ConfigFile;
 
 
 BOOST_AUTO_TEST_CASE(test_read_configfile)

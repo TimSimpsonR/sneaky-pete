@@ -1,6 +1,9 @@
-#include "sender.h"
-#include "amqp_helpers.h"
+#include "nova/rpc/sender.h"
+#include "nova/rpc/amqp.h"
 #include <sstream>
+
+
+using namespace nova::rpc;
 
 
 Sender::Sender(const char * host_name, int port,

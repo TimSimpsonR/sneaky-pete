@@ -3,8 +3,8 @@
 
 #include <boost/date_time.hpp>
 #include <boost/thread.hpp>
-#include "receiver.h"
-#include "sql_guest.h"
+#include "nova/rpc/receiver.h"
+#include "nova/guest/sql_guest.h"
 
 
 BOOST_AUTO_TEST_CASE(CheckForMemoryLeak)

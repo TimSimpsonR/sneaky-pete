@@ -5,13 +5,16 @@
 #include <boost/thread.hpp>
 #include <json/json.h>
 #include <iostream>
-#include "receiver.h"
+#include "nova/rpc/receiver.h"
 #include <signal.h>
-#include "sql_guest.h"
+#include "nova/guest/sql_guest.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+
+using nova::rpc::Receiver;
+using namespace nova::guest;
 
 /*
 The goal of these tests are to show the memory usage of various components.

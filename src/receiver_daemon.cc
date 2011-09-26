@@ -1,11 +1,16 @@
-#include "guest.h"
-#include "sql_guest.h"
-#include "receiver.h"
-#include "configfile.h"
-#include "log.h"
+#include "nova/guest/guest.h"
+#include "nova/guest/sql_guest.h"
+#include "nova/rpc/receiver.h"
+#include "nova/configfile.h"
 #include <json/json.h>
-#include "log.h"
+#include "nova/log.h"
 #include <sstream>
+
+
+using namespace nova;
+using namespace nova::guest;
+using namespace nova::rpc;
+
 
 const char error_message [] =
 "{"

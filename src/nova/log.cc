@@ -1,4 +1,4 @@
-#include "log.h"
+#include "nova/log.h"
 #ifdef _DEBUG
     #include <iostream>
 #endif
@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <syslog.h>
 
+
+using nova::Log;
 
 void Log::debug(const char* format, ... ) {
     #ifdef _DEBUG

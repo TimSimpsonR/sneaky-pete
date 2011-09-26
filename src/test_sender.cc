@@ -1,8 +1,13 @@
-#include "sender.h"
-#include "amqp_helpers.h"
+#include "nova/rpc/sender.h"
+#include "nova/rpc/amqp.h"
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+
+
+using namespace nova;
+using namespace nova::guest;
+using namespace nova::rpc;
 
 
 int main(int argc, const char* argv[]) {

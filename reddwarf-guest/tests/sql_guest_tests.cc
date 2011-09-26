@@ -1,11 +1,14 @@
 #define BOOST_TEST_MODULE My_SQL_Tests
 #include <boost/test/unit_test.hpp>
 
-#include "sql_guest.h"
-#include "configfile.h"
+#include "nova/guest/sql_guest.h"
+#include "nova/configfile.h"
 
 
+using nova::Configfile;
+using namespace nova::guest;
 using namespace std;
+
 
 /** TODO(tim.simpson): Write tests for the following functions:
     create_database,
@@ -20,8 +23,7 @@ using namespace std;
 */
 
 MessageHandlerPtr create_sql() {
-    const string config_location = "config/test-configfile.txt";
-    Configfile configfile(config_location);
+    Configfile configfile("config/test-configfile.txt");
     std::string mysql_uri = configfile.get_string("mysql_uri");
     MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
     MessageHandlerPtr rtn(new MySqlMessageHandler(guest));

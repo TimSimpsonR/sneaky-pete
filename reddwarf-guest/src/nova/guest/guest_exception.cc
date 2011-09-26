@@ -1,4 +1,7 @@
-#include "guest_exception.h"
+#include "nova/guest/guest_exception.h"
+
+
+namespace nova { namespace guest {
 
 GuestException::GuestException(GuestException::Code code) throw()
 : code(code)
@@ -16,3 +19,5 @@ const char * GuestException::what() throw() {
             return "An error occurred.";
     }
 }
+
+} }  // end namespace

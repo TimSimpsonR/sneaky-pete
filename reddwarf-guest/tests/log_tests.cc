@@ -1,6 +1,9 @@
 #define BOOST_TEST_MODULE Configfile_Tests
 #include <boost/test/unit_test.hpp>
-#include "log.h"
+#include "nova/log.h"
+
+
+using nova::Log;
 
 
 BOOST_AUTO_TEST_CASE(test_log_info2)

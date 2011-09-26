@@ -36,13 +36,13 @@ alias test_dependencies
 	;
 
 lib guest_lib
-    :   src/amqp_helpers.cc
-        src/receiver.cc
-        src/sender.cc
-        src/sql_guest.cc
-        src/configfile.cc
-        src/log.cc
-        src/guest_exception.cc
+    :   src/nova/configfile.cc
+        src/nova/log.cc
+        src/nova/guest/guest_exception.cc
+        src/nova/guest/sql_guest.cc
+        src/nova/rpc/amqp.cc
+        src/nova/rpc/receiver.cc
+        src/nova/rpc/sender.cc
     ;
 
 unit-test send_and_receive
@@ -100,7 +100,6 @@ exe receiver
     :   #<dependency>sql_guest_tests
 	   # <dependency>memory_tests
 	;
-
 
 exe sender
 	:	dependencies

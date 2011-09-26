@@ -1,6 +1,9 @@
-#include "receiver.h"
-#include "amqp_helpers.h"
+#include "nova/rpc/receiver.h"
+#include "nova/rpc/amqp.h"
 #include <sstream>
+
+
+namespace nova { namespace rpc {
 
 
 Receiver::Receiver(const char * host, int port,
@@ -44,3 +47,5 @@ json_object * Receiver::next_message() {
     last_delivery_tag = msg->delivery_tag;
     return new_obj;
 }
+
+} }  // end namespace

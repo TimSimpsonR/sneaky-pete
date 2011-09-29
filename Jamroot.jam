@@ -14,7 +14,10 @@ project
 		<variant>debug:<define>_DEBUG
 	;
 
-# Declare our dependencies
+###############################################################################
+#       Dependencies
+###############################################################################
+
 
 # System libraries are found automatically by our toolset (GCC).
 # So for example, if you pass "-lrabbitmq" to gcc, here its "<name>rabbitmq."
@@ -35,8 +38,43 @@ alias test_dependencies
 	:	lib_boost_unit_test_framework lib_boost_thread
 	;
 
+
+###############################################################################
+#      Core Library and Unit Tests.
+###############################################################################
+
+lib lib_nova_json
+    :   src/nova/json.cc
+    ;
+
+lib lib_nova_log
+    :   src/nova/log.cc
+    ;
+
+unit-test apt_json_tests
+    :   lib_json
+        lib_nova_json
+        lib_nova_log
+        src/nova/guest/apt_json.cc
+        src/nova/guest/apt_exception.cc
+        tests/nova/guest/apt_json_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"valgrind --leak-check=full"
+	;
+
+unit-test json_tests
+    :   lib_json
+        lib_nova_json
+        tests/nova/json_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"valgrind --leak-check=full"
+	;
+
 lib guest_lib
     :   src/nova/configfile.cc
+        src/nova/json.cc
         src/nova/log.cc
         src/nova/guest/guest_exception.cc
         src/nova/guest/sql_guest.cc
@@ -44,6 +82,11 @@ lib guest_lib
         src/nova/rpc/receiver.cc
         src/nova/rpc/sender.cc
     ;
+
+
+###############################################################################
+#      Functional Tests
+###############################################################################
 
 unit-test send_and_receive
 	:	dependencies
@@ -81,6 +124,10 @@ unit-test log_tests
         <testing.launcher>"valgrind --leak-check=full"
 	;
 
+
+###############################################################################
+#      Binaries
+###############################################################################
 
 run     dependencies
         guest_lib

@@ -38,13 +38,13 @@ int main(int argc, const char* argv[]) {
                       "guest.hostname_exchange", "guest.hostname", "");
         sender.send("{'method':'is_root_enabled'}");
 
-       json_object * input = receiver.next_message();
-        json_object * output = handler.handle_message(input);
+       JsonObjectPtr input = receiver.next_message();
+       JsonObjectPtr output = handler.handle_message(input);
         //json_object * output = json_tokener_parse("{'good'}");
         std::stringstream msg;
         msg << i << ". ";
-        msg << "" << json_object_to_json_string(input);
-        msg << "" << json_object_to_json_string(output);
+        msg << "" << input->to_string();
+        msg << "" << output->to_string();
         log.info(msg.str());
 
         receiver.finish_message(input, output);

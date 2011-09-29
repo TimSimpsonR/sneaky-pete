@@ -1,3 +1,4 @@
+#include "nova/guest/guest.h"
 #include "nova/rpc/sender.h"
 #include "nova/rpc/amqp.h"
 #include <iostream>

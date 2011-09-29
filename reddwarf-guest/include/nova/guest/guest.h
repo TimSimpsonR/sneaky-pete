@@ -2,7 +2,7 @@
 #define __NOVA_GUEST_GUEST_H
 
 #include <cstdlib>  // Needed for json/json.h below... :(
-#include <json/json.h>
+#include <nova/json.h>
 #include <boost/smart_ptr.hpp>
 
 
@@ -14,7 +14,7 @@ namespace nova { namespace guest {
 
         /** Takes a JSON object as input and returns one as output. Returns nullptr
          *  if it doesn't know how to handle the input. */
-        virtual json_object * handle_message(json_object * json) = 0;
+        virtual nova::JsonObjectPtr handle_message(JsonObjectPtr json) = 0;
 
     };
 

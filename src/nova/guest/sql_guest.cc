@@ -11,6 +11,8 @@
 
 
 using nova::Log;
+using nova::JsonObject;
+using nova::JsonObjectPtr;
 using sql::PreparedStatement;
 using sql::ResultSet;
 using sql::SQLException;
@@ -326,20 +328,22 @@ bool MySqlGuest::is_root_enabled() {
 #define STR_VALUE(arg)  #arg
 #define METHOD_NAME(name) STR_VALUE(name)
 #define REGISTER(name) { METHOD_NAME(name), & name }
-#define JSON_METHOD(name) json_object * \
-    name(const MySqlGuestPtr & guest, json_object * args)
+#define JSON_METHOD(name) JsonObjectPtr \
+    name(const MySqlGuestPtr & guest, JsonObjectPtr args)
 
 namespace {
 
     JSON_METHOD(create_database) {
         log.info2("guest create_database"); //", guest->create_database().c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(create_user) {
         string guest_return = guest->create_user("username", "password", "%");
         log.info2("guest call %s", guest_return.c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(list_users) {
@@ -352,13 +356,15 @@ namespace {
         }
         user_xml << "]";
         log.info2("guest call %s", user_xml.str().c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(delete_user) {
         string guest_return = guest->delete_user("username");
         log.info2("guest call %s", guest_return.c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(list_databases) {
@@ -373,31 +379,36 @@ namespace {
         }
         database_xml << "]";
         log.info2("guest call %s", database_xml.str().c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(delete_database) {
         string guest_return = guest->delete_database("database_name");
         log.info2("guest call %s", guest_return.c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(enable_root) {
         string guest_return = guest->enable_root();
         log.info2("roots new password %s", guest_return.c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(disable_root) {
         string guest_return = guest->disable_root();
         log.info2( "guest call %s", guest_return.c_str());
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     JSON_METHOD(is_root_enabled) {
         bool enabled = guest->is_root_enabled();
         log.info2( "guest call %i", enabled);
-        return json_object_new_object();
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
     }
 
     struct MethodEntry {
@@ -431,9 +442,9 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr guest)
     }
 }
 
-json_object * MySqlMessageHandler::handle_message(json_object * arguments) {
-    json_object *method = json_object_object_get(arguments, "method");
-    string method_name = json_object_get_string(method);
+JsonObjectPtr MySqlMessageHandler::handle_message(JsonObjectPtr arguments) {
+    string method_name;
+    arguments->get_string("method", method_name);
 
     MethodMap::iterator method_itr = methods.find(method_name);
     if (method_itr != methods.end()) {
@@ -442,7 +453,7 @@ json_object * MySqlMessageHandler::handle_message(json_object * arguments) {
         return (*(method))(this->guest, arguments);
     } else {
         log.info2( "Couldnt find a method for %s", method_name.c_str());
-        return 0;
+        return JsonObjectPtr();
     }
 }
 

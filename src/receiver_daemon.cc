@@ -48,16 +48,16 @@ int main(int argc, const char* argv[]) {
         bool quit = false;
         while(!quit) {
             log.info("getting and getting");
-            json_object * input = receiver.next_message();
-            log.info2("output of json %s", json_object_get_string(input));
-            json_object * output = 0;
+            JsonObjectPtr input = receiver.next_message();
+            log.info2("output of json %s", input->to_string());
+            JsonObjectPtr output;
             #ifndef _DEBUG
             try {
             #endif
 
             #ifdef _DEBUG
-                json_object * method_obj = json_object_object_get(input, "method");
-                std::string method_str(json_object_get_string(method_obj));
+                std::string method_str;
+                input->get_string("method", method_str);
                 log.info2("method=%s", method_str.c_str());
                 if (method_str == "exit") {
                     quit = true;

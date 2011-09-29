@@ -6,6 +6,8 @@
 
 
 using nova::Configfile;
+using nova::JsonObject;
+using nova::JsonObjectPtr;
 using namespace nova::guest;
 using namespace std;
 
@@ -35,12 +37,8 @@ BOOST_AUTO_TEST_CASE(create_database)
 {
     MessageHandlerPtr sql = create_sql();
     for(int i = 0; i < 1000; i ++) {
-        json_object * input = json_tokener_parse(
-            "{'method':'is_root_enabled'}");
-        json_object * output = sql->handle_message(input);
-        const char * str_output = json_object_to_json_string(output);
-        BOOST_CHECK_EQUAL(str_output, "{ }");
-        json_object_put(output);
-        json_object_put(input);
+        JsonObjectPtr input(new JsonObject("{'method':'is_root_enabled'}"));
+        JsonObjectPtr output = sql->handle_message(input);
+        BOOST_CHECK_EQUAL(output->to_string(), "{ }");
     }
 }

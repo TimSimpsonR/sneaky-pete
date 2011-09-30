@@ -12,7 +12,7 @@ project
 		<include>$(BOOST_ROOT)
 		<include>$(LIB_HOME)/amqpcpp/include
 	;
-
+ 
 #project reddwarf/guest
 #    : requirements
 #        <define>REDDWARF_GUEST

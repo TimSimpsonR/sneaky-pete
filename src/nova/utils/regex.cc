@@ -35,7 +35,6 @@ RegexMatchesPtr Regex::match(const char * line, size_t max_matches) const {
 
 RegexMatches::RegexMatches(const char * line, regmatch_t * matches, size_t size)
 : line(line), matches(matches), nmatch(size) {
-    matches = new regmatch_t[size];
 }
 
 RegexMatches::~RegexMatches() {

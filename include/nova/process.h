@@ -83,10 +83,10 @@ class Process {
         const char * const * argv;
         bool eof_flag;
         Log log;
+        pid_t pid;
+        const char * program_path;
         int std_out_fd[2];
         int std_in_fd[2];
-        const char * program_path;
-
 
         void create_argv(char * * & new_argv, int & new_argv_length,
                          const char * program_path,
@@ -97,7 +97,7 @@ class Process {
         // Returns true when the input file descriptor is ready.
         bool ready(int file_desc, const boost::optional<double> seconds);
 
-
+        void set_eof();
 };
 
 }  // end nova namespace

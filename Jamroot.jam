@@ -85,7 +85,7 @@ unit-test regex_tests
         tests/nova/utils/regex_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
-        #<testing.launcher>"valgrind --leak-check=full"
+        <testing.launcher>"valgrind --leak-check=full"
     ;
 
 unit-test apt_json_tests
@@ -109,13 +109,15 @@ unit-test apt_tests
     :   lib_nova_log
         src/nova/guest/apt.cc
         src/nova/guest/apt_exception.cc
+        src/nova/utils/io.cc
         src/nova/process.cc
         src/nova/utils/regex.cc
         tests/nova/guest/apt_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
-        #<testing.launcher>"valgrind --leak-check=full"
-        <testing.launcher>BOOST_TEST_CATCH_SYSTEM_ERRORS=no
+        <define>_VERBOSE_NOVA_GUEST_APT
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+        #<testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no"
     ;
 
 unit-test json_tests

@@ -107,7 +107,6 @@ Process::Process(const char * program_path, const char * const argv[])
     char * * new_argv;
     int new_argv_length;
     create_argv(new_argv, new_argv_length, program_path, argv);
-    pid_t pid;
     int status = posix_spawn(&pid, program_path, &file_actions, NULL,
                              new_argv, environ);
     delete_argv(new_argv, new_argv_length);
@@ -124,8 +123,7 @@ Process::Process(const char * program_path, const char * const argv[])
 
 
 Process::~Process() {
-    close(std_out_fd[0]);
-    close(std_in_fd[0]);
+    set_eof();  // Close pipes.
 }
 
 void Process::create_argv(char * * & new_argv, int & new_argv_length,
@@ -154,7 +152,6 @@ void Process::delete_argv(char * * & new_argv, int & new_argv_length) {
     new_argv_length = 0;
 }
 
-
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
     if (eof_flag == true) {
         throw ProcessException(ProcessException::PROGRAM_FINISHED);
@@ -165,8 +162,8 @@ size_t Process::read_into(stringstream & std_out, const optional<double> seconds
     }
     size_t count = io::read_with_throw(log, std_out_fd[0], buf, 1047);
     if (count == 0) {
-        eof_flag = true;
         LOG_DEBUG("read returned 0, EOF");
+        set_eof();
         return 0; // eof
     }
     LOG_DEBUG("Writing.");
@@ -195,10 +192,21 @@ size_t Process::read_until_pause(stringstream & std_out,
 }
 
 bool Process::ready(int file_desc, const optional<double> seconds) {
+    if (eof_flag == true) {
+        throw ProcessException(ProcessException::PROGRAM_FINISHED);
+    }
     fd_set file_set;
     FD_ZERO(&file_set);
     FD_SET(file_desc, &file_set);
     return io::select_with_throw(file_desc + 1, &file_set, NULL, NULL, seconds);
+}
+
+void Process::set_eof() {
+    if (!eof()) {
+        eof_flag = true;
+        close(std_out_fd[0]);
+        close(std_in_fd[0]);
+    }
 }
 
 void Process::wait_for_eof(double seconds) {

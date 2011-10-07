@@ -15,7 +15,7 @@ namespace nova { namespace guest {
         void remove(const char * package_name, double time_out);
 
         boost::optional<std::string> version(const char * package_name,
-                                             const double time_out);
+                                             const double time_out=30);
     }
 
     class AptException : public std::exception {
@@ -40,14 +40,13 @@ namespace nova { namespace guest {
 
             };
 
-            AptException(Code code) throw();
+            AptException(const Code code) throw();
 
             virtual ~AptException() throw();
 
             virtual const char * what() const throw();
 
-        private:
-            Code code;
+            const Code code;
 
     };
 

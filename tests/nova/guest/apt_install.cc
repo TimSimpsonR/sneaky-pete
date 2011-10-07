@@ -11,7 +11,11 @@ using std::stringstream;
 
 int main(int argc, const char* argv[]) {
     //apt::fix(60);
-    apt::install(argv[1], 30);
+//    apt::install(argv[1], 30);
+
+    apt::remove("fake_package", 60);
+//optional<string> version = apt::version("rabbitmq-server");
+
     /*for (int i = 0; i < 15; i ++) {
         optional<string> version = apt::version("cowsay");
         if (version) {

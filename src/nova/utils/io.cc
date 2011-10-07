@@ -173,9 +173,9 @@ bool & Timer::time_out_occurred() {
 
 // Throws exceptions if errors are detected.
 size_t read_with_throw(Log & log, int fd, char * const buf, size_t count) {
-    log.debug("Before read");
+    //log.debug("Before read");
     ssize_t bytes_read = ::read(fd, buf, count);
-    log.debug("After read");
+    //log.debug("After read");
     checkGE0(log, bytes_read, IOException::READ_ERROR);
     return (size_t) bytes_read;
 }
@@ -190,10 +190,10 @@ int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
     sigset_t empty_set;
     sigemptyset(&empty_set);
     // Unblock all signals for the duration of select.
-    log.debug("Before pselect");
+    //log.debug("Before pselect");
     int ready = pselect(nfds, readfds, writefds, errorfds,
                         (!seconds ? NULL: &time_out), &empty_set);
-    log.debug("after pselect");
+    //log.debug("after pselect");
     if (ready < 0) {
         if (errno == EINTR) {
             if (Timer::time_out_occurred()) {

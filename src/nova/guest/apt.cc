@@ -37,6 +37,14 @@ using nova::utils::io::TimeOutException;
 using nova::utils::io::Timer;
 using std::vector;
 
+#ifdef _VERBOSE_NOVA_GUEST_APT
+#define VERBOSE_LOG(args) log.debug(args)
+#define VERBOSE_LOG3(a1, a2, a3) log.debug(a1, a2, a3)
+#else
+#define VERBOSE_LOG(args) /* args */
+#define VERBOSE_LOG3(a1, a2, a3) /* a1, a2, a3 */
+#endif
+
 namespace nova { namespace guest { namespace apt {
 
 enum OperationResult {
@@ -86,24 +94,24 @@ optional<ProcessResult> match_output(Process & process,
     Timer timer(seconds);
     while(!process.eof()) {
         size_t count = process.read_into(std_out, boost::none);
-        log.info("************************************************************");
-        log.info(std_out.str());
-        log.info("************************************************************");
+        VERBOSE_LOG("********************************************************");
+        VERBOSE_LOG(std_out.str().c_str());
+        VERBOSE_LOG("********************************************************");
         if (count == 0) {
             if (!process.eof()) {
                 log.error("read should not exit until it gets data.");
                 throw AptException(AptException::GENERAL);
             }
         }
-        const char * const output = std_out.str().c_str();
+        string output = std_out.str();
         for (size_t index = 0; index < regexes.size(); index ++) {
-            RegexPtr & regex = regexes[index];
-            RegexMatchesPtr matches = regex->match(output);
-            log.info("_________________________________________________________");
-            log.info(output);
-            log.debug("Trying to match %s against regex %s",
-                      output, patterns[index].c_str());
-            log.info("_________________________________________________________");
+            RegexPtr & regex = regexes[index];;
+            RegexMatchesPtr matches = regex->match(output.c_str());
+            VERBOSE_LOG("____________________________________________________");
+            VERBOSE_LOG(output.c_str());
+            VERBOSE_LOG3("Trying to match %s against regex %s", output.c_str(),
+                        patterns[index].c_str());
+            VERBOSE_LOG("____________________________________________________");
             if (!!matches) {
                 ProcessResult result;
                 result.index = index;
@@ -136,7 +144,7 @@ OperationResult _install(const char * package_name, double time_out) {
     // 1 - 2 = could not find package
     patterns.push_back(str(format("E: Unable to locate package %s")
                            % package_name));
-    patterns.push_back(str(format("Couldn't find package % s")
+    patterns.push_back(str(format("Couldn't find package %s")
                            % package_name));
     // 3 = need to fix
     patterns.push_back("dpkg was interrupted, you must manually run "
@@ -201,7 +209,87 @@ void install(const char * package_name, double time_out) {
     }
 }
 
+OperationResult _remove(const char * package_name, double time_out) {
+    Log log;
+    const char * program_path = "/usr/bin/sudo"; // "/bin/cat"; //"/bin/ls";
+    const char * const argv[] = {"-E", "apt-get", "-y",
+        "--allow-unauthenticated", "remove", package_name, (char *) 0};
+    Process process(program_path, argv);
+
+    vector<string> patterns;
+    // 0 = permissions issue
+    patterns.push_back(".*password*");
+    // 1 -2 = Package not found
+    patterns.push_back(str(format("E: Unable to locate package %s")
+                           % package_name));
+    patterns.push_back("Couldn't find package");
+    // 3 - 4 = Reinstall first
+    patterns.push_back("Package is in a very bad inconsistent state");
+    patterns.push_back("Sub-process /usr/bin/dpkg returned an error code");
+    // 5 = need to fix
+    patterns.push_back("dpkg was interrupted, you must manually run "
+                       "'sudo dpkg --configure -a'");
+    // 6 = lock error
+    patterns.push_back("Unable to lock the administration directory");
+    // 7 - 8 = Success, but the captured string must be our package followed by EOF.
+    patterns.push_back("Removing (" PACKAGE_NAME_REGEX ")");
+    patterns.push_back("Package (" PACKAGE_NAME_REGEX ") is not installed, "
+                       "so not removed");
+
+    optional<ProcessResult> result;
+    try  {
+        result = match_output(process, patterns, time_out);
+    } catch(const TimeOutException & toe) {
+        throw AptException(AptException::PROCESS_TIME_OUT);
+    }
+    if (!!result) { // eof
+        const int index = result.get().index;
+        if (index == 0) {
+            throw AptException(AptException::PERMISSION_ERROR);
+        } else if (index == 1 || index == 2) {
+            log.error2("Could not find package %s.", package_name);
+            throw AptException(AptException::PACKAGE_NOT_FOUND);
+        } else if (index == 3 || index == 4) {
+            return REINSTALL_FIRST;
+        } else if (index == 5) {
+            return RUN_DPKG_FIRST;
+        } else if (index == 6) {
+            throw AptException(AptException::ADMIN_LOCK_ERROR);
+        } else {
+            if (index == 7 || index == 8) {
+                string output_package_name = result.get().matches->get(1);
+                if (output_package_name != package_name) {
+                    log.error2("Wait, saw 'Setting up' but it wasn't our "
+                               "package! %s != %s", package_name,
+                               output_package_name.c_str());
+                    throw AptException(AptException::GENERAL);
+                }
+            }
+            try {
+                process.wait_for_eof(time_out);
+            } catch(const TimeOutException & toe) {
+                throw AptException(AptException::PROCESS_TIME_OUT);
+            }
+            return OK;
+        }
+    }
+    log.error("Got EOF calling apt-get remove!");
+    throw AptException(AptException::GENERAL);
+}
+
 void remove(const char * package_name, double time_out) {
+    OperationResult result = _remove(package_name, time_out);
+    if (result != OK) {
+        if (result == REINSTALL_FIRST) {
+            _install(package_name, time_out);
+        } else if (result == RUN_DPKG_FIRST) {
+            fix(time_out);
+        }
+        result = _remove(package_name, time_out);
+        if (result != OK) {
+            throw AptException(AptException::PACKAGE_STATE_ERROR);
+        }
+    }
 }
 
 typedef boost::optional<std::string> optional_string;
@@ -217,8 +305,8 @@ optional<string> version(const char * package_name, const double time_out) {
     patterns.push_back("No packages found matching (" PACKAGE_NAME_REGEX
                        ")\\.");
     // 1 = success
-    patterns.push_back(str(format("\\w\\w\\s+(" PACKAGE_NAME_REGEX
-                                  ")\\s+(\\S+)\\s+(.*)$") % package_name));
+    patterns.push_back("\n\\w\\w\\s+(" PACKAGE_NAME_REGEX
+                       ")\\s+(\\S+)\\s+(.*)$");
     optional<ProcessResult> result;
     try  {
         result = match_output(process, patterns, time_out);

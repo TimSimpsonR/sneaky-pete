@@ -21,13 +21,16 @@ project
 
 # System libraries are found automatically by our toolset (GCC).
 # So for example, if you pass "-lrabbitmq" to gcc, here its "<name>rabbitmq."
+lib lib_apt_pkg : : <name>apt-pkg ;
 lib lib_boost_thread : : <name>boost_thread ;
 lib lib_boost_unit_test_framework : : <name>boost_unit_test_framework ;
+lib lib_confuse : : <name>confuse ;
 lib lib_json : : <name>json ;
 lib lib_mysqlcppconn : : <name>mysqlcppconn ;
 lib lib_rabbitmq : : <name>rabbitmq ;
+lib lib_rt : : <name>rt ;
 lib lib_uuid : : <name>uuid ;
-lib lib_confuse : : <name>confuse ;
+
 
 alias dependencies
 	:   lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid
@@ -51,6 +54,40 @@ lib lib_nova_log
     :   src/nova/log.cc
     ;
 
+#lib lib_nova_guest_apt
+#    :   src/nova/guest/apt_json.cc
+#        src/nova/guest/apt_exception.cc
+#
+    #;
+
+
+# Process
+exe parrot
+    :   lib_nova_log
+        tests/nova/parrot.cc
+    ;
+unit-test process_tests
+    :   src/nova/utils/io.cc
+        lib_nova_log
+        src/nova/process.cc
+        lib_rt
+        tests/nova/process_tests.cc
+        test_dependencies
+    :   <dependency>parrot
+        <define>BOOST_TEST_DYN_LINK
+        <define>_NOVA_PROCESS_VERBOSE
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+    ;
+
+# Regex
+unit-test regex_tests
+    :   src/nova/utils/regex.cc
+        tests/nova/utils/regex_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        #<testing.launcher>"valgrind --leak-check=full"
+    ;
+
 unit-test apt_json_tests
     :   lib_json
         lib_nova_json
@@ -62,6 +99,24 @@ unit-test apt_json_tests
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"valgrind --leak-check=full"
 	;
+
+# This fails unless you define:
+# BOOST_TEST_CATCH_SYSTEM_ERRORS=no
+# in the environment first. Its a bug in Boost Test thats apparently been
+# fixed in recent versions:
+#http://stackoverflow.com/questions/5325202/boostunit-test-case-fails-because-a-child-process-exits-with-nonzero
+unit-test apt_tests
+    :   lib_nova_log
+        src/nova/guest/apt.cc
+        src/nova/guest/apt_exception.cc
+        src/nova/process.cc
+        src/nova/utils/regex.cc
+        tests/nova/guest/apt_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        #<testing.launcher>"valgrind --leak-check=full"
+        <testing.launcher>BOOST_TEST_CATCH_SYSTEM_ERRORS=no
+    ;
 
 unit-test json_tests
     :   lib_json
@@ -125,10 +180,6 @@ unit-test log_tests
 	;
 
 
-###############################################################################
-#      Binaries
-###############################################################################
-
 run     dependencies
         guest_lib
         test_dependencies
@@ -139,6 +190,27 @@ run     dependencies
     :   memory_tests  # The target name is placed here, for some reason. :(
     ;
 
+
+###############################################################################
+#      Binaries
+###############################################################################
+
+exe apt_install
+    :   lib_nova_log
+        src/nova/guest/apt.cc
+        src/nova/guest/apt_exception.cc
+        tests/nova/guest/apt_install.cc
+        src/nova/utils/io.cc
+        src/nova/process.cc
+        src/nova/utils/regex.cc
+        lib_rt
+    :   <define>_NOVA_PROCESS_VERBOSE
+    ;
+
+exe apt_get
+    :   tests/nova/guest/apt-get.cc
+        lib_apt_pkg
+    ;
 
 exe receiver
 	:	dependencies

@@ -38,3 +38,7 @@ sh autogen.sh
 ./configure
 make
 sudo make install
+
+
+# Apt
+sudo apt-get install libapt-pkg-dev

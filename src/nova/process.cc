@@ -18,9 +18,13 @@
 
 // Be careful with this Macro, as it comments out the entire line.
 #ifdef _NOVA_PROCESS_VERBOSE
-#define LOG_DEBUG log.debug
+#define LOG_DEBUG(a) log.debug(a)
+#define LOG_DEBUG2(a, b) log.debug(a, b)
+#define LOG_DEBUG3(a, b, c) log.debug(a, b, c)
 #else
-#define LOG_DEBUG //
+#define LOG_DEBUG(a) /* log.debug(a) */
+#define LOG_DEBUG2(a, b) /* log.debug(a, b) */
+#define LOG_DEBUG3(a, b, c) /* log.debug(a, b, c) */
 #endif
 
 extern char **environ;
@@ -168,9 +172,9 @@ size_t Process::read_into(stringstream & std_out, const optional<double> seconds
     }
     LOG_DEBUG("Writing.");
     std_out.write(buf, count);
-    LOG_DEBUG("count = %d, SO FAR %d", count, std_out.str().length());
+    LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());
     buf[count] = 0;  // Have to do this or Valgrind fails.
-    LOG_DEBUG("OUTPUT:%s", buf);
+    LOG_DEBUG2("OUTPUT:%s", buf);
     LOG_DEBUG("Exit read_into");
     return (size_t) count;
 }
@@ -230,7 +234,7 @@ void Process::write(const char * msg) {
 
 void Process::write(const char * msg, size_t length) {
     //::write(std_in_fd[0], msg, length);
-    LOG_DEBUG("Writing msg with %d bytes.", length);
+    LOG_DEBUG2("Writing msg with %d bytes.", length);
     ssize_t count = ::write(std_in_fd[1], msg, length);
     if (count < 0) {
         log.error2("write failed. errno = %d", errno);

@@ -1,14 +1,16 @@
 #include "nova/guest/apt.h"
 
+#include <boost/optional.hpp>
 #include "nova/log.h"
 #include <sstream>
 #include <string>
 
-using nova::Log;
 using nova::JsonArray;
 using nova::JsonArrayPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using nova::Log;
+using boost::optional;
 using std::string;
 using std::stringstream;
 
@@ -34,8 +36,9 @@ JsonObjectPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
                         args->get_int("time_out"));
             rtn << "{}";
         } else if (method_name == "version") {
-            string version = apt::version(args->get_string("package_name"));
-            rtn << "{'version':'" << version << "'}";
+            const char * package_name = args->get_string("package_name");
+            optional<string> version = apt::version(package_name);
+            rtn << "{'version':'" << (version ? version.get() : "null") << "'}";
         } else {
             JsonObjectPtr rtn;
             return rtn;

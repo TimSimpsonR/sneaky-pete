@@ -6,9 +6,11 @@
  *  defines fake versions of the later. */
 #include "nova/guest/apt.h"
 #include <boost/foreach.hpp>
+#include <boost/optional.hpp>
 
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using boost::optional;
 using std::string;
 
 namespace {
@@ -34,15 +36,15 @@ namespace {
 
 namespace nova { namespace guest { namespace apt {
 
-    void install(const char * package_name, int time_out) {
+    void install(const char * package_name, const double time_out) {
         (*install_func)(package_name, time_out);
     }
 
-    void remove(const char * package_name, int time_out) {
+    void remove(const char * package_name, const double time_out) {
         (*remove_func)(package_name, time_out);
     }
 
-    std::string version(const char * package_name) {
+    optional<string> version(const char * package_name, const double time_out) {
         return (*version_func)(package_name, 0);
     }
 
@@ -99,6 +101,7 @@ BOOST_AUTO_TEST_CASE(version_method)
         "{ 'method':'version', "
         "  'args':{'package_name':'curdsay'}"
         "}"));
+    BOOST_CHECK_EQUAL(true, true);
     JsonObjectPtr output = handler.handle_message(input);
 
     BOOST_CHECK_EQUAL("{ \"version\": \"blah\" }", output->to_string());
@@ -108,6 +111,7 @@ BOOST_AUTO_TEST_CASE(version_method)
 
 BOOST_AUTO_TEST_CASE(errors_should_be_caught)
 {
+    BOOST_CHECK_EQUAL(true, true);
      struct FakeThrowingMethod : public FakeMethod {
         virtual string operator()(const char * package_name, int time_out) {
             throw AptException(AptException::ADMIN_LOCK_ERROR);

@@ -194,7 +194,7 @@ OperationResult _install(const char * package_name, double time_out) {
     throw AptException(AptException::GENERAL);
 }
 
-void install(const char * package_name, double time_out) {
+void install(const char * package_name, const double time_out) {
     Log log;
     OperationResult result = _install(package_name, time_out);
     if (result != OK) {
@@ -277,7 +277,7 @@ OperationResult _remove(const char * package_name, double time_out) {
     throw AptException(AptException::GENERAL);
 }
 
-void remove(const char * package_name, double time_out) {
+void remove(const char * package_name, const double time_out) {
     OperationResult result = _remove(package_name, time_out);
     if (result != OK) {
         if (result == REINSTALL_FIRST) {

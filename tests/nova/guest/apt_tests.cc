@@ -71,22 +71,6 @@ BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
                         PACKAGE_NOT_FOUND);
 }
 
-bool figlet_exists() {
-    ifstream file("/usr/bin/figlet");
-    return file.good();
-}
-
-BOOST_AUTO_TEST_CASE(install_and_remove_test)
-{
-    BOOST_REQUIRE_EQUAL(figlet_exists(), false);
-
-    apt::install("figlet", 60);
-    BOOST_REQUIRE_EQUAL(figlet_exists(), true);
-
-    apt::remove("figlet", 60);
-    BOOST_REQUIRE_EQUAL(figlet_exists(), false);
-}
-
 
 bool cowsay_exists() {
     ifstream file("/usr/games/cowsay");
@@ -94,7 +78,9 @@ bool cowsay_exists() {
     return file.good();
 }
 
-/** This is taken from the original Python tests. */
+/** This is taken from the original Python tests.
+ *  Because it picks on cowsay it probably should not be a unit test,but for
+ *  now its the best way to prove this code is working. */
 BOOST_AUTO_TEST_CASE(abuse_cowsay) {
 
     const bool cowsay_originally_installed = cowsay_exists();

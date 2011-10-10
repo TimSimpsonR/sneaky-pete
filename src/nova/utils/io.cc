@@ -191,20 +191,25 @@ int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
     sigemptyset(&empty_set);
     // Unblock all signals for the duration of select.
     //log.debug("Before pselect");
-    int ready = pselect(nfds, readfds, writefds, errorfds,
-                        (!seconds ? NULL: &time_out), &empty_set);
-    //log.debug("after pselect");
-    if (ready < 0) {
-        if (errno == EINTR) {
-            if (Timer::time_out_occurred()) {
-                throw TimeOutException();
+    int ready = -1;
+    while(ready < 0)
+    {
+        ready = pselect(nfds, readfds, writefds, errorfds,
+                            (!seconds ? NULL: &time_out), &empty_set);
+        //log.debug("after pselect");
+        if (ready < 0) {
+            if (errno == EINTR) {
+                if (Timer::time_out_occurred()) {
+                    throw TimeOutException();
+                } else {
+                    log.error("pselect was interrupted, restarting.");
+                }
             } else {
-                log.error(" The time out did not occurr. ");
+                log.error2("Select returned < 0. errno = %d: %s\n EINTR=%d",
+                           errno, strerror(errno), EINTR);
+                throw IOException(IOException::GENERAL);
             }
         }
-        log.error2("Select returned < 0. errno = %d: %s\n EINTR=%d", errno,
-                   strerror(errno), EINTR);
-        throw IOException(IOException::GENERAL);
     }
     return ready;
 }

@@ -65,13 +65,13 @@ BOOST_AUTO_TEST_CASE(Flood)
 #endif
 
 /** Making sure we can construct and destruct these types without leaking. */
-BOOST_AUTO_TEST_CASE(ConstructorAndDestructingASender) {
+BOOST_AUTO_TEST_CASE(ConstructingAndDestructingASender) {
     Sender sender("localhost", 5672, "guest", "guest", "guest.hostname_exchange",
                   "guest.hostname", "");
 }
 
 
-BOOST_AUTO_TEST_CASE(ConstructorAndDestructingAReceiver) {
+BOOST_AUTO_TEST_CASE(ConstructingAndDestructingAReceiver) {
     Receiver receiver("localhost", 5672, "guest", "guest",
                       "guest.hostname");
 }

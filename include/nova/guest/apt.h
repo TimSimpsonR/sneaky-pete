@@ -10,9 +10,9 @@ namespace nova { namespace guest {
     namespace apt {
         void fix(double time_out);
 
-        void install(const char * package_name, double time_out);
+        void install(const char * package_name, const double time_out);
 
-        void remove(const char * package_name, double time_out);
+        void remove(const char * package_name, const double time_out);
 
         boost::optional<std::string> version(const char * package_name,
                                              const double time_out=30);

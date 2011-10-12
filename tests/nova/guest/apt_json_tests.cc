@@ -52,6 +52,7 @@ namespace nova { namespace guest { namespace apt {
 
 
 using namespace nova::guest;
+using namespace nova::guest::apt;
 
 
 BOOST_AUTO_TEST_CASE(install_method)

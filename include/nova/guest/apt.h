@@ -5,18 +5,17 @@
 #include <boost/optional.hpp>
 
 
-namespace nova { namespace guest {
+namespace nova { namespace guest { namespace apt {
 
-    namespace apt {
-        void fix(double time_out);
+    void fix(double time_out);
 
-        void install(const char * package_name, const double time_out);
+    void install(const char * package_name, const double time_out);
 
-        void remove(const char * package_name, const double time_out);
+    void remove(const char * package_name, const double time_out);
 
-        boost::optional<std::string> version(const char * package_name,
-                                             const double time_out=30);
-    }
+    boost::optional<std::string> version(const char * package_name,
+                                         const double time_out=30);
+
 
     class AptException : public std::exception {
 
@@ -59,6 +58,6 @@ namespace nova { namespace guest {
           virtual nova::JsonObjectPtr handle_message(nova::JsonObjectPtr input);
     };
 
-} }  // end namespace
+} } }  // end namespace
 
 #endif //__NOVA_GUEST_APT_H

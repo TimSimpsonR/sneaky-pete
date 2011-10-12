@@ -4,7 +4,7 @@
 #include <boost/date_time.hpp>
 #include <boost/thread.hpp>
 #include "nova/rpc/receiver.h"
-#include "nova/guest/sql_guest.h"
+#include "nova/guest/mysql.h"
 
 
 BOOST_AUTO_TEST_CASE(CheckForMemoryLeak)

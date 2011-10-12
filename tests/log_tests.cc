@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE Configfile_Tests
+#define BOOST_TEST_MODULE ConfigFile_Tests
 #include <boost/test/unit_test.hpp>
-#include "nova/log.h"
+#include "nova/Log.h"
 
 
 using nova::Log;

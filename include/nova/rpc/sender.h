@@ -3,7 +3,7 @@
 
 #include "nova/rpc/amqp_ptr.h"
 #include <json/json.h>
-#include "nova/log.h"
+#include "nova/Log.h"
 
 namespace nova { namespace rpc {
 

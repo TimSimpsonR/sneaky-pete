@@ -1,6 +1,6 @@
 #include "nova/process.h"
 
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <errno.h>
 #include <fstream>
 #include "nova/utils/io.h"

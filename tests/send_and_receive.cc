@@ -5,7 +5,7 @@
 #include <boost/thread.hpp>
 #include "nova/rpc/receiver.h"
 #include "nova/rpc/sender.h"
-#include "nova/guest/sql_guest.h"
+#include "nova/guest/mysql.h"
 
 using nova::Log;
 using nova::JsonObject;

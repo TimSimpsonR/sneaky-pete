@@ -41,7 +41,6 @@ RegexMatches::~RegexMatches() {
     delete[] matches;
 }
 
-// The first index is always just the original string, we ignore it.
 bool RegexMatches::exists_at(size_t index) const {
     if (index < nmatch) {
         const regoff_t & start_index = matches[index].rm_so;

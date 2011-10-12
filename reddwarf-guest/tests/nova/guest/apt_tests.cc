@@ -11,6 +11,7 @@ using std::ifstream;
 using boost::optional;
 using namespace nova;
 using namespace nova::guest;
+using namespace nova::guest::apt;
 using std::string;
 using std::stringstream;
 

@@ -1,14 +1,15 @@
 #include "nova/guest/guest.h"
-#include "nova/guest/sql_guest.h"
+#include "nova/guest/mysql.h"
 #include "nova/rpc/receiver.h"
-#include "nova/configfile.h"
+#include "nova/ConfigFile.h"
 #include <json/json.h>
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <sstream>
 
 
 using namespace nova;
 using namespace nova::guest;
+using namespace nova::guest::mysql;
 using namespace nova::rpc;
 
 
@@ -24,7 +25,7 @@ int main(int argc, const char* argv[]) {
         config_location = argv[1];
     }
 
-    Configfile::Configfile configfile(config_location);
+    ConfigFile configfile(config_location);
 
     std::string amqp_host = configfile.get_string("amqp_host");
     int amqp_port = configfile.get_int("amqp_port");

@@ -1,8 +1,9 @@
 #ifndef __NOVA_PROCESS_H
 #define __NOVA_PROCESS_H
 
+
 #include <boost/optional.hpp>
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <sstream>
 
 

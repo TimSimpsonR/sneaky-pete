@@ -7,7 +7,7 @@
 #include <iostream>
 #include "nova/rpc/receiver.h"
 #include <signal.h>
-#include "nova/guest/sql_guest.h"
+#include "nova/guest/mysql.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>

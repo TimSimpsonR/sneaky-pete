@@ -1,4 +1,4 @@
-#include "nova/log.h"
+#include "nova/Log.h"
 #ifdef _DEBUG
     #include <iostream>
 #endif

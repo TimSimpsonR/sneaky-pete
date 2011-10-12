@@ -3,7 +3,7 @@
  * more noise.
  */
 #include <iostream>
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <string>
 #include <string.h>
 

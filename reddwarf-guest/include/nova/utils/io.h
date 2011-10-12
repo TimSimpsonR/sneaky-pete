@@ -2,7 +2,7 @@
 #define _NOVA_UTILS_IO_H
 
 #include <boost/optional.hpp>
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <sys/select.h>
 #include <signal.h>
 #include <time.h>

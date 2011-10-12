@@ -22,7 +22,7 @@
 #include <vector>
 
 
-namespace nova { namespace guest {
+namespace nova { namespace guest { namespace mysql {
 
     class MySqlGuestException : public std::exception {
 
@@ -107,7 +107,6 @@ namespace nova { namespace guest {
     typedef std::vector<MySQLDatabasePtr> MySQLDatabaseList;
     typedef boost::shared_ptr<MySQLDatabaseList> MySQLDatabaseListPtr;
 
-
     class MySqlGuest {
 
         public:
@@ -159,6 +158,6 @@ namespace nova { namespace guest {
             MethodMap methods;
     };
 
-} }  // end namespace
+} } }  // end namespace
 
 #endif //__NOVA_GUEST_SQL_GUEST_H

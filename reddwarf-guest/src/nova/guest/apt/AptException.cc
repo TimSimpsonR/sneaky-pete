@@ -1,6 +1,6 @@
 #include "nova/guest/apt.h"
 
-namespace nova { namespace guest {
+namespace nova { namespace guest { namespace apt {
 
 /**---------------------------------------------------------------------------
  *- AptException
@@ -35,5 +35,5 @@ const char * AptException::what() const throw() {
     }
 }
 
-} }  // end namespace nova::guest::apt
+} } }  // end namespace nova::guest::apt
 

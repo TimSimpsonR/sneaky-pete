@@ -1,7 +1,7 @@
 #include "nova/guest/apt.h"
 
 
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <errno.h>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
@@ -88,8 +88,6 @@ optional<ProcessResult> match_output(Process & process,
     }
     stringstream std_out;
 
-    //TODO: There is a possibility here that if a process outputs unlimited
-    // data this function will hang.
     Timer timer(seconds);
     while(!process.eof()) {
         size_t count = process.read_into(std_out, boost::none);

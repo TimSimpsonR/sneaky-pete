@@ -8,6 +8,8 @@
 #include "nova/guest/sql_guest.h"
 
 using nova::Log;
+using nova::JsonObject;
+using nova::JsonObjectPtr;
 using namespace nova::guest;
 using namespace nova::rpc;
 using boost::posix_time::milliseconds;
@@ -63,13 +65,13 @@ BOOST_AUTO_TEST_CASE(Flood)
 #endif
 
 /** Making sure we can construct and destruct these types without leaking. */
-BOOST_AUTO_TEST_CASE(ConstructorAndDestructingASender) {
+BOOST_AUTO_TEST_CASE(ConstructingAndDestructingASender) {
     Sender sender("localhost", 5672, "guest", "guest", "guest.hostname_exchange",
                   "guest.hostname", "");
 }
 
 
-BOOST_AUTO_TEST_CASE(ConstructorAndDestructingAReceiver) {
+BOOST_AUTO_TEST_CASE(ConstructingAndDestructingAReceiver) {
     Receiver receiver("localhost", 5672, "guest", "guest",
                       "guest.hostname");
 }
@@ -89,28 +91,23 @@ BOOST_AUTO_TEST_CASE(SendingANormalMessage_NEW)
     "{"
     "    'method':'list_users'"
     "}";
-    json_object * send_object = json_object_new_string(MESSAGE_ONE);
+    JsonObjectPtr send_object(new JsonObject(MESSAGE_ONE));
     sender.send(send_object);
     log.info("TEST - send obj");
     {
+        JsonObjectPtr obj = receiver.next_message();
+        BOOST_CHECK_MESSAGE(!!obj, "Must receive an object.");
 
-        json_object * obj = receiver.next_message();
-        BOOST_CHECK_MESSAGE(json_object_is_type(obj, json_type_object) != 0,
-                              "Must receive an object.");
-
-        json_object * method_obj = json_object_object_get(obj, "method");
-        BOOST_CHECK_NE(method_obj, (json_object *) 0);
-        const char * method_str = json_object_get_string(method_obj);
-        BOOST_CHECK_EQUAL(method_str, "list_users");
+        std::string method;
+        obj->get_string("method", method);
+        BOOST_CHECK_EQUAL(method, "list_users");
 
         const char RESPONSE [] =
         "{"
         "    'status':'ok'"
         "}";
-        json_object * rtn_obj = json_object_new_string(RESPONSE);
+        JsonObjectPtr rtn_obj(new JsonObject(RESPONSE));
         receiver.finish_message(obj, rtn_obj);
     }
-
-    json_object_put(send_object);
 }
 

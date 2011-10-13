@@ -16,7 +16,7 @@ namespace nova { namespace rpc {
 
             ~Sender();
 
-            void send(json_object * object);
+            void send(JsonObjectPtr object);
 
             void send(const char * publish_string);
 

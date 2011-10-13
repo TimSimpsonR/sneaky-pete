@@ -5,6 +5,9 @@
 
 namespace nova { namespace guest {
 
+    // TODO(tim.simpson): This should become the base class of all the other
+    //                    exception classes here so we can know they are safe
+    //                    to catch.
     class GuestException : public std::exception {
 
         public:

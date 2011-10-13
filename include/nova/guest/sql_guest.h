@@ -146,11 +146,11 @@ namespace nova { namespace guest {
             MySqlMessageHandler(MySqlGuestPtr guest);
             MySqlMessageHandler(const MySqlMessageHandler & other);
 
-            virtual json_object * handle_message(json_object * json);
+            virtual JsonObjectPtr handle_message(JsonObjectPtr json);
 
 
-            typedef json_object * (* MethodPtr)(const MySqlGuestPtr &,
-                                                json_object *);
+            typedef nova::JsonObjectPtr (* MethodPtr)(const MySqlGuestPtr &,
+                                                      nova::JsonObjectPtr);
             typedef std::map<std::string, MethodPtr> MethodMap;
 
         private:

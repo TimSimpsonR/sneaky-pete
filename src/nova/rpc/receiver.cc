@@ -3,6 +3,9 @@
 #include <sstream>
 
 
+using nova::JsonObject;
+using nova::JsonObjectPtr;
+
 namespace nova { namespace rpc {
 
 
@@ -22,13 +25,11 @@ Receiver::Receiver(const char * host, int port,
 Receiver::~Receiver() {
 }
 
-void Receiver::finish_message(json_object * arguments, json_object * output) {
+void Receiver::finish_message(JsonObjectPtr arguments, JsonObjectPtr output) {
     queue->ack_message(last_delivery_tag);
-    json_object_put(arguments);
-    json_object_put(output);
 }
 
-json_object * Receiver::next_message() {
+JsonObjectPtr Receiver::next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
         msg = queue->get_message(queue_name.c_str());
@@ -42,7 +43,7 @@ json_object * Receiver::next_message() {
         << ", content_type " << msg->content_type
         << ", message " << msg->message;
     log.info(log_msg.str());
-    json_object *new_obj = json_tokener_parse(msg->message.c_str());
+    JsonObjectPtr new_obj(new JsonObject(msg->message.c_str()));
 
     last_delivery_tag = msg->delivery_tag;
     return new_obj;

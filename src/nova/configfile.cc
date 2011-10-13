@@ -5,6 +5,10 @@
 using nova::Configfile;
 using nova::guest::GuestException;
 
+// Disable GCC's (correct) warning about passing a "const char *"" to a function
+// declared as merely "char *".
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 Configfile::Configfile(const char * config_path) {
     cfg_opt_t opts[] = {
         CFG_STR("amqp_host", "localhost", CFGF_NONE),

@@ -1,8 +1,10 @@
+#include "nova/json.h"
 #include "nova/rpc/sender.h"
 #include "nova/rpc/amqp.h"
 #include <sstream>
 
 
+using nova::JsonObjectPtr;
 using namespace nova::rpc;
 
 
@@ -36,10 +38,7 @@ void Sender::send(const char * publish_string) {
 }
 
 
-void Sender::send(json_object * publish_object) {
-    const char * str = json_object_get_string(publish_object);
-    std::stringstream msg;
-    msg << "Sending message " << str;
-    log.info(msg.str());
-    send(str);
+void Sender::send(JsonObjectPtr publish_object) {
+    log.info2("Sending message: %s", publish_object->to_string());
+    send(publish_object->to_string());
 }

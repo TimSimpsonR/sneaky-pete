@@ -3,7 +3,7 @@
 #include "nova/configfile.h"
 
 
-using nova::ConfigFile;
+using nova::Configfile;
 
 
 BOOST_AUTO_TEST_CASE(test_read_configfile)

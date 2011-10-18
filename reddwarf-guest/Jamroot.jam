@@ -56,8 +56,8 @@ alias test_dependencies
 # alias alone cannot declare a dependency, a second object file is used. There
 # is probably a way around this.
 
-rule unit ( name : sources * : dependencies * : test-sources *
-                 :  test-properties * : env-vars * )
+local rule unit ( name : sources * : dependencies * : test-sources *
+                  :  test-properties * : env-vars * )
 {
     if $(test-sources) > []
     {
@@ -141,6 +141,7 @@ unit u_nova_process
     :   tests/nova/process_tests.cc
     :   <dependency>parrot
         #<define>_NOVA_PROCESS_VERBOSE
+    :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
     ;
 
 unit u_nova_utils_regex
@@ -203,27 +204,50 @@ unit u_nova_guest_mysql_misc
     :   src/nova/guest/mysql/misc.cc
     ;
 
-unit u_nova_guest_mysql_MySqlMessageHandler
-    :   src/nova/guest/mysql/MySqlMessageHandler.cc
-    :   u_nova_json
-        u_nova_Log
+#
+alias nova_guest_mysql_deps
+    :   lib_mysqlcppconn
+        u_nova_configfile
+        u_nova_utils_io
         u_nova_guest_mysql_misc
-    :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
-    :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
+        u_nova_Log
+        u_nova_process
+        u_nova_utils_regex
+        lib_uuid
     ;
 
 unit u_nova_guest_mysql_MySqlGuest
     :   src/nova/guest/mysql/MySqlGuest.cc
-    :   lib_mysqlcppconn
-        lib_uuid
-        u_nova_configfile
-        u_nova_guest_mysql_misc
-        u_nova_Log
-        u_nova_utils_regex
+    :   nova_guest_mysql_deps
     :   tests/nova/guest/mysql/MySqlGuestTests.cc
         u_nova_json
     ;
 
+unit u_nova_guest_mysql_MySqlPreparer
+    :   src/nova/guest/mysql/MySqlPreparer.cc
+    :   nova_guest_mysql_deps
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_configfile
+        u_nova_guest_mysql_misc
+        __unit_obj_u_nova_guest_mysql_MySqlGuest
+    :   tests/nova/guest/mysql/MySqlPreparerTests.cc
+        u_nova_json
+    ;
+
+unit u_nova_guest_mysql_MySqlMessageHandler
+    :   src/nova/guest/mysql/MySqlMessageHandler.cc
+    :   u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_json
+        nova_guest_mysql_deps
+        lib_mysqlcppconn
+        u_nova_guest_mysql_misc
+        __unit_obj_u_nova_guest_mysql_MySqlGuest
+        __unit_obj_u_nova_guest_mysql_MySqlPreparer
+    :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
+    :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
+    ;
 
 lib guest_lib
     :   u_nova_configfile
@@ -256,6 +280,12 @@ run     dependencies
     :   memory_tests  # <-- The target name is placed here, for some reason. :(
     ;
 
+
+###############################################################################
+#      Integration Tests
+###############################################################################
+
+# TODO
 
 ###############################################################################
 #      Binaries

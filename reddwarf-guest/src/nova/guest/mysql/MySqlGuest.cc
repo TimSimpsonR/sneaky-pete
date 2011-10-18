@@ -107,56 +107,101 @@ MySqlGuest::~MySqlGuest() {
 }
 
 
-MySqlGuest::PreparedStatementPtr MySqlGuest::prepare_statement(const char * text) {
-    auto_ptr<PreparedStatement> stmt(con->prepareStatement(text));
-    return stmt;
+void MySqlGuest::create_database(MySqlDatabaseListPtr databases) {
+    BOOST_FOREACH(MySqlDatabasePtr & db, *databases) {
+        PreparedStatementPtr stmt = prepare_statement(
+            "CREATE DATABASE IF NOT EXISTS `?` CHARACTER SET = ? COLLATE = ?;");
+        stmt->setString(1, db->get_name());
+        stmt->setString(2, db->get_character_set());
+        stmt->setString(3, db->get_collation());
+        stmt->executeUpdate();
+        stmt->close();
+    }
 }
 
-string MySqlGuest::create_user(const string & username,const string & password,
-                             const string & host) {
+void MySqlGuest::create_user(MySqlUserPtr user) {
+    const char * host = "%";
     PreparedStatementPtr stmt = prepare_statement(
-        "insert into mysql.user (Host, User, Password) values (?, ?, password(?))");
-    stmt->setString(1, host.c_str());
-    stmt->setString(2, username.c_str());
-    stmt->setString(3, password.c_str());
+        "GRANT USAGE ON *.* TO '?'@'?' IDENTIFIED BY '?';");
+    stmt->setString(1, user->get_name().c_str());
+    stmt->setString(2, host);
+    stmt->setString(3, user->get_password().c_str());
     stmt->executeUpdate();
     stmt->close();
-    return "MySqlGuest::create_user method";
 }
 
-MySQLUserListPtr MySqlGuest::list_users() {
-    MySQLUserListPtr users(new MySQLUserList());
-    PreparedStatementPtr stmt = prepare_statement(
-        "select User from mysql.user where host != 'localhost';");
-    auto_ptr<ResultSet> res(stmt->executeQuery());
-    while (res->next()) {
-        MySQLUserPtr user(new MySQLUser());
-        user->set_name(res->getString("User"));
-        users->push_back(user);
+void MySqlGuest::create_users(MySqlUserListPtr users) {
+    BOOST_FOREACH(MySqlUserPtr & user, *users) {
+        create_user(user);
     }
-    res->close();
-    stmt->close();
-    return users;
 }
-string MySqlGuest::delete_user(const string & username) {
+
+void MySqlGuest::delete_database(const string & database_name) {
+    throw std::exception(); // TODO
+    //return "MySqlGuest::delete_database method";
+}
+
+void MySqlGuest::delete_user(const string & username) {
     PreparedStatementPtr stmt = prepare_statement("DROP USER `?`");
     stmt->setString(1, username);
     stmt->executeUpdate();
     stmt->close();
-    return "MySqlGuest::delete_user method";
 }
-string MySqlGuest::create_database(const string & database_name, const string & character_set, const string & collate) {
+
+
+void MySqlGuest::disable_root() {
+    {
+        PreparedStatementPtr stmt = prepare_statement(
+            "DELETE FROM mysql.user where User='root' and Host!='localhost'");
+        stmt->executeUpdate();
+        stmt->close();
+    }
+
+    string new_password = generate_password();
+    log.info2("generate %s", new_password.c_str());
+    this->set_password("root", new_password.c_str());
+}
+
+MySqlUserPtr MySqlGuest::enable_root() {
+    MySqlUserPtr root_user(new MySqlUser());
+    root_user->set_name("root");
+    root_user->set_password(generate_password());
+    create_user(root_user);
+    set_password("root", root_user->get_password().c_str());
+    grand_all_privileges("root", "%");
+    flush_privileges();
+    return root_user;
+}
+
+void MySqlGuest::flush_privileges() {
     PreparedStatementPtr stmt = prepare_statement(
-        "CREATE DATABASE IF NOT EXISTS `?` CHARACTER SET = ? COLLATE = ?;");
-    stmt->setString(1, database_name);
-    stmt->setString(2, character_set);
-    stmt->setString(3, collate);
+        "FLUSH PRIVILEGES;");
     stmt->executeUpdate();
     stmt->close();
-    return "MySqlGuest::create_database method";
 }
-MySQLDatabaseListPtr MySqlGuest::list_databases() {
-    MySQLDatabaseListPtr databases(new MySQLDatabaseList());
+
+string MySqlGuest::generate_password() {
+    uuid_t id;
+    uuid_generate(id);
+    char *buf = new char[37];
+    uuid_unparse(id, buf);
+    uuid_clear(id);
+    return string(buf);
+}
+
+
+void MySqlGuest::grand_all_privileges(const char * username,
+                                      const char * host) {
+    PreparedStatementPtr stmt = prepare_statement(
+        "GRANT ALL PRIVILEGES ON *.* TO '?'@'?' WITH GRANT OPTION;");
+    stmt->setString(1, username);
+    stmt->setString(2, host);
+    stmt->executeUpdate();
+    stmt->close();
+}
+
+MySqlDatabaseListPtr MySqlGuest::list_databases() {
+    MySqlDatabaseListPtr databases(new MySqlDatabaseList());
     PreparedStatementPtr stmt = prepare_statement("SELECT"
     "                schema_name as name,"
     "                default_character_set_name as charset,"
@@ -171,10 +216,10 @@ MySQLDatabaseListPtr MySqlGuest::list_databases() {
 
     auto_ptr<ResultSet> res(stmt->executeQuery());
     while (res->next()) {
-        MySQLDatabasePtr database(new MySQLDatabase());
+        MySqlDatabasePtr database(new MySqlDatabase());
         database->set_name(res->getString("name"));
         database->set_collation(res->getString("collation"));
-        database->set_charset(res->getString("charset"));
+        database->set_character_set(res->getString("charset"));
         databases->push_back(database);
     }
     res->close();
@@ -182,65 +227,24 @@ MySQLDatabaseListPtr MySqlGuest::list_databases() {
     return databases;
 }
 
-string MySqlGuest::delete_database(const string & database_name) {
-    return "MySqlGuest::delete_database method";
+MySqlUserListPtr MySqlGuest::list_users() {
+    MySqlUserListPtr users(new MySqlUserList());
+    PreparedStatementPtr stmt = prepare_statement(
+        "select User from mysql.user where host != 'localhost';");
+    auto_ptr<ResultSet> res(stmt->executeQuery());
+    while (res->next()) {
+        MySqlUserPtr user(new MySqlUser());
+        user->set_name(res->getString("User"));
+        users->push_back(user);
+    }
+    res->close();
+    stmt->close();
+    return users;
 }
 
-string MySqlGuest::enable_root() {
-    {
-        PreparedStatementPtr stmt = prepare_statement(
-            "insert into mysql.user (Host, User) values (?, ?)");
-        stmt->setString(1, "%");
-        stmt->setString(2, "root");
-        stmt->executeUpdate();
-        stmt->close();
-    }
-
-    uuid_t id;
-    uuid_generate(id);
-    char *buf = new char[37];
-    uuid_unparse(id, buf);
-    uuid_clear(id);
-
-    {
-        PreparedStatementPtr stmt = prepare_statement(
-            "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='root'");
-        stmt->setString(1, buf);
-        stmt->executeUpdate();
-        stmt->close();
-    }
-
-    {
-        PreparedStatementPtr stmt = prepare_statement(
-            "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;");
-        stmt->executeUpdate();
-        stmt->close();
-    }
-    return string(buf);
-}
-
-string MySqlGuest::disable_root() {
-    uuid_t id;
-    uuid_generate(id);
-    char *buf = new char[37];
-    uuid_unparse(id, buf);
-    uuid_clear(id);
-    log.info2("generate %s", buf);
-    {
-        PreparedStatementPtr stmt = prepare_statement(
-            "DELETE FROM mysql.user where User='root' and Host!='localhost'");
-        stmt->executeUpdate();
-        stmt->close();
-    }
-
-    {
-        PreparedStatementPtr stmt = prepare_statement(
-            "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='root'");
-        stmt->setString(1, buf);
-        stmt->executeUpdate();
-        stmt->close();
-    }
-    return "Guest::disable_root method";
+MySqlGuest::PreparedStatementPtr MySqlGuest::prepare_statement(const char * text) {
+    auto_ptr<PreparedStatement> stmt(con->prepareStatement(text));
+    return stmt;
 }
 
 bool MySqlGuest::is_root_enabled() {
@@ -252,6 +256,15 @@ bool MySqlGuest::is_root_enabled() {
     res->close();
     stmt->close();
     return row_count != 0;
+}
+
+void MySqlGuest::set_password(const char * username, const char * password) {
+    PreparedStatementPtr stmt = prepare_statement(
+        "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='?'");
+    stmt->setString(1, password);
+    stmt->setString(2, username);
+    stmt->executeUpdate();
+    stmt->close();
 }
 
 

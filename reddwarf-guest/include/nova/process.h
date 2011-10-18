@@ -4,7 +4,9 @@
 
 #include <boost/optional.hpp>
 #include "nova/Log.h"
+#include <list>
 #include <sstream>
+#include <vector>
 
 
 namespace nova {
@@ -13,7 +15,9 @@ class ProcessException : public std::exception {
 
     public:
         enum Code {
+            EXIT_CODE_NOT_ZERO,
             GENERAL,
+            NO_PROGRAM_GIVEN,
             PROGRAM_FINISHED,
             SPAWN_FAILURE
         };
@@ -22,23 +26,29 @@ class ProcessException : public std::exception {
 
         virtual ~ProcessException() throw();
 
-        virtual const char * what() const throw();
+        const Code code;
 
-    private:
-        Code code;
+        virtual const char * what() const throw();
 };
 
 
 class Process {
 
     public:
-        Process(const char * program_path, const char * const argv[]);
+        typedef std::list<const char *> CommandList;
+
+        Process(const CommandList & cmds, bool wait_for_close=false);
 
         ~Process();
 
         inline bool eof() const {
             return eof_flag;
         }
+
+        /** Executes the given command, waiting until its finished. Returns
+         *  true if the command runs successfully with a good exit code, false
+         *  otherwise. */
+        static void execute(const CommandList & cmds, double time_out=30);
 
         /* Waits until the process's stdout stream has bytes to read or the
          * number of seconds specified by the argument "seconds" passes.
@@ -57,6 +67,11 @@ class Process {
         size_t read_until_pause(std::stringstream & std_out,
                                 const double pause_time, const double time_out);
 
+        /** This is always false until eof() returns true. */
+        inline bool successful() const {
+            return success;
+        }
+
         /** Waits for EOF, throws TimeOutException if it doesn't happen. */
         void wait_for_eof(double seconds);
 
@@ -69,13 +84,13 @@ class Process {
         bool eof_flag;
         Log log;
         pid_t pid;
-        const char * program_path;
         int std_out_fd[2];
         int std_in_fd[2];
+        bool success;
+        bool wait_for_close;
 
         void create_argv(char * * & new_argv, int & new_argv_length,
-                         const char * program_path,
-                         const char * const argv[]);
+                         const CommandList & cmds);
 
         void delete_argv(char * * & new_argv, int & new_argv_length);
 

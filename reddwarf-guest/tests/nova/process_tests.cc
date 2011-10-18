@@ -1,22 +1,26 @@
 #define BOOST_TEST_MODULE process_tests
 #include <boost/test/unit_test.hpp>
 
-
+#include <boost/assign/list_of.hpp>
+#include "nova/Log.h"
 #include "nova/process.h"
 
 using namespace nova;
 using std::string;
 using std::stringstream;
+using namespace boost::assign;
 
+const char * parrot_path() {
+    return "/src/bin/gcc-4.4.3/debug/parrot";
+}
 
 /**---------------------------------------------------------------------------
  *- Process Tests
  *---------------------------------------------------------------------------*/
 BOOST_AUTO_TEST_CASE(sending_to_stdin)
 {
-    const char * program_path = "/src/bin/gcc-4.4.3/debug/parrot";
-    const char * const argv[] = {"wake", (char *) 0};
-    Process process(program_path, argv);
+    Process::CommandList cmds = list_of(parrot_path())("wake");
+    Process process(cmds);
 
     // Parrot program sends a first message to its stdout, then waits
     // for a response.
@@ -67,14 +71,26 @@ BOOST_AUTO_TEST_CASE(sending_to_stdin)
 
 BOOST_AUTO_TEST_CASE(sending_to_stderr)
 {
-    const char * program_path = "/src/bin/gcc-4.4.3/debug/parrot";
-    const char * const argv[] = {(char *) 0};
-    Process process(program_path, argv);
+    Process::CommandList cmds = list_of(parrot_path());
+    Process process(cmds);
     stringstream std_out;
     size_t bytes_read = process.read_until_pause(std_out, 2, 4.0);
     BOOST_REQUIRE_EQUAL("(@'> <( zzz )\n", std_out.str());
     BOOST_REQUIRE_EQUAL(bytes_read, 14);
     BOOST_REQUIRE_EQUAL(process.eof(), true);
+}
+
+BOOST_AUTO_TEST_CASE(execute_test) {
+    const double TIME_OUT = 4.0;
+    // Returns zero exit code.
+    Process::execute(list_of(parrot_path())("chirp"), TIME_OUT);
+
+    try {
+        Process::execute(list_of(parrot_path()), TIME_OUT);
+        BOOST_FAIL("Should have thrown.");
+    } catch(const ProcessException & pe) {
+        BOOST_REQUIRE_EQUAL(ProcessException::EXIT_CODE_NOT_ZERO, pe.code);
+    }
 }
 
 //TODO: Need a test for a process which outputs infinite data to standard out.

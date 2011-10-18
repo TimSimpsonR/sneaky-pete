@@ -28,7 +28,8 @@ namespace nova { namespace guest { namespace mysql {
 
         public:
             enum Code {
-                MY_CNF_FILE_NOT_FOUND
+                GENERAL,
+                MY_CNF_FILE_NOT_FOUND,
             };
 
             MySqlGuestException(Code code) throw();
@@ -43,9 +44,43 @@ namespace nova { namespace guest { namespace mysql {
     };
 
 
-    class MySQLUser {
+    class MySqlDatabase {
+
+        public:
+            MySqlDatabase();
+
+            inline const std::string & get_character_set() const {
+                return character_set;
+            }
+
+            inline const std::string & get_collation() const {
+                return collation;
+            }
+
+            inline const std::string & get_name() const {
+                return name;
+            }
+
+            void set_character_set(const std::string & value);
+
+            void set_collation(const std::string & value);
+
+            void set_name(const std::string & value);
+
+        private:
+            std::string character_set;
+            std::string collation;
+            std::string name;
+    };
+
+    typedef boost::shared_ptr<MySqlDatabase> MySqlDatabasePtr;
+    typedef std::vector<MySqlDatabasePtr> MySqlDatabaseList;
+    typedef boost::shared_ptr<MySqlDatabaseList> MySqlDatabaseListPtr;
+
+
+    class MySqlUser {
     public:
-        MySQLUser();
+        MySqlUser();
 
         inline const std::string & get_name() const {
             return name;
@@ -71,70 +106,59 @@ namespace nova { namespace guest { namespace mysql {
         std::string databases;
     };
 
-    class MySQLDatabase {
-    public:
-        MySQLDatabase();
 
-        inline const std::string & get_name() const {
-            return name;
-        }
-
-        inline const std::string & get_collation() const {
-            return collation;
-        }
-
-        inline const std::string & get_charset() const {
-            return charset;
-        }
-
-        void set_name(const std::string & value);
-
-        void set_collation(const std::string & value);
-
-        void set_charset(const std::string & value);
-
-    private:
-        std::string name;
-        std::string collation;
-        std::string charset;
-    };
-
-    typedef boost::shared_ptr<MySQLUser> MySQLUserPtr;
-    typedef std::vector<MySQLUserPtr> MySQLUserList;
-    typedef boost::shared_ptr<MySQLUserList> MySQLUserListPtr;
-
-    typedef boost::shared_ptr<MySQLDatabase> MySQLDatabasePtr;
-    typedef std::vector<MySQLDatabasePtr> MySQLDatabaseList;
-    typedef boost::shared_ptr<MySQLDatabaseList> MySQLDatabaseListPtr;
+    typedef boost::shared_ptr<MySqlUser> MySqlUserPtr;
+    typedef std::vector<MySqlUserPtr> MySqlUserList;
+    typedef boost::shared_ptr<MySqlUserList> MySqlUserListPtr;
 
     class MySqlGuest {
+        //TODO(tim.simpson): The constructor and "prepare_statement" call could
+        // extracted into a general use MySql class used by this one.
 
         public:
+            typedef std::auto_ptr<sql::PreparedStatement> PreparedStatementPtr;
+
             MySqlGuest(const std::string & uri);
             MySqlGuest(const MySqlGuest & other);
             ~MySqlGuest();
 
-            std::string create_user(const std::string & username,
-                                    const std::string & password,
-                                    const std::string & host);
-            MySQLUserListPtr list_users();
-            std::string delete_user(const std::string & username);
-            std::string create_database(const std::string & database_name,
-                                        const std::string & character_set,
-                                        const std::string & collate);
-            MySQLDatabaseListPtr list_databases();
-            std::string delete_database(const std::string & database_name);
-            std::string enable_root();
-            std::string disable_root();
+            void create_database(MySqlDatabaseListPtr databases);
+
+            void create_user(MySqlUserPtr);
+
+            void create_users(MySqlUserListPtr);
+
+            void delete_database(const std::string & database_name);
+
+            void delete_user(const std::string & username);
+
+            // The original method always returns True, but I don't know why.
+            void disable_root();
+
+            MySqlUserPtr enable_root();
+
+            void flush_privileges();
+
+            static std::string generate_password();
+
+            void grand_all_privileges(const char * username,
+                                      const char * host);
+
+            MySqlDatabaseListPtr list_databases();
+
+            MySqlUserListPtr list_users();
+
             bool is_root_enabled();
 
+            PreparedStatementPtr prepare_statement(const char * text);
+
+            void set_password(const char * username, const char * password);
+
         private:
-            typedef std::auto_ptr<sql::PreparedStatement> PreparedStatementPtr;
 
             sql::Driver *driver;
             sql::Connection *con;
 
-            PreparedStatementPtr prepare_statement(const char * text);
     };
 
     typedef boost::shared_ptr<MySqlGuest> MySqlGuestPtr;

@@ -29,46 +29,46 @@ const char * MySqlGuestException::what() const throw() {
 }
 
 /**---------------------------------------------------------------------------
- *- MySQLUser
+ *- MySqlUser
  *---------------------------------------------------------------------------*/
 
-MySQLUser::MySQLUser()
+MySqlUser::MySqlUser()
 : name(""), password(""), databases("")
 {
 }
 
-void MySQLUser::set_name(const std::string & value) {
+void MySqlUser::set_name(const std::string & value) {
     this->name = value;
 }
 
-void MySQLUser::set_password(const std::string & value) {
+void MySqlUser::set_password(const std::string & value) {
     this->password = value;
 }
 
-void MySQLUser::set_databases(const std::string & value) {
+void MySqlUser::set_databases(const std::string & value) {
     this->databases = value;
 }
 
 
 /**---------------------------------------------------------------------------
- *- MySQLDatabase
+ *- MySqlDatabase
  *---------------------------------------------------------------------------*/
 
-MySQLDatabase::MySQLDatabase()
-: name(""), collation(""), charset("")
+MySqlDatabase::MySqlDatabase()
+: character_set(""), collation(""), name("")
 {
 }
 
-void MySQLDatabase::set_name(const std::string & value) {
+void MySqlDatabase::set_name(const std::string & value) {
     this->name = value;
 }
 
-void MySQLDatabase::set_collation(const std::string & value) {
+void MySqlDatabase::set_collation(const std::string & value) {
     this->collation = value;
 }
 
-void MySQLDatabase::set_charset(const std::string & value) {
-    this->charset = value;
+void MySqlDatabase::set_character_set(const std::string & value) {
+    this->character_set = value;
 }
 
 

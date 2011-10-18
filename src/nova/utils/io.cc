@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h> // exit
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -59,6 +60,10 @@ IOException::~IOException() throw() {
 
 const char * IOException::what() const throw() {
     switch(code) {
+        case ACCESS_DENIED:
+            return "Access denied.";
+        case READ_ERROR:
+            return "Read error.";
         case SIGNAL_HANDLER_DESTROY_ERROR:
             return "Could not remove signal handler!";
         case SIGNAL_HANDLER_INITIALIZE_ERROR:
@@ -170,6 +175,23 @@ bool & Timer::time_out_occurred() {
 /**---------------------------------------------------------------------------
  *- Helper Functions
  *---------------------------------------------------------------------------*/
+
+bool is_file(const char * file_path) {
+    struct stat buffer;
+    if (stat(file_path, &buffer) == 0) {
+        return true;
+    }
+    if (errno == ENOENT || errno == ENOTDIR) {
+        return true;
+    } else if (errno == EACCES) {
+        throw IOException(IOException::ACCESS_DENIED);
+    } else  {
+        Log log;
+        log.error2("stat returned < 0. errno = %d: %s\n EINTR=%d",
+                   errno, strerror(errno), EINTR);
+        throw IOException(IOException::GENERAL);
+    }
+}
 
 // Throws exceptions if errors are detected.
 size_t read_with_throw(Log & log, int fd, char * const buf, size_t count) {

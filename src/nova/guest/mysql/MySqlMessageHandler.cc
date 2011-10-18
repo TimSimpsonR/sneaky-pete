@@ -37,17 +37,19 @@ namespace {
     }
 
     JSON_METHOD(create_user) {
-        string guest_return = guest->create_user("username", "password", "%");
-        log.info2("guest call %s", guest_return.c_str());
+        MySqlUserPtr user(new MySqlUser());
+        user->set_name("username");
+        user->set_password("password");
+        guest->create_user(user);
         JsonObjectPtr rtn(new JsonObject("{}"));
         return rtn;
     }
 
     JSON_METHOD(list_users) {
         std::stringstream user_xml;
-        MySQLUserListPtr users = guest->list_users();
+        MySqlUserListPtr users = guest->list_users();
         user_xml << "[";
-        BOOST_FOREACH(MySQLUserPtr & user, *users) {
+        BOOST_FOREACH(MySqlUserPtr & user, *users) {
             user_xml << "{'name':'" << user->get_name()
                      << "'},";
         }
@@ -58,21 +60,20 @@ namespace {
     }
 
     JSON_METHOD(delete_user) {
-        string guest_return = guest->delete_user("username");
-        log.info2("guest call %s", guest_return.c_str());
+        guest->delete_user("username");
         JsonObjectPtr rtn(new JsonObject("{}"));
         return rtn;
     }
 
     JSON_METHOD(list_databases) {
         std::stringstream database_xml;
-        MySQLDatabaseListPtr databases = guest->list_databases();
+        MySqlDatabaseListPtr databases = guest->list_databases();
         database_xml << "[";
-        BOOST_FOREACH(MySQLDatabasePtr & database, *databases) {
+        BOOST_FOREACH(MySqlDatabasePtr & database, *databases) {
             database_xml << "{'name':'" << database->get_name()
                          << "', 'collation':'" << database->get_collation()
-                         << "', 'charset':'" << database->get_charset()
-                     << "'},";
+                         << "', 'charset':'" << database->get_character_set()
+                         << "'},";
         }
         database_xml << "]";
         log.info2("guest call %s", database_xml.str().c_str());
@@ -81,22 +82,19 @@ namespace {
     }
 
     JSON_METHOD(delete_database) {
-        string guest_return = guest->delete_database("database_name");
-        log.info2("guest call %s", guest_return.c_str());
+        guest->delete_database("database_name");
         JsonObjectPtr rtn(new JsonObject("{}"));
         return rtn;
     }
 
     JSON_METHOD(enable_root) {
-        string guest_return = guest->enable_root();
-        log.info2("roots new password %s", guest_return.c_str());
+        guest->enable_root();
         JsonObjectPtr rtn(new JsonObject("{}"));
         return rtn;
     }
 
     JSON_METHOD(disable_root) {
-        string guest_return = guest->disable_root();
-        log.info2( "guest call %s", guest_return.c_str());
+        guest->disable_root();
         JsonObjectPtr rtn(new JsonObject("{}"));
         return rtn;
     }

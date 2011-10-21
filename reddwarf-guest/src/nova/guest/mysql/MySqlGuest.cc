@@ -1,15 +1,16 @@
 #include "nova/guest/guest.h"
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
+#include <boost/format.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
+//#include <mysql/mysql.h>
 #include "nova/guest/mysql.h"
 #include <sstream>
 #include <regex.h>
-#include <uuid/uuid.h>
 
-
+using boost::format;
 using nova::Log;
 using sql::PreparedStatement;
 using sql::ResultSet;
@@ -18,10 +19,6 @@ using namespace std;
 
 
 namespace nova { namespace guest { namespace mysql {
-
-/**---------------------------------------------------------------------------
- *- MySqlGuest
- *---------------------------------------------------------------------------*/
 
 namespace {
 
@@ -80,54 +77,149 @@ namespace {
     }
 }
 
-MySqlGuest::MySqlGuest(const std::string & uri)
-:   driver(0), con(0)
-{
-    string user;
-    string password;
+/**---------------------------------------------------------------------------
+ *- MySqlConnection
+ *---------------------------------------------------------------------------*/
 
-    get_username_and_password_from_config_file(user, password);
-    log.info2("got these back %s, %s", user.c_str(), password.c_str());
+MySqlConnection::MySqlConnection(const std::string & uri,
+                                 const std::string & user,
+                                 const std::string & password)
+: driver(0), con(0), password(password), uri(uri), user(user) {
+}
+
+MySqlConnection::~MySqlConnection() {
+    if (con != 0) {
+        delete con;
+    }
+}
+
+std::string MySqlConnection::escape_string(const char * original) {
+    //sql::mysql::MySQL_Connection * mysql_conn =
+    //    dynamic_cast<sql::mysql::MySQL_Connection*>(get_con());
+    //return mysql_conn->nativeSQL(original);
+    //::st_mysql * c_sql = mysql_conn->getMySQLHandle();
+    //char buf[1024]
+    //mysql_real_escape_string(c_sql, buf, original, 1024);
+
+    //TODO(tim.simpson): Guess.
+    return string(original);
+}
+
+void MySqlConnection::flush_privileges() {
+    PreparedStatementPtr stmt = prepare_statement(
+        "FLUSH PRIVILEGES;");
+    stmt->executeUpdate();
+    stmt->close();
+}
+
+sql::Connection * MySqlConnection::get_con() {
+    if (con == 0) {
+        init();
+    }
+    return con;
+}
+
+void MySqlConnection::grant_all_privileges(const char * username,
+                                      const char * host) {
+    //TODO(tim.simpson): Fix this to use parameters.
+    string text = str(format(
+        "GRANT ALL PRIVILEGES ON *.* TO '%s'@'%s' WITH GRANT OPTION;")
+        % escape_string(username) % escape_string(host));
+    PreparedStatementPtr stmt = prepare_statement(text.c_str());
+    stmt->executeUpdate();
+    stmt->close();
+}
+
+void MySqlConnection::init() {
+    if (con != 0) {
+        throw std::exception();
+    }
     driver = get_driver_instance();
     log.info2("Connecting to %s with username:%s, password:%s",
               uri.c_str(), user.c_str(), password.c_str());
     con = driver->connect(uri, user, password);
+}
+
+MySqlConnection::PreparedStatementPtr MySqlConnection::prepare_statement(
+    const char * text)
+{
+    auto_ptr<PreparedStatement> stmt(get_con()->prepareStatement(text));
+    return stmt;
+}
+
+void MySqlConnection::use_database(const char * database) {
     try {
         // Connect to the MySQL test database
         con->setSchema("mysql");
     } catch (SQLException &e) {
         log.info2("Error with connection %s", e.what());
-        delete con;
         throw e;
     }
+    log.debug("Connection successful.");
+}
+
+/**---------------------------------------------------------------------------
+ *- MySqlGuest
+ *---------------------------------------------------------------------------*/
+
+MySqlGuest::MySqlGuest(const string & uri)
+:   con()
+{
+    string user, password;
+    get_username_and_password_from_config_file(user, password);
+    log.info2("got these back %s, %s", user.c_str(), password.c_str());
+    con.reset(new MySqlConnection(uri, user, password));
+}
+
+MySqlGuest::MySqlGuest(const std::string & uri, const string & user,
+                       const string & password)
+:   con(new MySqlConnection(uri, user, password))
+{
 }
 
 MySqlGuest::~MySqlGuest() {
-    delete con;
 }
-
 
 void MySqlGuest::create_database(MySqlDatabaseListPtr databases) {
     BOOST_FOREACH(MySqlDatabasePtr & db, *databases) {
-        PreparedStatementPtr stmt = prepare_statement(
-            "CREATE DATABASE IF NOT EXISTS `?` CHARACTER SET = ? COLLATE = ?;");
-        stmt->setString(1, db->get_name());
-        stmt->setString(2, db->get_character_set());
-        stmt->setString(3, db->get_collation());
+        string text = str(format(
+            "CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET = `%s` "
+            "COLLATE = `%s`;") % con->escape_string(db->get_name().c_str())
+                               % con->escape_string(db->get_character_set().c_str())
+                               % con->escape_string(db->get_collation().c_str()));
+        PreparedStatementPtr stmt = con->prepare_statement(text.c_str());
+        //stmt->setString(1, db->get_name());
+        //stmt->setString(2, db->get_character_set());
+        //stmt->setString(3, db->get_collation());
         stmt->executeUpdate();
         stmt->close();
     }
 }
 
-void MySqlGuest::create_user(MySqlUserPtr user) {
-    const char * host = "%";
-    PreparedStatementPtr stmt = prepare_statement(
-        "GRANT USAGE ON *.* TO '?'@'?' IDENTIFIED BY '?';");
-    stmt->setString(1, user->get_name().c_str());
-    stmt->setString(2, host);
-    stmt->setString(3, user->get_password().c_str());
+void MySqlGuest::create_user(MySqlUserPtr user, const char * host) {
+    //const char * host = "%";
+    //TODO(tim.simpson): Figure out how in the heck to make GRANT work with a
+    // parameterized prepared statement.
+    string text = str(format(
+        "GRANT USAGE ON *.* TO '%s'@\"%s\" IDENTIFIED BY '%s' ; ")
+        //"CREATE USER `%s`@`%s` IDENTIFIED BY '%s';")
+        % con->escape_string(user->get_name().c_str())
+        % con->escape_string(host)
+        % con->escape_string(user->get_password().c_str()));
+    PreparedStatementPtr stmt = con->prepare_statement(text.c_str());
     stmt->executeUpdate();
     stmt->close();
+
+    BOOST_FOREACH(MySqlDatabasePtr db, *user->get_databases()) {
+        string text = str(format(
+            "GRANT ALL PRIVILEGES ON `%s`.* TO `%s`@'%s';")
+            % con->escape_string(db->get_name().c_str())
+            % con->escape_string(user->get_name().c_str())
+            % con->escape_string(host));
+        PreparedStatementPtr stmt = con->prepare_statement(text.c_str());
+        stmt->executeUpdate();
+        stmt->close();
+    }
 }
 
 void MySqlGuest::create_users(MySqlUserListPtr users) {
@@ -137,29 +229,21 @@ void MySqlGuest::create_users(MySqlUserListPtr users) {
 }
 
 void MySqlGuest::delete_database(const string & database_name) {
-    throw std::exception(); // TODO
-    //return "MySqlGuest::delete_database method";
+    string text = str(format("DROP DATABASE IF EXISTS `%s`;")
+                       % con->escape_string(database_name.c_str()));
+    PreparedStatementPtr stmt = con->prepare_statement(text.c_str());
+    stmt->executeUpdate();
+    stmt->close();
+    con->flush_privileges();
 }
 
 void MySqlGuest::delete_user(const string & username) {
-    PreparedStatementPtr stmt = prepare_statement("DROP USER `?`");
-    stmt->setString(1, username);
+    string text = str(format("DROP USER `%s`;")
+                       % con->escape_string(username.c_str()));
+    PreparedStatementPtr stmt = con->prepare_statement(text.c_str());
     stmt->executeUpdate();
     stmt->close();
-}
-
-
-void MySqlGuest::disable_root() {
-    {
-        PreparedStatementPtr stmt = prepare_statement(
-            "DELETE FROM mysql.user where User='root' and Host!='localhost'");
-        stmt->executeUpdate();
-        stmt->close();
-    }
-
-    string new_password = generate_password();
-    log.info2("generate %s", new_password.c_str());
-    this->set_password("root", new_password.c_str());
+    con->flush_privileges();
 }
 
 MySqlUserPtr MySqlGuest::enable_root() {
@@ -168,41 +252,14 @@ MySqlUserPtr MySqlGuest::enable_root() {
     root_user->set_password(generate_password());
     create_user(root_user);
     set_password("root", root_user->get_password().c_str());
-    grand_all_privileges("root", "%");
-    flush_privileges();
+    con->grant_all_privileges("root", "%");
+    con->flush_privileges();
     return root_user;
-}
-
-void MySqlGuest::flush_privileges() {
-    PreparedStatementPtr stmt = prepare_statement(
-        "FLUSH PRIVILEGES;");
-    stmt->executeUpdate();
-    stmt->close();
-}
-
-string MySqlGuest::generate_password() {
-    uuid_t id;
-    uuid_generate(id);
-    char *buf = new char[37];
-    uuid_unparse(id, buf);
-    uuid_clear(id);
-    return string(buf);
-}
-
-
-void MySqlGuest::grand_all_privileges(const char * username,
-                                      const char * host) {
-    PreparedStatementPtr stmt = prepare_statement(
-        "GRANT ALL PRIVILEGES ON *.* TO '?'@'?' WITH GRANT OPTION;");
-    stmt->setString(1, username);
-    stmt->setString(2, host);
-    stmt->executeUpdate();
-    stmt->close();
 }
 
 MySqlDatabaseListPtr MySqlGuest::list_databases() {
     MySqlDatabaseListPtr databases(new MySqlDatabaseList());
-    PreparedStatementPtr stmt = prepare_statement("SELECT"
+    PreparedStatementPtr stmt = con->prepare_statement("SELECT"
     "                schema_name as name,"
     "                default_character_set_name as charset,"
     "                default_collation_name as collation"
@@ -229,7 +286,7 @@ MySqlDatabaseListPtr MySqlGuest::list_databases() {
 
 MySqlUserListPtr MySqlGuest::list_users() {
     MySqlUserListPtr users(new MySqlUserList());
-    PreparedStatementPtr stmt = prepare_statement(
+    PreparedStatementPtr stmt = con->prepare_statement(
         "select User from mysql.user where host != 'localhost';");
     auto_ptr<ResultSet> res(stmt->executeQuery());
     while (res->next()) {
@@ -242,13 +299,8 @@ MySqlUserListPtr MySqlGuest::list_users() {
     return users;
 }
 
-MySqlGuest::PreparedStatementPtr MySqlGuest::prepare_statement(const char * text) {
-    auto_ptr<PreparedStatement> stmt(con->prepareStatement(text));
-    return stmt;
-}
-
 bool MySqlGuest::is_root_enabled() {
-    PreparedStatementPtr stmt = prepare_statement(
+    PreparedStatementPtr stmt = con->prepare_statement(
         "SELECT User FROM mysql.user where User = 'root' "
         "and host != 'localhost';");
     auto_ptr<ResultSet> res(stmt->executeQuery());
@@ -259,12 +311,13 @@ bool MySqlGuest::is_root_enabled() {
 }
 
 void MySqlGuest::set_password(const char * username, const char * password) {
-    PreparedStatementPtr stmt = prepare_statement(
-        "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User='?'");
+    PreparedStatementPtr stmt = con->prepare_statement(
+        "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User=?");
     stmt->setString(1, password);
     stmt->setString(2, username);
     stmt->executeUpdate();
     stmt->close();
+    con->flush_privileges();
 }
 
 

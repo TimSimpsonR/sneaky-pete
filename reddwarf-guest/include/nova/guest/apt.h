@@ -27,15 +27,15 @@ namespace nova { namespace guest { namespace apt {
                 INIT_SYSTEM_FAILED,
                 NO_ARCH_INFO,
                 OPEN_FAILED*/
-                ADMIN_LOCK_ERROR,
-                COULD_NOT_FIX,
-                GENERAL,
-                PACKAGE_NOT_FOUND,
-                PACKAGE_STATE_ERROR,
-                PERMISSION_ERROR,
-                PROCESS_CLOSE_TIME_OUT,
-                PROCESS_TIME_OUT,
-                UNEXPECTED_PROCESS_OUTPUT
+                ADMIN_LOCK_ERROR = 0,
+                COULD_NOT_FIX = 10,
+                GENERAL = 20,
+                PACKAGE_NOT_FOUND = 30,
+                PACKAGE_STATE_ERROR = 40,
+                PERMISSION_ERROR = 50,
+                PROCESS_CLOSE_TIME_OUT = 60,
+                PROCESS_TIME_OUT = 70,
+                UNEXPECTED_PROCESS_OUTPUT = 80
 
             };
 

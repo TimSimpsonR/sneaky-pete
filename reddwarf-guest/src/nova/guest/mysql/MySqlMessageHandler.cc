@@ -93,12 +93,6 @@ namespace {
         return rtn;
     }
 
-    JSON_METHOD(disable_root) {
-        guest->disable_root();
-        JsonObjectPtr rtn(new JsonObject("{}"));
-        return rtn;
-    }
-
     JSON_METHOD(is_root_enabled) {
         bool enabled = guest->is_root_enabled();
         log.info2( "guest call %i", enabled);
@@ -121,7 +115,6 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr guest)
         REGISTER(create_database),
         REGISTER(create_user),
         REGISTER(delete_database),
-        REGISTER(disable_root),
         REGISTER(delete_user),
         REGISTER(enable_root),
         REGISTER(is_root_enabled),

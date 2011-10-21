@@ -24,6 +24,8 @@
 
 namespace nova { namespace guest { namespace mysql {
 
+    std::string generate_password();
+
     class MySqlGuestException : public std::exception {
 
         public:
@@ -90,7 +92,7 @@ namespace nova { namespace guest { namespace mysql {
             return password;
         }
 
-        inline const std::string & get_databases() const {
+        inline MySqlDatabaseListPtr get_databases() {
             return databases;
         }
 
@@ -98,12 +100,10 @@ namespace nova { namespace guest { namespace mysql {
 
         void set_password(const std::string & value);
 
-        void set_databases(const std::string & value);
-
     private:
         std::string name;
         std::string password;
-        std::string databases;
+        MySqlDatabaseListPtr databases;
     };
 
 
@@ -111,20 +111,54 @@ namespace nova { namespace guest { namespace mysql {
     typedef std::vector<MySqlUserPtr> MySqlUserList;
     typedef boost::shared_ptr<MySqlUserList> MySqlUserListPtr;
 
-    class MySqlGuest {
-        //TODO(tim.simpson): The constructor and "prepare_statement" call could
-        // extracted into a general use MySql class used by this one.
-
+    class MySqlConnection {
         public:
             typedef std::auto_ptr<sql::PreparedStatement> PreparedStatementPtr;
 
+            MySqlConnection(const std::string & uri, const std::string & user,
+                            const std::string & password);
+
+            ~MySqlConnection();
+
+            std::string escape_string(const char * original);
+
+            void flush_privileges();
+
+            void grant_all_privileges(const char * username,
+                                      const char * host);
+
+            void init();
+
+            PreparedStatementPtr prepare_statement(const char * text);
+
+            void use_database(const char * database);
+
+        private:
+            sql::Driver *driver;
+            sql::Connection *con;
+            std::string database;
+            const std::string password;
+            const std::string uri;
+            const std::string user;
+
+            sql::Connection * get_con();
+    };
+
+    typedef boost::shared_ptr<MySqlConnection> MySqlConnectionPtr;
+
+    class MySqlGuest {
+
+        public:
+            typedef MySqlConnection::PreparedStatementPtr PreparedStatementPtr;
+
             MySqlGuest(const std::string & uri);
-            MySqlGuest(const MySqlGuest & other);
+            MySqlGuest(const std::string & uri, const std::string & user,
+                       const std::string & password);
             ~MySqlGuest();
 
             void create_database(MySqlDatabaseListPtr databases);
 
-            void create_user(MySqlUserPtr);
+            void create_user(MySqlUserPtr, const char * host="%");
 
             void create_users(MySqlUserListPtr);
 
@@ -132,17 +166,11 @@ namespace nova { namespace guest { namespace mysql {
 
             void delete_user(const std::string & username);
 
-            // The original method always returns True, but I don't know why.
-            void disable_root();
-
             MySqlUserPtr enable_root();
 
-            void flush_privileges();
-
-            static std::string generate_password();
-
-            void grand_all_privileges(const char * username,
-                                      const char * host);
+            inline MySqlConnectionPtr get_connection() {
+                return con;
+            }
 
             MySqlDatabaseListPtr list_databases();
 
@@ -150,14 +178,12 @@ namespace nova { namespace guest { namespace mysql {
 
             bool is_root_enabled();
 
-            PreparedStatementPtr prepare_statement(const char * text);
-
             void set_password(const char * username, const char * password);
 
         private:
+            MySqlGuest(const MySqlGuest & other);
 
-            sql::Driver *driver;
-            sql::Connection *con;
+            MySqlConnectionPtr con;
 
     };
 

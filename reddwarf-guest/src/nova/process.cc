@@ -163,19 +163,27 @@ void Process::delete_argv(char * * & new_argv, int & new_argv_length) {
 }
 
 void Process::execute(const CommandList & cmds, double time_out) {
+    stringstream str;
+    execute(str, cmds, time_out);
+}
+
+void Process::execute(std::stringstream & out, const CommandList & cmds,
+                      double time_out) {
     Process proc(cmds, true);
-    proc.wait_for_eof(time_out);
+    proc.wait_for_eof(out, time_out);
     if (!proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
     }
 }
 
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
+    LOG_DEBUG2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (eof_flag == true) {
         throw ProcessException(ProcessException::PROGRAM_FINISHED);
     }
     char buf[1048];
     if (!ready(std_out_fd[0], seconds)) {
+        LOG_DEBUG("read_into: ready returned false, returning zero from read_into");
         return 0;
     }
     size_t count = io::read_with_throw(log, std_out_fd[0], buf, 1047);
@@ -246,10 +254,16 @@ void Process::set_eof() {
 
 void Process::wait_for_eof(double seconds) {
     stringstream str;
+    wait_for_eof(str, seconds);
+}
+
+void Process::wait_for_eof(stringstream & out, double seconds) {
+    LOG_DEBUG2("wait_for_eof, timeout=%f", seconds);
     Timer timer(seconds);
-    while(read_into(str, optional<double>(seconds) > 0));
+    while(read_into(out, optional<double>(seconds)));
     if (!eof()) {
-        log.error("Something went wrong, EOF not reached!");
+        log.error2("Something went wrong, EOF not reached! Time out=%f",
+                   seconds);
     }
 }
 

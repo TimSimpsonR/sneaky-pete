@@ -50,6 +50,9 @@ class Process {
          *  otherwise. */
         static void execute(const CommandList & cmds, double time_out=30);
 
+        static void execute(std::stringstream & out, const CommandList & cmds,
+                            double time_out=30);
+
         /* Waits until the process's stdout stream has bytes to read or the
          * number of seconds specified by the argument "seconds" passes.
          * If seconds is not set will block here forever (unless a Timer is
@@ -74,6 +77,7 @@ class Process {
 
         /** Waits for EOF, throws TimeOutException if it doesn't happen. */
         void wait_for_eof(double seconds);
+        void wait_for_eof(std::stringstream & out, double seconds);
 
         void write(const char * msg);
 

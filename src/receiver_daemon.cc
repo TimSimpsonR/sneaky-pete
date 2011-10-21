@@ -70,7 +70,16 @@ int main(int argc, const char* argv[]) {
             } catch(sql::SQLException & e) {
                 log.info2("receiver exception is %s %i %s", e.what(),
                             e.getErrorCode(), e.getSQLState().c_str());
-                output = json_tokener_parse(error_message);
+                std::stringstream msg;
+                msg << "{" << error_message << "}";
+                JsonObjectPtr error(new JsonObject(msg.str().c_str()));
+                output = error;
+            } catch(const std::exception & e) {
+                log.info2("receiver exception is %s", e.what());
+                std::stringstream msg;
+                msg << "{" << error_message << "}";
+                JsonObjectPtr error(new JsonObject(msg.str().c_str()));
+                output = error;
             }
             #endif
             receiver.finish_message(input, output);

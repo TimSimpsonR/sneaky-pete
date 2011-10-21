@@ -10,6 +10,7 @@
 #include "nova/guest/mysql.h"
 #include "nova/guest/mysql/MySqlPreparer.h"
 #include "nova/process.h"
+#include <stdlib.h>
 #include <unistd.h>
 
 //#include "nova/"
@@ -396,14 +397,23 @@ std::string preparation_tests() {
 
 BOOST_AUTO_TEST_CASE(integration_tests)
 {
-    set_up_tests();
+    const char * value = getenv("DESTROY_MYSQL_ON_THIS_MACHINE");
+    if (value == NULL || string(value) != "PLEASE") {
+        BOOST_FAIL("Cannot run the integration tests unless the user is "
+                   "ok with their MySQL install being destroyed.");
+    } else {
+        set_up_tests();
 
-    string admin_password = preparation_tests();
+        string admin_password = preparation_tests();
 
-    //mysql_guest_tests(ADMIN_USER_NAME, admin_password);
-
-    //MySqlGuestPtr admin_guest(new MySqlGuest(URI));
-    MySqlGuestPtr admin_guest = create_guest(ADMIN_USER_NAME,
-                                             admin_password.c_str());
-    mysql_guest_tests(admin_guest, 3);
+        #ifdef INTEGRATION_WITH_REDDWARF_CI_COMPLETE
+            // Using the admin_password returned above is a cheat-
+            // the mycnf file should know the correct values for the admin user.
+            MySqlGuestPtr admin_guest(new MySqlGuest(URI));
+        #else
+            MySqlGuestPtr admin_guest = create_guest(ADMIN_USER_NAME,
+                                                     admin_password.c_str());
+        #endif
+        mysql_guest_tests(admin_guest, 3);
+    }
 }

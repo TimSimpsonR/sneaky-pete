@@ -104,20 +104,18 @@ namespace {
 MySqlPreparer::MySqlPreparer(MySqlGuestPtr guest)
 : guest(guest)
 {
-    // We have to keep the MySqlGuestPtr so the underlying reference won't be
-    // deleted, which is kind of dirty...
 }
 
 void MySqlPreparer::create_admin_user(const std::string & password) {
     MySqlUserPtr user(new MySqlUser());
     user->set_name(ADMIN_USER_NAME);
     user->set_password(password);
-    guest->create_user(user);
-    guest->grand_all_privileges(ADMIN_USER_NAME, password.c_str());
+    guest->create_user(user, "localhost");
+    guest->get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
 }
 
 void MySqlPreparer::generate_root_password() {
-    guest->set_password("root", guest->generate_password().c_str());
+    guest->set_password("root", mysql::generate_password().c_str());
 }
 
 void MySqlPreparer::init_mycnf(const std::string & password) {
@@ -143,13 +141,13 @@ void MySqlPreparer::install_mysql() {
 void MySqlPreparer::prepare() {
     log.debug("Preparing Guest as MySQL Server");
     install_mysql();
-    string admin_password = MySqlGuest::generate_password();
+    string admin_password = mysql::generate_password();
 
     generate_root_password();
     remove_anonymous_user();
     remove_remote_root_access();
     create_admin_user(admin_password);
-    guest->flush_privileges();
+    guest->get_connection()->flush_privileges();
 
     init_mycnf(admin_password);
     restart_mysql();
@@ -158,19 +156,20 @@ void MySqlPreparer::prepare() {
 }
 
 void MySqlPreparer::remove_anonymous_user() {
-    MySqlGuest::PreparedStatementPtr stmt = guest->prepare_statement(
-        "DELETE FROM mysql.user WHERE User='';");
+    MySqlGuest::PreparedStatementPtr stmt = guest->get_connection()
+        ->prepare_statement("DELETE FROM mysql.user WHERE User='';");
     stmt->executeUpdate();
     stmt->close();
 }
 
 void MySqlPreparer::remove_remote_root_access() {
-    MySqlGuest::PreparedStatementPtr stmt = guest->prepare_statement(
-        "DELETE FROM mysql.user"
-        "    WHERE User='root'"
-        "    AND Host!='localhost';");
+    MySqlGuest::PreparedStatementPtr stmt = guest->get_connection()
+        ->prepare_statement("DELETE FROM mysql.user"
+                            "    WHERE User='root'"
+                            "    AND Host!='localhost';");
     stmt->executeUpdate();
     stmt->close();
+    guest->get_connection()->flush_privileges();
 }
 
 void MySqlPreparer::restart_mysql() {

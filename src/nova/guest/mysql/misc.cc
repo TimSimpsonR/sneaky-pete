@@ -1,11 +1,21 @@
 #include "nova/guest/guest.h"
 #include "nova/guest/mysql.h"
-
+#include <uuid/uuid.h>
 
 using namespace std;
 
 
 namespace nova { namespace guest { namespace mysql {
+
+
+string generate_password() {
+    uuid_t id;
+    uuid_generate(id);
+    char *buf = new char[37];
+    uuid_unparse(id, buf);
+    uuid_clear(id);
+    return string(buf);
+}
 
 
 /**---------------------------------------------------------------------------
@@ -33,7 +43,7 @@ const char * MySqlGuestException::what() const throw() {
  *---------------------------------------------------------------------------*/
 
 MySqlUser::MySqlUser()
-: name(""), password(""), databases("")
+: name(""), password(""), databases(new MySqlDatabaseList())
 {
 }
 
@@ -43,10 +53,6 @@ void MySqlUser::set_name(const std::string & value) {
 
 void MySqlUser::set_password(const std::string & value) {
     this->password = value;
-}
-
-void MySqlUser::set_databases(const std::string & value) {
-    this->databases = value;
 }
 
 

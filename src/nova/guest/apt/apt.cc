@@ -65,7 +65,7 @@ void fix(double time_out) {
     // Expect just a simple EOF.
     stringstream std_out;
     int bytes_read = process.read_until_pause(std_out, time_out, time_out);
-    if (bytes_read > 0 || !process.eof()) {
+    if (!process.eof()) {
         throw AptException(AptException::COULD_NOT_FIX);
     }
 }

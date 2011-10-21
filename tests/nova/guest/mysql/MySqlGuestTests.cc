@@ -19,7 +19,6 @@ using namespace std;
     create_database,
     create_user,
     delete_database,
-    disable_root,
     delete_user,
     enable_root,
     is_root_enabled,
@@ -32,7 +31,7 @@ BOOST_AUTO_TEST_CASE(password_must_be_unique)
     string password;
     string last_password ;
     for(int i = 0; i < 10; i ++) {
-        string password = MySqlGuest::generate_password();
+        string password = nova::guest::mysql::generate_password();
         BOOST_CHECK_NE(last_password, password);
         last_password = password;
     }
@@ -40,9 +39,21 @@ BOOST_AUTO_TEST_CASE(password_must_be_unique)
 
 BOOST_AUTO_TEST_CASE(password_must_be_kind_of_long)
 {
-    string password = MySqlGuest::generate_password();
+    string password = nova::guest::mysql::generate_password();
     BOOST_CHECK_GT(password.length(), 10);
 }
+
+/*
+
+BOOST_AUTO_TEST_CASE(dumb)
+{
+    MySqlGuestPtr guest(new MySqlGuest("localhost:5672", "root", ""));
+    string hi = guest->escape_string("hi");
+    BOOST_REQUIRE_EQUAL(hi, "hi");
+
+    string bye = guest->escape_string("GRANT USAGE ON *.* TO 'hieelllo' ;");
+    BOOST_REQUIRE_EQUAL(bye, "hi");
+}*/
 
 int number_of_admins(MySqlGuestPtr guest) {
     /*MySqlGuest::PreparedStatementPtr stmt = guest->prepare_statement(
@@ -54,6 +65,7 @@ int number_of_admins(MySqlGuestPtr guest) {
         number ++;
     }
     return number;*/
+    return 0;
 }
 
 BOOST_AUTO_TEST_CASE(add_admin)

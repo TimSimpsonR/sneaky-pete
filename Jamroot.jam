@@ -12,7 +12,7 @@ project
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
-	;
+        ;
 
 ###############################################################################
 #       Dependencies
@@ -68,7 +68,8 @@ local rule unit ( name : sources * : dependencies * : test-sources *
                 test_dependencies
                 $(dependencies)
             :   <define>BOOST_TEST_DYN_LINK
-                <testing.launcher>"$(env-vars) valgrind --leak-check=full"
+                #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
+                <testing.launcher>"$(env-vars) "
                 $(test-properties)
             ;
         obj __unit_obj_$(name) : $(sources)
@@ -285,7 +286,56 @@ run     dependencies
 #      Integration Tests
 ###############################################################################
 
-# TODO
+import python ;
+using python ;
+
+lib lib_boost_py : : <name>boost_python ;
+
+python-extension nova_guest_apt
+    :   integration/nova_guest_apt.cc
+        lib_boost_py
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+    ;
+
+python-extension nova_guest_mysql
+    :   integration/nova_guest_mysql.cc
+        lib_boost_py
+        u_nova_guest_mysql_MySqlPreparer
+    ;
+
+install convenient_copy
+  : nova_guest_mysql
+    nova_guest_apt
+  : <install-dependencies>on
+    <install-type>SHARED_LIB
+    <install-type>PYTHON_EXTENSION
+    <location>.
+  ;
+
+import testing ;
+testing.make-test run-pyd
+    : nova_guest_apt
+      nova_guest_mysql
+      u_nova_guest_apt_apt
+      u_nova_guest_apt_AptException
+      u_nova_guest_mysql_MySqlPreparer
+      integration/int_tests.py
+    :
+    : integration_tests  # <-- Target name
+    ;
+
+unit-test int_tests
+    :   u_nova_Log
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_guest_mysql_MySqlPreparer
+        integration/int_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+    ;
 
 ###############################################################################
 #      Binaries

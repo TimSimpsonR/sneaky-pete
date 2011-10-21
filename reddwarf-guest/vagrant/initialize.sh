@@ -40,12 +40,3 @@ sh autogen.sh
 ./configure
 make
 sudo make install
-
-# Integration test stuff
-pkg_install python-nose
-pkg_install python-pip
-sudo pip install proboscis
-sudo pip install pexpect
-pkg_install python-mysqldb # mysql-server
-pkg_install python-sqlalchemy
-pkg_install libmysqld-dev

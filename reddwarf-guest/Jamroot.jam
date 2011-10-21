@@ -203,9 +203,11 @@ unit u_nova_rpc_Receiver
 
 unit u_nova_guest_mysql_misc
     :   src/nova/guest/mysql/misc.cc
+    :   lib_uuid
+    :   tests/nova/guest/mysql/mysql_unit_tests.cc
     ;
 
-#
+
 alias nova_guest_mysql_deps
     :   lib_mysqlcppconn
         u_nova_configfile
@@ -214,14 +216,11 @@ alias nova_guest_mysql_deps
         u_nova_Log
         u_nova_process
         u_nova_utils_regex
-        lib_uuid
     ;
 
 unit u_nova_guest_mysql_MySqlGuest
     :   src/nova/guest/mysql/MySqlGuest.cc
     :   nova_guest_mysql_deps
-    :   tests/nova/guest/mysql/MySqlGuestTests.cc
-        u_nova_json
     ;
 
 unit u_nova_guest_mysql_MySqlPreparer
@@ -232,8 +231,6 @@ unit u_nova_guest_mysql_MySqlPreparer
         u_nova_configfile
         u_nova_guest_mysql_misc
         __unit_obj_u_nova_guest_mysql_MySqlGuest
-    :   tests/nova/guest/mysql/MySqlPreparerTests.cc
-        u_nova_json
     ;
 
 unit u_nova_guest_mysql_MySqlMessageHandler
@@ -286,56 +283,20 @@ run     dependencies
 #      Integration Tests
 ###############################################################################
 
-import python ;
-using python ;
-
-lib lib_boost_py : : <name>boost_python ;
-
-python-extension nova_guest_apt
-    :   integration/nova_guest_apt.cc
-        lib_boost_py
-        u_nova_guest_apt_apt
-        u_nova_guest_apt_AptException
-    ;
-
-python-extension nova_guest_mysql
-    :   integration/nova_guest_mysql.cc
-        lib_boost_py
-        u_nova_guest_mysql_MySqlPreparer
-    ;
-
-install convenient_copy
-  : nova_guest_mysql
-    nova_guest_apt
-  : <install-dependencies>on
-    <install-type>SHARED_LIB
-    <install-type>PYTHON_EXTENSION
-    <location>.
-  ;
-
-import testing ;
-testing.make-test run-pyd
-    : nova_guest_apt
-      nova_guest_mysql
-      u_nova_guest_apt_apt
-      u_nova_guest_apt_AptException
-      u_nova_guest_mysql_MySqlPreparer
-      integration/int_tests.py
-    :
-    : integration_tests  # <-- Target name
-    ;
-
 unit-test int_tests
     :   u_nova_Log
-        u_nova_guest_apt_apt
-        u_nova_guest_apt_AptException
+        #u_nova_guest_apt_apt
+        #u_nova_guest_apt_AptException
         u_nova_guest_mysql_MySqlPreparer
-        integration/int_tests.cc
+        tests/nova/guest/mysql/mysql_integration_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
         #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
     ;
+
+# Make it so this won't run unless we explicitly ask for it.
+explicit int_tests ;
 
 ###############################################################################
 #      Binaries
@@ -352,6 +313,7 @@ exe apt_install
         lib_rt
     :   <define>_NOVA_PROCESS_VERBOSE
     ;
+explicit apt_install ;
 
 exe receiver
 	:	dependencies
@@ -377,4 +339,5 @@ exe leak_tester
 	:   #<link>shared:<dependency>sql_guest_tests
 	    #<link>shared:<dependency>memory_tests
 	;
+explicit leak_tester ;
 

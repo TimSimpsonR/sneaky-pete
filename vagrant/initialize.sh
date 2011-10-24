@@ -40,3 +40,10 @@ sh autogen.sh
 ./configure
 make
 sudo make install
+
+# On the Reddwarf VM this seems to be necessary.
+sudo cp /usr/local/lib/libjson* /usr/lib/
+sudo cp /usr/local/lib/librabbit* /usr/lib/
+
+cd ~/
+ln -s `g++ -print-file-name=libstdc++.a`

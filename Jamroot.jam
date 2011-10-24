@@ -12,6 +12,7 @@ project
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
+        <define>_NOVA_PROCESS_VERBOSE
         ;
 
 ###############################################################################
@@ -21,19 +22,75 @@ project
 
 # System libraries are found automatically by our toolset (GCC).
 # So for example, if you pass "-lrabbitmq" to gcc, here its "<name>rabbitmq."
+
+# Some libraries can't be staticly linked for various reasons.
+# So we create aliases of them which we refer to them by, which force them to
+# be dynamically linked.
+
 lib lib_boost_thread : : <name>boost_thread ;
 lib lib_boost_unit_test_framework : : <name>boost_unit_test_framework ;
 lib lib_confuse : : <name>confuse ;
 lib lib_json : : <name>json ;
-lib lib_mysqlcppconn : : <name>mysqlcppconn ;
+###lib lib_mysqlcppconn : : <name>mysqlcppconn ;
+###lib lib_mysqlcppconn : : <file>/usr/lib/libmysqlcppconn-static.a ;
+###lib lib_mysqlcppconn : : <file>/usr/lib/libmysqlcppconn.a ;
+lib libo_mysqlcppconn : : <name>mysqlcppconn ;
+alias lib_mysqlcppconn : libo_mysqlcppconn/<link>shared ;
+
+
 lib lib_rabbitmq : : <name>rabbitmq ;
+
 lib lib_rt : : <name>rt ;
 lib lib_uuid : : <name>uuid ;
 
-
 alias dependencies
-	:   lib_json lib_rabbitmq lib_mysqlcppconn lib_uuid
-	    lib_confuse
+	:   lib_json lib_rabbitmq  lib_uuid lib_confuse
+        #lib_mysqlcppconn
+	;
+
+###lib libo_c : : <name>c ;  # Only needed to make pthread work in static builds.
+###alias lib_c : libo_c/<link>shared ;
+
+lib lib_pthread : : <name>pthread ; # Seems to only be needed in static builds
+                                    # static builds also require lib_c.
+###alias lib_pthread : libo_pthread/<link>shared ;
+
+###lib lib_m : : <name>m-2.11.1 ;
+lib lib_m : : <name>m ;
+lib lib_stdc++ : : <name>stdc++ ;
+###lib lib_gcc_s : : <name>gcc_s ;
+
+###lib lib_crypt : : <name>crypt-2.11.1 ;
+lib lib_crypt : : <file>/lib/libcrypt-2.11.1.so ;
+###lib lib_z : : <name>z ;
+###lib lib_c : : <name>c-2.11.1 ;
+lib lib_z : : <file>/lib/libz.so.1.2.3.3 ;
+###lib lib_c : : <name>c ;
+
+###lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient_r.so.16.0.0 ;
+lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
+
+# I think I need this to statically bring in lib_mysqlcppcon
+###lib lib_mysql : : <name>mysql ;
+
+
+# The code stuff
+# lib lib_gcc_s : : <file>/lib/libgcc_s.so.1 ;  #< -- LOL, not possible
+# lib lib_c : : <file>/lib/libc.so.6 ;
+
+alias static_dependencies
+	:   dependencies
+        # lib_pthread
+        #lib_c/<link>static
+        #lib_gcc_s/<link>static
+        #lib_c/<link>static
+        lib_m/<link>static
+        lib_stdc++/<link>static
+        #lib_mysqlclient_r
+        #lib_mysql
+        # Needed by libmysqlconn+++ whatever
+        #  lib_z/<link>static
+        #  lib_crypt/<link>static
 	;
 
 alias test_dependencies
@@ -72,9 +129,12 @@ local rule unit ( name : sources * : dependencies * : test-sources *
                 <testing.launcher>"$(env-vars) "
                 $(test-properties)
             ;
+        explicit __unit_tests_$(name) ;
         obj __unit_obj_$(name) : $(sources)
             : <dependency>__unit_test_obj_$(name)
-              <dependency>__unit_tests_$(name)
+              # Be sure to force the unit tests we require to be shared,
+              # or it will fail on static builds.
+              <dependency>__unit_tests_$(name)/<link>shared
             ;
         alias $(name) :  __unit_obj_$(name) $(dependencies) ;
     }
@@ -130,17 +190,18 @@ unit u_nova_Log
     ;
 
 
-exe parrot
+exe parrot_e
     :   u_nova_Log
         tests/nova/parrot.cc
     ;
+install parrot : parrot_e/<link>shared ;
 unit u_nova_process
     :   src/nova/process.cc
     :   lib_rt
         u_nova_utils_io
         u_nova_Log
     :   tests/nova/process_tests.cc
-    :   <dependency>parrot
+    :   <dependency>parrot/<link>shared
         #<define>_NOVA_PROCESS_VERBOSE
     :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
     ;
@@ -246,17 +307,19 @@ unit u_nova_guest_mysql_MySqlMessageHandler
     :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
     :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
     ;
+#explicit u_nova_guest_mysql_MySqlMessageHandler ;
 
-lib guest_lib
+
+alias guest_lib
     :   u_nova_configfile
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
         u_nova_guest_apt_AptException
         u_nova_json
         u_nova_Log
-        u_nova_guest_mysql_misc
-        u_nova_guest_mysql_MySqlGuest
-        u_nova_guest_mysql_MySqlMessageHandler
+        #u_nova_guest_mysql_misc
+        #u_nova_guest_mysql_MySqlGuest
+        #u_nova_guest_mysql_MySqlMessageHandler
         u_nova_rpc_Receiver
         u_nova_utils_regex
         u_nova_rpc_Sender
@@ -278,6 +341,7 @@ run     dependencies
     :   memory_tests  # <-- The target name is placed here, for some reason. :(
     ;
 
+explicit memory_tests ;
 
 ###############################################################################
 #      Integration Tests
@@ -316,12 +380,44 @@ exe apt_install
 explicit apt_install ;
 
 exe receiver
-	:	dependencies
+    :   dependencies
+        guest_lib
+        src/receiver_daemon.cc
+    :   #<dependency>sql_guest_tests
+       # <dependency>memory_tests
+    ;
+
+exe sreceiver
+	:	static_dependencies
+        #dependencies
 		guest_lib
-		src/receiver_daemon.cc
+        src/receiver_daemon.cc
     :   #<dependency>sql_guest_tests
 	   # <dependency>memory_tests
+        #<linkflags>"-static -pthread -static-libgcc -L~/." #" -static-libgcc "
+        <linkflags>"-pthread -static-libgcc -L/home/vagrant/. " #" -static-libgcc " #static-libstdc++"
+
 	;
+
+#exe receiver
+#    :   dependencies
+#        u_nova_configfile/<link>static
+#        u_nova_guest_apt_apt/<link>static
+#        u_nova_guest_apt_AptMessageHandler/<link>static
+#        u_nova_guest_apt_AptException/<link>static
+#        u_nova_json/<link>static
+#        u_nova_Log/<link>static
+#        u_nova_guest_mysql_misc/<link>static
+#        u_nova_guest_mysql_MySqlGuest/<link>static
+#        u_nova_guest_mysql_MySqlMessageHandler/<link>shared
+#        u_nova_rpc_Receiver/<link>static
+#        u_nova_utils_regex/<link>static
+#        u_nova_rpc_Sender/<link>static
+#        src/receiver_daemon.cc/<link>static
+#   :   #<dependency>sql_guest_tests
+#       # <dependency>memory_tests
+#    ;
+
 
 exe sender
 	:	dependencies

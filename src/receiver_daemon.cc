@@ -1,5 +1,8 @@
 #include "nova/guest/guest.h"
+#include "nova/guest/apt.h"
+#ifdef MYSQL_YES
 #include "nova/guest/mysql.h"
+#endif
 #include "nova/rpc/receiver.h"
 #include "nova/ConfigFile.h"
 #include <json/json.h>
@@ -9,7 +12,9 @@
 
 using namespace nova;
 using namespace nova::guest;
+#ifdef MYSQL_YES
 using namespace nova::guest::mysql;
+#endif
 using namespace nova::rpc;
 
 
@@ -37,10 +42,14 @@ int main(int argc, const char* argv[]) {
                       amqp_password.c_str(),
                       amqp_queue.c_str());
 
+    #ifdef MYSQL_YES
     std::string mysql_uri = configfile.get_string("mysql_uri");
     MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
 
     MySqlMessageHandler handler(guest);
+    #else
+    apt::AptMessageHandler handler;
+    #endif
 
 #ifndef _DEBUG
     try {
@@ -52,9 +61,9 @@ int main(int argc, const char* argv[]) {
             JsonObjectPtr input = receiver.next_message();
             log.info2("output of json %s", input->to_string());
             JsonObjectPtr output;
-            #ifndef _DEBUG
+            //#ifndef _DEBUG
             try {
-            #endif
+            //#endif
 
             #ifdef _DEBUG
                 std::string method_str;
@@ -66,22 +75,22 @@ int main(int argc, const char* argv[]) {
             #endif
 
                 output = handler.handle_message(input);
-            #ifndef _DEBUG
-            } catch(sql::SQLException & e) {
-                log.info2("receiver exception is %s %i %s", e.what(),
-                            e.getErrorCode(), e.getSQLState().c_str());
-                std::stringstream msg;
-                msg << "{" << error_message << "}";
-                JsonObjectPtr error(new JsonObject(msg.str().c_str()));
-                output = error;
+            //#ifndef _DEBUG
+            // } catch(sql::SQLException & e) {
+            //     log.info2("receiver exception is %s %i %s", e.what(),
+            //                 e.getErrorCode(), e.getSQLState().c_str());
+            //     std::stringstream msg;
+            //     msg << "{\"error\":\"" << e.what() << "\"}";
+            //     JsonObjectPtr error(new JsonObject(msg.str().c_str()));
+            //     output = error;
             } catch(const std::exception & e) {
                 log.info2("receiver exception is %s", e.what());
                 std::stringstream msg;
-                msg << "{" << error_message << "}";
+                msg << "{\"error\":\"" << e.what() << "\"}";
                 JsonObjectPtr error(new JsonObject(msg.str().c_str()));
                 output = error;
             }
-            #endif
+            //#endif
             receiver.finish_message(input, output);
         }
 #ifndef _DEBUG

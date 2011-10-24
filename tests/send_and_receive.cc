@@ -6,6 +6,8 @@
 #include "nova/rpc/receiver.h"
 #include "nova/rpc/sender.h"
 #include "nova/guest/mysql.h"
+#include <string>
+#include <stdlib.h>
 
 using nova::Log;
 using nova::JsonObject;
@@ -16,6 +18,18 @@ using boost::posix_time::milliseconds;
 using boost::posix_time::time_duration;
 using boost::thread;
 
+
+static std::string rabbitmq_host;
+
+const char * host() {
+    const char * value = getenv("AMQP_HOST");
+    if (value != 0) {
+        rabbitmq_host = value;
+    } else {
+        rabbitmq_host = "localhost";
+    }
+    return rabbitmq_host.c_str();
+}
 
 struct Daemon {
 
@@ -66,13 +80,13 @@ BOOST_AUTO_TEST_CASE(Flood)
 
 /** Making sure we can construct and destruct these types without leaking. */
 BOOST_AUTO_TEST_CASE(ConstructingAndDestructingASender) {
-    Sender sender("localhost", 5672, "guest", "guest", "guest.hostname_exchange",
+    Sender sender(host(), 5672, "guest", "guest", "guest.hostname_exchange",
                   "guest.hostname", "");
 }
 
 
 BOOST_AUTO_TEST_CASE(ConstructingAndDestructingAReceiver) {
-    Receiver receiver("localhost", 5672, "guest", "guest",
+    Receiver receiver(host(), 5672, "guest", "guest",
                       "guest.hostname");
 }
 
@@ -81,9 +95,9 @@ BOOST_AUTO_TEST_CASE(SendingANormalMessage_NEW)
 {
     Log log;
 
-    Receiver receiver("localhost", 5672, "guest", "guest", "guest.hostname");
+    Receiver receiver(host(), 5672, "guest", "guest", "guest.hostname");
     log.info("TEST - Created receiver");
-    Sender sender("localhost", 5672, "guest", "guest", "guest.hostname_exchange",
+    Sender sender(host(), 5672, "guest", "guest", "guest.hostname_exchange",
                   "guest.hostname", "");
 
     log.info("TEST - Created sender");

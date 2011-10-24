@@ -1,4 +1,4 @@
-amqp_host="localhost"
+amqp_host="10.0.4.15"
 amqp_port=5672
 amqp_user_name="guest"
 amqp_password="guest"

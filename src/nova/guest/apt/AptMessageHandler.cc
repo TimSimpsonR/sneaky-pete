@@ -30,21 +30,22 @@ JsonObjectPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
         if (method_name == "install") {
             apt::install(args->get_string("package_name"),
                          args->get_int("time_out"));
-            rtn << "{}";
+            rtn << "{'result':{}}";
         } else if (method_name == "remove") {
             apt::remove(args->get_string("package_name"),
                         args->get_int("time_out"));
-            rtn << "{}";
+            rtn << "{'result':{}}";
         } else if (method_name == "version") {
             const char * package_name = args->get_string("package_name");
             optional<string> version = apt::version(package_name);
-            rtn << "{'version':'" << (version ? version.get() : "null") << "'}";
+            rtn << "{'failure':null, 'result':" << (version ? version.get() : "null") << " }";
         } else {
             JsonObjectPtr rtn;
             return rtn;
         }
     } catch(const AptException & ae) {
-        rtn << "{ 'error':'" << ae.what() << "' }";
+        rtn << "{ 'failure':{'exc_type':'std::exception', "
+               "'value':'" << ae.what() << "', 'traceback':'C++ code'} }";
     }
 
     JsonObjectPtr rtn_obj(new JsonObject(rtn.str().c_str()));

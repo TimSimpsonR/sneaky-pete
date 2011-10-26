@@ -61,11 +61,11 @@ lib lib_stdc++ : : <name>stdc++ ;
 ###lib lib_gcc_s : : <name>gcc_s ;
 
 ###lib lib_crypt : : <name>crypt-2.11.1 ;
-lib lib_crypt : : <file>/lib/libcrypt-2.11.1.so ;
+#lib lib_crypt : : <file>/lib/libcrypt-2.11.1.so ;
 ###lib lib_z : : <name>z ;
 ###lib lib_c : : <name>c-2.11.1 ;
-lib lib_z : : <file>/lib/libz.so.1.2.3.3 ;
-###lib lib_c : : <name>c ;
+#lib lib_z : : <file>/lib/libz.so.1.2.3.3 ;
+lib lib_c : : <name>c ;
 
 ###lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient_r.so.16.0.0 ;
 lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
@@ -80,12 +80,15 @@ lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
 
 alias static_dependencies
 	:   dependencies
-        # lib_pthread
+        # pthread fun
+        #lib_pthread
         #lib_c/<link>static
+
         #lib_gcc_s/<link>static
         #lib_c/<link>static
-        lib_m/<link>static
-        lib_stdc++/<link>static
+        #lib_m/<link>static
+        #lib_stdc++/<link>static
+
         #lib_mysqlclient_r
         #lib_mysql
         # Needed by libmysqlconn+++ whatever
@@ -257,8 +260,8 @@ unit u_nova_rpc_Receiver
     :   u_nova_rpc_amqp
         u_nova_json
         u_nova_Log
-    :   u_nova_rpc_Sender
-        tests/send_and_receive.cc
+    :   # u_nova_rpc_Sender
+        # tests/send_and_receive.cc
     ;
 
 
@@ -385,6 +388,7 @@ exe receiver
         src/receiver_daemon.cc
     :   #<dependency>sql_guest_tests
        # <dependency>memory_tests
+       <linkflags>"-pthread "
     ;
 
 exe sreceiver
@@ -395,7 +399,19 @@ exe sreceiver
     :   #<dependency>sql_guest_tests
 	   # <dependency>memory_tests
         #<linkflags>"-static -pthread -static-libgcc -L~/." #" -static-libgcc "
-        <linkflags>"-pthread -static-libgcc -L/home/vagrant/. " #" -static-libgcc " #static-libstdc++"
+
+        # Some explanation is in order.
+        # http://www.trilithium.com/johan/2005/06/static-libstdc/
+        # If it cannot find libgcc on the path, it will not statically link it
+        # and quietly give you a bigger executable. :D !!
+
+        # Adding "-static" should statically link in the pthread stuff but
+        # instead it makes an executable that won't load, which is also a neat
+        # feature.
+        # "-pthread" makes the thread stuff get brought in without specifying
+        # libraries.
+
+        <linkflags>"-pthread -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. " #" -static-libgcc " #static-libstdc++"
 
 	;
 

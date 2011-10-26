@@ -61,9 +61,9 @@ int main(int argc, const char* argv[]) {
             JsonObjectPtr input = receiver.next_message();
             log.info2("output of json %s", input->to_string());
             JsonObjectPtr output;
-            //#ifndef _DEBUG
+            #ifndef _DEBUG
             try {
-            //#endif
+            #endif
 
             #ifdef _DEBUG
                 std::string method_str;
@@ -75,7 +75,7 @@ int main(int argc, const char* argv[]) {
             #endif
 
                 output = handler.handle_message(input);
-            //#ifndef _DEBUG
+            #ifndef _DEBUG
             // } catch(sql::SQLException & e) {
             //     log.info2("receiver exception is %s %i %s", e.what(),
             //                 e.getErrorCode(), e.getSQLState().c_str());
@@ -90,7 +90,7 @@ int main(int argc, const char* argv[]) {
                 JsonObjectPtr error(new JsonObject(msg.str().c_str()));
                 output = error;
             }
-            //#endif
+            #endif
             receiver.finish_message(input, output);
         }
 #ifndef _DEBUG

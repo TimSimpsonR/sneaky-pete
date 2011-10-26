@@ -125,3 +125,58 @@ BOOST_AUTO_TEST_CASE(SendingANormalMessage_NEW)
     }
 }
 
+BOOST_AUTO_TEST_CASE(SendingANormalMessageAndResponse)
+{
+    Log log;
+
+    Receiver receiver(host(), 5672, "guest", "guest", "guest.hostname");
+    log.info("TEST - Created receiver");
+    Sender sender(host(), 5672, "guest", "guest", "guest.hostname_exchange",
+                  "guest.hostname", "");
+    Receiver resp_receiver(host(), 5672, "guest", "guest", "response_target");
+    log.info("TEST - Created receiver");
+
+
+    log.info("TEST - Created sender");
+    const char MESSAGE_ONE [] =
+    "{"
+    "    'method':'list_users',"
+    "    '_msg_id':'response_target'"
+    "}";
+    JsonObjectPtr send_object(new JsonObject(MESSAGE_ONE));
+    sender.send(send_object);
+    log.info("TEST - send obj");
+    {
+        JsonObjectPtr obj = receiver.next_message();
+        BOOST_CHECK_MESSAGE(!!obj, "Must receive an object.");
+
+        std::string method;
+        obj->get_string("method", method);
+        BOOST_CHECK_EQUAL(method, "list_users");
+
+        const char RESPONSE [] =
+        "{"
+        "    'status':'ok'"
+        "}";
+        JsonObjectPtr rtn_obj(new JsonObject(RESPONSE));
+        receiver.finish_message(obj, rtn_obj);
+    }
+
+    // Now response receiver should have gotten a message.
+    {
+        JsonObjectPtr obj = resp_receiver.next_message();
+        BOOST_CHECK_MESSAGE(!!obj, "Must receive an object.");
+
+        /*std::string method;
+        obj->get_string("method", method);
+        BOOST_CHECK_EQUAL(method, "list_users");
+        */
+        const char RESPONSE [] =
+        "{"
+        "    'status':'ok'"
+        "}";
+        JsonObjectPtr rtn_obj(new JsonObject(RESPONSE));
+        resp_receiver.finish_message(obj, rtn_obj);
+    }
+}
+

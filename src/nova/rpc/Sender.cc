@@ -22,11 +22,11 @@ Sender::Sender(const char * host_name, int port,
     AmqpConnectionPtr connection = AmqpConnection::create(host_name, port,
                                                           user_name, password);
     exchange = connection->new_channel();
-    exchange->declare_exchange(exchange_name);
+    //exchange->declare_exchange(exchange_name, "direct");
 
     queue = connection->new_channel();
-    queue->declare_queue(queue_name);
-    queue->bind_queue_to_exchange(queue_name, exchange_name, routing_key);
+    //queue->declare_queue(queue_name, false, true);
+    //queue->bind_queue_to_exchange(queue_name, exchange_name, routing_key);
 }
 
 Sender::~Sender() {

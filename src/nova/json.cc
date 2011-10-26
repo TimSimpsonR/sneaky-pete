@@ -283,7 +283,8 @@ void JsonObject::get_string(const char * key, string & value) const {
 }
 
 const char * JsonObject::to_string() const {
-    return json_object_get_string(object);
+    //return json_object_get_string(object);
+    return json_object_to_json_string(object);
 }
 
 } // end namespace nova

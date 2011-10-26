@@ -259,18 +259,20 @@ void AmqpChannel::bind_queue_to_exchange(const char * queue_name,
     amqp_check(reply, AmqpException::BIND_QUEUE_FAILURE);
 }
 
-void AmqpChannel::declare_exchange(const char * exchange_name) {
+void AmqpChannel::declare_exchange(const char * exchange_name,
+                                   const char * type) {
     // Declare a direct exchange.
     //(amqp_channel_t)
     amqp_connection_state_t conn = parent->get_connection();
     amqp_exchange_declare(conn, channel_number,
                           amqp_cstring_bytes(exchange_name),
-                          amqp_cstring_bytes("direct"),
+                          amqp_cstring_bytes(type),
                           0, 0, AMQP_EMPTY_TABLE);
     amqp_check(amqp_get_rpc_reply(conn), AmqpException::EXCHANGE_DECLARE_FAIL);
 }
 
-void AmqpChannel::declare_queue(const char * queue_name) {
+void AmqpChannel::declare_queue(const char * queue_name, bool exclusive,
+                                bool auto_delete) {
     amqp_connection_state_t conn = parent->get_connection();
     // Declare a queue
     amqp_queue_declare_t args;
@@ -278,8 +280,8 @@ void AmqpChannel::declare_queue(const char * queue_name) {
     args.queue = amqp_cstring_bytes(queue_name);
     args.passive = 0;
     args.durable = 0;
-    args.exclusive = 0;
-    args.auto_delete = 0;
+    args.exclusive = exclusive ? 1 : 0;
+    args.auto_delete = auto_delete ? 1 : 0;
     args.nowait = 0;
     args.arguments = AMQP_EMPTY_TABLE;
     amqp_method_number_t number = AMQP_QUEUE_DECLARE_OK_METHOD;
@@ -369,7 +371,7 @@ void AmqpChannel::publish(const char * exchange_name,
     props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG
                    | AMQP_BASIC_DELIVERY_MODE_FLAG
                    | AMQP_BASIC_CONTENT_ENCODING_FLAG;
-    props.content_type = amqp_cstring_bytes("text/text");
+    props.content_type = amqp_cstring_bytes("application/json"); //text/text");
     props.content_encoding = amqp_cstring_bytes("UTF-8");
     props.delivery_mode = 2; /* persistent delivery mode */
     int result = amqp_basic_publish(conn,

@@ -2,5 +2,5 @@ amqp_host="10.0.4.15"
 amqp_port=5672
 amqp_user_name="guest"
 amqp_password="guest"
-amqp_queue="guest.hostname"
+amqp_queue="guest.test-2011-10-25-111810739834-instance-6"
 mysql_uri="unix:///var/run/mysqld/mysqld.sock"

@@ -12,7 +12,7 @@ project
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
-        <define>_NOVA_PROCESS_VERBOSE
+        # <define>_NOVA_PROCESS_VERBOSE
         ;
 
 ###############################################################################
@@ -175,6 +175,12 @@ unit u_nova_configfile
     :   tests/configfile_tests.cc
     ;
 
+unit u_nova_flags
+    :   src/nova/flags.cc
+    :   u_nova_guest_GuestException
+    :   tests/nova/flags_tests.cc
+    ;
+
 unit u_nova_utils_io
     :   src/nova/utils/io.cc
     :   u_nova_Log
@@ -192,6 +198,14 @@ unit u_nova_Log
     : tests/log_tests.cc
     ;
 
+unit u_nova_guest_utils
+    : src/nova/guest/utils.cc
+    ;
+
+exe get_ipv4_address
+    :   u_nova_guest_utils
+        tests/nova/guest/get_ipv4_address.cc
+    ;
 
 exe parrot_e
     :   u_nova_Log
@@ -223,6 +237,7 @@ unit u_nova_guest_apt_AptMessageHandler
     :   src/nova/guest/apt/AptMessageHandler.cc
     :   # lib_json # <-- this should be automatic...
         u_nova_guest_apt_AptException
+        u_nova_guest_GuestException
         u_nova_json
         u_nova_Log
     :   tests/nova/guest/apt_json_tests.cc

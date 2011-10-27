@@ -8,32 +8,38 @@
 
 using nova::JsonArray;
 using nova::JsonArrayPtr;
+using nova::JsonData;
+using nova::JsonDataPtr;
 using nova::JsonException;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
 using std::string;
 
+
+#define CHECKPOINT() BOOST_CHECK_EQUAL(2,2);
+
+
 /* This code registers the JsonException type so that if its thrown Boost.Test
  * will show us the error message instead of just printing 'std::exception'. */
-void translate_json_exception(const JsonException & je) {
-    std::stringstream msg;
-    msg << "JsonException:" << je.what();
-    BOOST_ERROR(msg.str());
-}
+// void translate_json_exception(const JsonException & je) {
+//     std::stringstream msg;
+//     msg << "JsonException:" << je.what();
+//     BOOST_ERROR(msg.str());
+// }
 
-struct FixtureConfig {
+// struct FixtureConfig {
 
-    FixtureConfig() {
-        using boost::unit_test::unit_test_monitor;
-        unit_test_monitor.register_exception_translator<JsonException>(
-            &translate_json_exception);
-    }
+//     FixtureConfig() {
+//         using boost::unit_test::unit_test_monitor;
+//         unit_test_monitor.register_exception_translator<JsonException>(
+//             &translate_json_exception);
+//     }
 
-    ~FixtureConfig() {
-    }
-};
+//     ~FixtureConfig() {
+//     }
+// };
 
-BOOST_GLOBAL_FIXTURE( FixtureConfig );
+// BOOST_GLOBAL_FIXTURE( FixtureConfig );
 
 // Asserts the given bit of code throws a JsonException instance with the given
 // code.
@@ -41,7 +47,9 @@ BOOST_GLOBAL_FIXTURE( FixtureConfig );
         statement ; \
         BOOST_FAIL("Should have thrown."); \
     } catch(const JsonException & je) { \
-        BOOST_REQUIRE_EQUAL(je.code, JsonException::ex_code); \
+        const char * actual = JsonException::code_to_string(JsonException::ex_code); \
+        const char * expected = JsonException::code_to_string(je.code); \
+        BOOST_REQUIRE_EQUAL(actual, expected); \
     }
 
 // Tests the array [42,"two", 3048].
@@ -74,7 +82,9 @@ void test_json_array(JsonArray & array) {
 
 // Tests the object {"string":"abcde", "int":42}
 void test_object(JsonObject & object) {
+    CHECKPOINT();
     // Successfully getting a string
+    BOOST_CHECK_EQUAL(2,2);
     {
         string string_value;
         object.get_string("string", string_value);
@@ -105,6 +115,33 @@ void test_object(JsonObject & object) {
 }
 
 /**---------------------------------------------------------------------------
+ *- JsonData Tests
+ *---------------------------------------------------------------------------*/
+
+BOOST_AUTO_TEST_CASE(from_boolean)
+{
+    BOOST_CHECK_EQUAL(JsonData::from_boolean(false)->to_string(), "false");
+    BOOST_CHECK_EQUAL(JsonData::from_boolean(true)->to_string(), "true");
+}
+
+BOOST_AUTO_TEST_CASE(from_number)
+{
+    BOOST_CHECK_EQUAL(JsonData::from_number(0)->to_string(), "0");
+    BOOST_CHECK_EQUAL(JsonData::from_number(423)->to_string(), "423");
+}
+
+BOOST_AUTO_TEST_CASE(from_null)
+{
+    BOOST_CHECK_EQUAL(JsonData::from_null()->to_string(), "null");
+}
+
+BOOST_AUTO_TEST_CASE(from_string)
+{
+    BOOST_CHECK_EQUAL(JsonData::from_string("hello")->to_string(), "\"hello\"");
+}
+
+
+/**---------------------------------------------------------------------------
  *- JsonArray Tests
  *---------------------------------------------------------------------------*/
 
@@ -131,7 +168,7 @@ BOOST_AUTO_TEST_CASE(must_not_allow_non_array_type_in_constructor)
 BOOST_AUTO_TEST_CASE(must_not_allow_null_in_array_constructor)
 {
     CHECK_JSON_EXCEPTION({ JsonArray array((json_object *)0); },
-                         CTOR_ARGUMENT_IS_NULL);
+                         CTOR_ARGUMENT_IS_NOT_JSON_STRING);
 }
 
 BOOST_AUTO_TEST_CASE(get_values)
@@ -141,14 +178,18 @@ BOOST_AUTO_TEST_CASE(get_values)
 }
 
 BOOST_AUTO_TEST_CASE(getting_an_array_from_within_an_array) {
+    CHECKPOINT();
     JsonArray array_array(json_tokener_parse(
         "[[42,'two',3048], '2', [42,'two',3048]]"));
+    CHECKPOINT();
     JsonArrayPtr array0 = array_array.get_array(0);
     test_json_array(*array0);
 
+    CHECKPOINT();
     const char * two = array_array.get_string(1);
     BOOST_CHECK_EQUAL(two, "2");
 
+    CHECKPOINT();
     JsonArrayPtr array2 = array_array.get_array(2);
     test_json_array(*array2);
 
@@ -161,11 +202,18 @@ BOOST_AUTO_TEST_CASE(getting_an_array_from_within_an_array) {
 }
 
 BOOST_AUTO_TEST_CASE(getting_an_object_from_within_an_array) {
+    CHECKPOINT();
+
     JsonArray array_array(json_tokener_parse(
         "[[42,'two',3048], {'string':'abcde', 'int':42 }]"));
 
+    CHECKPOINT();
+
     JsonObjectPtr obj = array_array.get_object(1);
+    CHECKPOINT();
     test_object(*obj);
+
+    CHECKPOINT();
 
     CHECK_JSON_EXCEPTION({array_array.get_object(-1);},
                          INDEX_ERROR);
@@ -192,7 +240,7 @@ BOOST_AUTO_TEST_CASE(must_not_allow_non_object_type_in_constructor)
 BOOST_AUTO_TEST_CASE(must_not_allow_null_in_constructor)
 {
     CHECK_JSON_EXCEPTION({ JsonObject object((json_object *) 0); },
-                         CTOR_ARGUMENT_IS_NULL);
+                         CTOR_ARGUMENT_IS_NOT_JSON_STRING);
 }
 
 BOOST_AUTO_TEST_CASE(creating_malformed_object)
@@ -219,14 +267,15 @@ BOOST_AUTO_TEST_CASE(getting_arrays_from_inside_an_object)
 
 BOOST_AUTO_TEST_CASE(getting_values_from_inside_an_object)
 {
+    CHECKPOINT();
     JsonObject object(json_tokener_parse(
         "{ 'type':'return', 'response':{'string':'abcde', 'int':42 }}"));
-
+    CHECKPOINT();
     JsonObjectPtr obj2 = object.get_object("response");
     test_object(*obj2); // Run the same tests as above.
 
     CHECK_JSON_EXCEPTION({ object.get_object("blah"); }, KEY_ERROR);
 
     CHECK_JSON_EXCEPTION({ object.get_object("type"); },
-                         TYPE_ERROR_NOT_OBJECT);
+                     TYPE_ERROR_NOT_OBJECT);
 }

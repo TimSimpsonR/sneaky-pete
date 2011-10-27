@@ -15,6 +15,10 @@ const char * GuestException::what() throw() {
     switch(code) {
         case CONFIG_FILE_PARSE_ERROR:
             return "Error parsing config file!";
+        case COULD_NOT_GET_DEVICE:
+            return "Could not grab info on the given device.";
+        case NO_SUCH_METHOD:
+            return "Could not handle the JSON input. No such method was found.";
         default:
             return "An error occurred.";
     }

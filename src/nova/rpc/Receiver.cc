@@ -41,7 +41,7 @@ Receiver::Receiver(const char * host, int port,
 
     // TODO : Make three extra queues to listen to. :c
     const char * queue_name = topic;
-    //queue->declare_queue(queue_name);
+    queue->declare_queue(queue_name);
     // queue->declare_
 
     //queue->declare_exchange(exchange_name, 'direct')
@@ -69,7 +69,7 @@ void Receiver::finish_message(JsonObjectPtr input, JsonObjectPtr output) {
     }
     string exchange_name_str = str(format("__agent_response_%s") % msg_id_str);
 
-    const char * const queue_name = msg_id_str.c_str();
+    //const char * const queue_name = msg_id_str.c_str();
     const char * const exchange_name = msg_id_str.c_str();
     const char * const routing_key = msg_id_str.c_str(); //"";
 

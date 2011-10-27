@@ -47,7 +47,8 @@ BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 {
     optional<string> version = apt::version("rabbitmq-server");
     BOOST_REQUIRE_EQUAL(!!version, true);
-    BOOST_REQUIRE_EQUAL(version.get(), "2.6.1-1");
+    BOOST_REQUIRE(version.get() == "2.6.1-1"
+                  || version.get() == "2.2.0-1~maverick0");
 }
 
 BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)

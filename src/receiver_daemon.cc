@@ -1,5 +1,6 @@
 #include "nova/guest/guest.h"
 #include "nova/guest/apt.h"
+#include <boost/lexical_cast.hpp>;
 #ifdef MYSQL_YES
 #include "nova/guest/mysql.h"
 #endif
@@ -32,10 +33,12 @@ int main(int argc, const char* argv[]) {
 
     ConfigFile configfile(config_location);
 
-    std::string amqp_host = configfile.get_string("amqp_host");
-    int amqp_port = configfile.get_int("amqp_port");
-    std::string amqp_user_name = configfile.get_string("amqp_user_name");
-    std::string amqp_password = configfile.get_string("amqp_password");
+    FlagValuesPtr flags = FlagValues::create_from_args(argv, argc);
+
+    std::string amqp_host = flags.get("rabbit_host"); //configfile.get_string("amqp_host");
+    int amqp_port = flags.get_as_int("rabbit_port"); // configfile.get_as_int("amqp_port");
+    std::string amqp_user_name = flags.get("rabbit_userid"); // configfile.get_string("amqp_user_name");
+    std::string amqp_password = flags.get("rabbit_password"); // configfile.get_string("amqp_password");
     std::string amqp_queue = configfile.get_string("amqp_queue");
 
     Receiver receiver(amqp_host.c_str(), amqp_port, amqp_user_name.c_str(),
@@ -59,11 +62,9 @@ int main(int argc, const char* argv[]) {
         while(!quit) {
             log.info("getting and getting");
             JsonObjectPtr input = receiver.next_message();
-            log.info2("output of json %s", input->to_string());
+            log.info2("incoming json: %s", input->to_string());
             JsonObjectPtr output;
-            #ifndef _DEBUG
             try {
-            #endif
 
             #ifdef _DEBUG
                 std::string method_str;
@@ -74,23 +75,19 @@ int main(int argc, const char* argv[]) {
                 }
             #endif
 
-                output = handler.handle_message(input);
-            #ifndef _DEBUG
-            // } catch(sql::SQLException & e) {
-            //     log.info2("receiver exception is %s %i %s", e.what(),
-            //                 e.getErrorCode(), e.getSQLState().c_str());
-            //     std::stringstream msg;
-            //     msg << "{\"error\":\"" << e.what() << "\"}";
-            //     JsonObjectPtr error(new JsonObject(msg.str().c_str()));
-            //     output = error;
+                JsonDataPtr result = handler.handle_message(input);
+                std::stringstream msg;
+                msg << "{'result':" << result->to_string() << ","
+                       " 'failure':null }";
+                output.reset(new JsonObject(msg.str().c_str()));
             } catch(const std::exception & e) {
                 log.info2("receiver exception is %s", e.what());
                 std::stringstream msg;
-                msg << "{\"error\":\"" << e.what() << "\"}";
-                JsonObjectPtr error(new JsonObject(msg.str().c_str()));
-                output = error;
+                msg << "{'failure':{'exc_type':'std::exception',"
+                       "'value':'" << e.what() << "', "
+                       "'traceback':'unavailable' } }";
+                output.reset(new JsonObject(msg.str().c_str()));
             }
-            #endif
             receiver.finish_message(input, output);
         }
 #ifndef _DEBUG

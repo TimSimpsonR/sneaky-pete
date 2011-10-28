@@ -30,7 +30,7 @@ namespace nova { namespace rpc {
         int last_delivery_tag;
         Log log;
         AmqpChannelPtr queue;
-        const std::string queue_name;
+        const std::string topic;
 
     };
 

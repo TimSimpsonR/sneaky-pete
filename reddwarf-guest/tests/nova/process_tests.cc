@@ -4,14 +4,26 @@
 #include <boost/assign/list_of.hpp>
 #include "nova/Log.h"
 #include "nova/process.h"
+#include <stdlib.h>
 
 using namespace nova;
 using std::string;
 using std::stringstream;
 using namespace boost::assign;
 
+
+static string path;
+
 const char * parrot_path() {
-    return "/src/bin/gcc-4.4.3/debug/parrot";
+    const char * value = getenv("AGENT_DIR");
+    if (value != 0) {
+        std::stringstream path_s;
+        path_s << value << "/parrot/parrot_e";
+        path = path_s.str();
+        return path.c_str();
+    } else {
+        return "parrot/parrot_e";
+    }
 }
 
 /**---------------------------------------------------------------------------

@@ -43,12 +43,12 @@ namespace {
             if (tmp == NULL) {
                 log.debug("Could not get localtime!");
                 delete tmp;
-                throw MySqlGuestException(MySqlGuestException::GENERAL);
+                throw MySqlException(MySqlException::GENERAL);
             }
             if (strftime(str, sizeof(str), "%Y-%m-%d", tmp) == 0) {
                 log.debug("strftime returned 0");
                 delete tmp;
-                throw MySqlGuestException(MySqlGuestException::GENERAL);
+                throw MySqlException(MySqlException::GENERAL);
             }
             delete tmp;
         }
@@ -156,19 +156,13 @@ void MySqlPreparer::prepare() {
 }
 
 void MySqlPreparer::remove_anonymous_user() {
-    MySqlGuest::PreparedStatementPtr stmt = guest->get_connection()
-        ->prepare_statement("DELETE FROM mysql.user WHERE User='';");
-    stmt->executeUpdate();
-    stmt->close();
+    guest->get_connection()->query("DELETE FROM mysql.user WHERE User=''");
 }
 
 void MySqlPreparer::remove_remote_root_access() {
-    MySqlGuest::PreparedStatementPtr stmt = guest->get_connection()
-        ->prepare_statement("DELETE FROM mysql.user"
-                            "    WHERE User='root'"
-                            "    AND Host!='localhost';");
-    stmt->executeUpdate();
-    stmt->close();
+    guest->get_connection()->query("DELETE FROM mysql.user"
+                                   "    WHERE User='root'"
+                                   "    AND Host!='localhost'");
     guest->get_connection()->flush_privileges();
 }
 

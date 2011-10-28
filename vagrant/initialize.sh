@@ -16,7 +16,7 @@ pkg_install () {
 pkg_install mercurial \
   git-core autoconf libtool uuid-dev libmysqlcppconn-dev g++ valgrind \
  mysql-server-5.1 libboost-dev bjam boost-build libboost-test-dev \
- libboost-thread-dev libconfuse-dev # rabbitmq-server
+ libboost-thread-dev libconfuse-dev libmysqlclient-dev # rabbitmq-server
 
 mkdir ~/build
 

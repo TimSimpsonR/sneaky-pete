@@ -2,6 +2,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "nova/guest/apt.h"
+#include "nova/flags.h"
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/assign/list_of.hpp>
@@ -19,23 +20,10 @@
 namespace apt = nova::guest::apt;
 using namespace boost::assign;
 using std::auto_ptr;
+using namespace nova::flags;
 using boost::format;
 using nova::Log;
-using nova::guest::mysql::generate_password;
-using nova::guest::mysql::MySqlConnection;
-using nova::guest::mysql::MySqlConnectionPtr;
-using nova::guest::mysql::MySqlDatabase;
-using nova::guest::mysql::MySqlDatabaseList;
-using nova::guest::mysql::MySqlDatabaseListPtr;
-using nova::guest::mysql::MySqlDatabasePtr;
-using nova::guest::mysql::MySqlGuest;
-using nova::guest::mysql::MySqlGuestPtr;
-using nova::guest::mysql::MySqlPreparer;
-using nova::guest::mysql::MySqlPreparerPtr;
-using nova::guest::mysql::MySqlUser;
-using nova::guest::mysql::MySqlUserList;
-using nova::guest::mysql::MySqlUserListPtr;
-using nova::guest::mysql::MySqlUserPtr;
+using namespace nova::guest::mysql;
 using nova::Process;
 using sql::ResultSet;
 using std::string;
@@ -44,7 +32,20 @@ using std::stringstream;
 const char * ADMIN_USER_NAME = "os_admin";
 const double INITIAL_USER_COUNT = 4;
 const double TIME_OUT = 60;
-const char * URI = "localhost:5672";
+const char * URI = "localhost"; // :5672";
+
+Log log;
+
+#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); log.debug("CHECKPOINT: At line # %d...", __LINE__);
+
+#define CHECK_EXCEPTION(statement, ex_code) try { \
+        statement ; \
+        BOOST_FAIL("Should have thrown."); \
+    } catch(const MySqlException & mse) { \
+        const char * actual = MySqlException::code_to_string(MySqlException::ex_code); \
+        const char * expected = MySqlException::code_to_string(mse.code); \
+        BOOST_REQUIRE_EQUAL(actual, expected); \
+    }
 
 #define ASSERT_ACCESS_DENIED(func) \
     { bool passed = false; \
@@ -53,9 +54,8 @@ const char * URI = "localhost:5672";
         passed = true; \
       } catch(const std::exception & e) { \
         string msg(e.what());    \
-        if (msg.find("Access denied") == string::npos    \
-            && msg.find("command denied") == string::npos) {    \
-            string fm = str(format("Expected 'Access denied', error was: %s") \
+        if (msg.find("Could not connect") == string::npos) {    \
+            string fm = str(format("Expected 'Could not connect', error was: %s") \
                             % msg);  \
             BOOST_FAIL(fm.c_str()); \
         } \
@@ -65,17 +65,24 @@ const char * URI = "localhost:5672";
       } \
     }
 
+FlagValuesPtr get_flags() {
+    //int argc = boost::unit_test::framework::master_test_suite().argc;
+    //char ** argv = boost::unit_test::framework::master_test_suite().argv;
+    //BOOST_REQUIRE_EQUAL(2, argc);
+    FlagValuesPtr ptr(new FlagValues());
+    char * test_args = getenv("TEST_ARGS");
+    BOOST_REQUIRE_MESSAGE(test_args != 0, "TEST_ARGS environment var not defined.");
+    if (test_args != 0) {
+        ptr->add_from_arg(test_args);
+    }
+    //return FlagValues::create_from_args(argc, argv, true);
+    return ptr;
+}
 
 int count_query_results(MySqlConnectionPtr sql, const char * query) {
-    MySqlGuest::PreparedStatementPtr stmt = sql->prepare_statement(query);
-    int count = 0;
-    auto_ptr<ResultSet> res(stmt->executeQuery());
-    while(res->next()) {
-        count ++;
-    }
-    res->close();
-    stmt->close();
-    return count;
+    MySqlResultSetPtr res = sql->query(query);
+    while(res->next());
+    return res->get_row_count();
 }
 
 int count_users(MySqlGuestPtr sql) {
@@ -107,26 +114,27 @@ bool db_list_contains(MySqlDatabaseListPtr databases, const char * dbname) {
 }
 
 int execute_query(MySqlConnectionPtr sql, const char * query) {
-    MySqlGuest::PreparedStatementPtr stmt = sql->prepare_statement(query);
-    int count = 0;
-    auto_ptr<ResultSet> res(stmt->executeQuery());
-    res->close();
-    stmt->close();
-    return count;
+    MySqlResultSetPtr res = sql->query(query);
+    while(res->next());
+    return res->get_row_count();
 }
 
 bool is_mysql_running() {
-    Process::CommandList cmds = list_of("/usr/bin/service")("--status-all");
+    CHECK_POINT();
+    Process::CommandList cmds = list_of("/usr/sbin/service")("--status-all");
     stringstream outstream;
+    CHECK_POINT();
     Process::execute(outstream, cmds, 30);
+    CHECK_POINT();
     return (outstream.str().find("mysql") != string::npos);
 }
 
 int number_of_admins(MySqlGuestPtr sql) {
+    CHECK_POINT();
     return count_query_results(sql->get_connection(),
         "SELECT * FROM mysql.user \n"
         "     WHERE User='os_admin'\n"
-        "     AND Host='localhost';");
+        "     AND Host='localhost'");
 }
 
 bool user_list_contains(MySqlUserListPtr users, const char * user_name) {
@@ -144,25 +152,47 @@ bool user_list_contains(MySqlUserListPtr users, const char * user_name) {
 void set_up_tests() {
     { // Wipe
         apt::remove("mysql-server-5.1", TIME_OUT);
-        BOOST_REQUIRE( ! is_mysql_running());
+        //apt::remove("mysql-server", TIME_OUT);
+        // BOOST_REQUIRE( ! is_mysql_running());
         // Make sure the directories are gone too so the old usernames
         // and tables do not resurrect.
-        Process::execute(list_of("/usr/bin/sudo")("rm")("-rf")
-                         ("/var/lib/mysql"));
+        CHECK_POINT();
+        Process rm_proc(list_of("/usr/bin/sudo")("rm")("-rf")("/var/lib/mysql"),
+                        true);
+        stringstream str;
+        CHECK_POINT();
+        rm_proc.wait_for_eof(str, TIME_OUT);
+        CHECK_POINT();
+        Process ls_proc(list_of("/bin/ls")("/var/lib/mysql"), true);
+        stringstream ls_out;
+        CHECK_POINT();
+        ls_proc.wait_for_eof(ls_out, TIME_OUT);
+        bool found = ls_out.str().find("cannot access /var/lib/mysql: No such "
+                                       "file or directory", 0) == string::npos;
+        CHECK_POINT();
+        BOOST_REQUIRE_MESSAGE(!found, "mysql directory not deleted.");
+
     }
     { // Install MySQL
         // We don't need a real connection to call some methods, as
         // demonstrated by the following bit of nonsense:
         MySqlGuestPtr guest = create_guest("gdfjkgh", "gdfhfsdah");
+        CHECK_POINT();
         MySqlPreparerPtr prepare(new MySqlPreparer(guest));
+        CHECK_POINT();
         prepare->install_mysql();
+        CHECK_POINT();
         sleep(3);
+        CHECK_POINT();
         BOOST_REQUIRE(is_mysql_running());
+        CHECK_POINT();
     }
 }
 
 void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
+    CHECK_POINT();
     MySqlDatabasePtr db_test1(new MySqlDatabase());
+    CHECK_POINT();
     db_test1->set_name("test1");
     db_test1->set_character_set("utf8");
     db_test1->set_collation("utf8_general_ci");
@@ -170,10 +200,11 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
     db_test2->set_name("test2");
     db_test2->set_character_set("utf8");
     db_test2->set_collation("utf8_general_ci");
-
+    CHECK_POINT();
 
     { // initial list of databases is empty
         MySqlDatabaseListPtr db_list = guest->list_databases();
+        CHECK_POINT();
         BOOST_REQUIRE_EQUAL(db_list->size(), 0);
         BOOST_REQUIRE( ! db_list_contains(db_list, "test1"));
         BOOST_REQUIRE( ! db_list_contains(db_list, "test2"));
@@ -182,9 +213,11 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
         MySqlDatabaseListPtr db_list(new MySqlDatabaseList());
         db_list->push_back(db_test1);
         db_list->push_back(db_test2);
+        CHECK_POINT();
         guest->create_database(db_list);
     }
     {
+        CHECK_POINT();
         MySqlDatabaseListPtr db_list = guest->list_databases();
         BOOST_REQUIRE_EQUAL(db_list->size(), 2);
         BOOST_REQUIRE(db_list_contains(db_list, "test1"));
@@ -198,33 +231,46 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
     john_doe->get_databases()->push_back(db_test1);
     { // First, list users and ensure we see nothing.
         BOOST_REQUIRE_EQUAL(initial_user_count, count_users(guest));
+        CHECK_POINT();
         MySqlUserListPtr user_list = guest->list_users();
+        CHECK_POINT();
         //Note: list_users() doesn't include some users.
         BOOST_REQUIRE_EQUAL(0, user_list->size());
+        CHECK_POINT();
         BOOST_REQUIRE( ! user_list_contains(user_list, "JohnDoe"));
+        CHECK_POINT();
     }
     { // Create user.
         MySqlUserListPtr list(new MySqlUserList());
         list->push_back(john_doe);
+        CHECK_POINT();
         guest->create_users(list);
     }
     {
+        CHECK_POINT();
         // List users (should see JohnDoe)
         BOOST_REQUIRE_EQUAL(initial_user_count + 1, count_users(guest));
         MySqlUserListPtr user_list = guest->list_users();
         //Note: list_users() doesn't include some users.
         BOOST_REQUIRE_EQUAL(1, user_list->size());
+        CHECK_POINT();
         BOOST_REQUIRE(user_list_contains(user_list, "JohnDoe"));
+        CHECK_POINT();
         guest->list_users();
+        CHECK_POINT();
         MySqlConnectionPtr doe = create_connection("JohnDoe", "password");
+        CHECK_POINT();
+        execute_query(doe, "use test1");
         // Make sure JohnDoe can access his database
         execute_query(doe,
-            "CREATE TABLE test1.table1 (name CHAR(50));");
+            "CREATE TABLE test1.table1 (name CHAR(50))");
         // Make sure JohnDoe cannot access someone else's database.
-        ASSERT_ACCESS_DENIED({
-            execute_query(doe,
-                "CREATE TABLE test2.table2 (name CHAR(50));");
-        });
+        CHECK_POINT();
+        CHECK_EXCEPTION({ execute_query(doe, "use test2"); }, QUERY_FAILED);
+        CHECK_EXCEPTION({
+            execute_query(doe, "CREATE TABLE test2.table2(name CHAR(50))");
+        }, QUERY_FAILED);
+        CHECK_POINT();
     }
 
     { // Change JohnDoe's password.
@@ -288,39 +334,50 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
 std::string preparation_tests() {
     string admin_password;
 
+    CHECK_POINT();
     MySqlGuestPtr root_client = create_root_guest();
+    CHECK_POINT();
     MySqlPreparerPtr prepare(new MySqlPreparer(root_client));
 
     { // Add Admin user
-
+        CHECK_POINT();
         BOOST_REQUIRE_EQUAL(number_of_admins(root_client), 0);
+        CHECK_POINT();
         admin_password = generate_password();
+        CHECK_POINT();
         prepare->create_admin_user(admin_password);
+        CHECK_POINT();
         BOOST_REQUIRE_EQUAL(number_of_admins(root_client), 1);
+        CHECK_POINT();
     }
 
+    CHECK_POINT();
     MySqlGuestPtr admin;
     { // Log in as admin...
-        admin.reset(new MySqlGuest("localhost:5672", ADMIN_USER_NAME,
+        admin.reset(new MySqlGuest("localhost", ADMIN_USER_NAME,
                                    admin_password.c_str()));
         BOOST_REQUIRE_EQUAL(number_of_admins(admin), 1);
     }
 
     { // Generate root password, making it so *we* cannot log in.
+        CHECK_POINT();
         prepare->generate_root_password();
+        CHECK_POINT();
         MySqlGuestPtr new_root_client = create_root_guest();
+        CHECK_POINT();
         ASSERT_ACCESS_DENIED({number_of_admins(new_root_client);});
+        CHECK_POINT();
     }
 
+    CHECK_POINT();
     { // Create an anonymous user...
-        MySqlGuest::PreparedStatementPtr stmt = admin->get_connection()
-            ->prepare_statement("CREATE USER '';");
-        stmt->executeQuery();
+        admin->get_connection()->query("CREATE USER '';");
         int count = count_query_results(admin->get_connection(),
             "SELECT * FROM mysql.user WHERE User='';");
         BOOST_REQUIRE_EQUAL(count, 1);
     }
 
+    CHECK_POINT();
     { // ... remove the anonymous user (test preparer function)
         prepare->remove_anonymous_user();
         int count = count_query_results(admin->get_connection(),
@@ -328,16 +385,16 @@ std::string preparation_tests() {
         BOOST_REQUIRE_EQUAL(count, 0);
     }
 
+    CHECK_POINT();
     { // Create remote root user...
-        MySqlGuest::PreparedStatementPtr stmt = admin->get_connection()
-            ->prepare_statement(
+        admin->get_connection()->query(
             "CREATE USER 'root'@'123.123.123.123' IDENTIFIED BY 'password';");
-        stmt->executeQuery();
         int count = count_query_results(admin->get_connection(),
             "SELECT * FROM mysql.user WHERE User='root' "
                                      "AND Host='123.123.123.123'");
         BOOST_REQUIRE_EQUAL(count, 1);
     }
+    CHECK_POINT();
     { // ... remove root user
         prepare->remove_remote_root_access();
         int count = count_query_results(admin->get_connection(),
@@ -402,9 +459,13 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         BOOST_FAIL("Cannot run the integration tests unless the user is "
                    "ok with their MySQL install being destroyed.");
     } else {
+        CHECK_POINT();
         set_up_tests();
+        CHECK_POINT();
 
+        CHECK_POINT();
         string admin_password = preparation_tests();
+        CHECK_POINT();
 
         #ifdef INTEGRATION_WITH_REDDWARF_CI_COMPLETE
             // Using the admin_password returned above is a cheat-
@@ -414,6 +475,8 @@ BOOST_AUTO_TEST_CASE(integration_tests)
             MySqlGuestPtr admin_guest = create_guest(ADMIN_USER_NAME,
                                                      admin_password.c_str());
         #endif
+        CHECK_POINT();
         mysql_guest_tests(admin_guest, 3);
+        CHECK_POINT();
     }
 }

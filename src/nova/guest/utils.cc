@@ -11,6 +11,7 @@
 #include <ifaddrs.h>
 
 
+using nova::guest::GuestException;
 using std::string;
 
 namespace nova { namespace guest { namespace utils {
@@ -23,13 +24,13 @@ string get_ipv4_address(const char * device_name) {
     ifaddrs * interfaces;
     int result = getifaddrs(&interfaces);
     if (result == -1) {
-        throw "no";
+        throw GuestException(GuestException::COULD_NOT_GET_INTERFACES);
     }
     for(ifaddrs * itr = interfaces; itr != NULL; itr = itr->ifa_next) {
         if (strcmp(device_name, itr->ifa_name) == 0) {
             sockaddr * address = itr->ifa_addr;
             if (inet_ntop(AF_INET, address, buf, 128) == 0) {
-                throw "bad";
+                throw GuestException(GuestException::COULD_NOT_CONVERT_ADDRESS);
             }
             rtn = buf;
         }

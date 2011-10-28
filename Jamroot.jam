@@ -1,9 +1,9 @@
 
 # Using environment variables isn't the best form, but its a start.
 import os ;
-local BOOST_ROOT = [ os.environ BOOST_ROOT ] ;
-local LIB_HOME = [ os.environ LIB_HOME ] ;
-
+#local BOOST_ROOT = [ os.environ BOOST_ROOT ] ;
+#local LIB_HOME = [ os.environ LIB_HOME ] ;
+#local TEST_ARGS = [ os.environ TEST_ARGS ] ;
 using testing ;
 
 project
@@ -31,6 +31,7 @@ lib lib_boost_thread : : <name>boost_thread ;
 lib lib_boost_unit_test_framework : : <name>boost_unit_test_framework ;
 lib lib_confuse : : <name>confuse ;
 lib lib_json : : <name>json ;
+lib lib_mysqlclient : : <name>mysqlclient ;
 ###lib lib_mysqlcppconn : : <name>mysqlcppconn ;
 ###lib lib_mysqlcppconn : : <file>/usr/lib/libmysqlcppconn-static.a ;
 ###lib lib_mysqlcppconn : : <file>/usr/lib/libmysqlcppconn.a ;
@@ -168,17 +169,24 @@ unit u_nova_guest_GuestException
     :   src/nova/guest/GuestException.cc
     ;
 
-unit u_nova_configfile
-    :   src/nova/configfile.cc
-    :   lib_confuse
-        u_nova_guest_GuestException
-    :   tests/configfile_tests.cc
+unit u_nova_utils_regex
+    :   src/nova/utils/regex.cc
+    :
+    :   tests/nova/utils/regex_tests.cc
     ;
 
 unit u_nova_flags
     :   src/nova/flags.cc
     :   u_nova_guest_GuestException
+        u_nova_utils_regex
     :   tests/nova/flags_tests.cc
+    ;
+
+unit u_nova_configfile
+    :   src/nova/configfile.cc
+    :   lib_confuse
+        u_nova_guest_GuestException
+    :   tests/configfile_tests.cc
     ;
 
 unit u_nova_utils_io
@@ -200,6 +208,7 @@ unit u_nova_Log
 
 unit u_nova_guest_utils
     : src/nova/guest/utils.cc
+    : u_nova_guest_GuestException
     ;
 
 exe get_ipv4_address
@@ -221,12 +230,6 @@ unit u_nova_process
     :   <dependency>parrot/<link>shared
         #<define>_NOVA_PROCESS_VERBOSE
     :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
-    ;
-
-unit u_nova_utils_regex
-    :   src/nova/utils/regex.cc
-    :
-    :   tests/nova/utils/regex_tests.cc
     ;
 
 unit u_nova_guest_apt_AptException
@@ -286,14 +289,21 @@ unit u_nova_guest_mysql_misc
     :   tests/nova/guest/mysql/mysql_unit_tests.cc
     ;
 
+unit u_nova_guest_mysql_MySqlConnection
+    :   src/nova/guest/mysql/MySqlConnection.cc
+    :   u_nova_Log
+        u_nova_guest_mysql_misc
+        lib_mysqlclient
+    ;
+
 
 alias nova_guest_mysql_deps
-    :   lib_mysqlcppconn
-        u_nova_configfile
+    :   u_nova_guest_mysql_MySqlConnection
+        # u_nova_configfile
         u_nova_utils_io
         u_nova_guest_mysql_misc
         u_nova_Log
-        u_nova_process
+        # u_nova_process
         u_nova_utils_regex
     ;
 
@@ -365,8 +375,39 @@ explicit memory_tests ;
 #      Integration Tests
 ###############################################################################
 
-unit-test int_tests
+#run     u_nova_Log
+#        #u_nova_guest_apt_apt
+#        #u_nova_guest_apt_AptException
+#        u_nova_flags
+#        u_nova_guest_mysql_MySqlConnection
+#        tests/nova/guest/mysql/mysql_integration_simple_tests.cc
+#        test_dependencies
+#    :   $(TEST_ARGS)
+#    :
+#    :   <define>BOOST_TEST_DYN_LINK
+#        #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
+#        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+#    :   int_tests_mysql
+#    ;
+
+unit-test int_tests_mysql
     :   u_nova_Log
+        #u_nova_guest_apt_apt
+        #u_nova_guest_apt_AptException
+        u_nova_flags
+        u_nova_guest_mysql_MySqlConnection
+        tests/nova/guest/mysql/mysql_integration_simple_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+    ;
+
+explicit int_tests_mysql ;
+
+unit-test int_tests
+    :   u_nova_flags
+        u_nova_Log
         #u_nova_guest_apt_apt
         #u_nova_guest_apt_AptException
         u_nova_guest_mysql_MySqlPreparer

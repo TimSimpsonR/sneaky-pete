@@ -30,9 +30,6 @@ lib lib_boost_unit_test_framework : : <name>boost_unit_test_framework ;
 lib lib_confuse : : <name>confuse ;
 lib lib_json : : <name>json ;
 lib lib_mysqlclient : : <name>mysqlclient ;
-lib libo_mysqlcppconn : : <name>mysqlcppconn ;
-alias lib_mysqlcppconn : libo_mysqlcppconn/<link>shared ;
-
 
 lib lib_rabbitmq : : <name>rabbitmq ;
 
@@ -322,7 +319,6 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_guest_apt_AptException
         u_nova_json
         nova_guest_mysql_deps
-        lib_mysqlcppconn
         u_nova_guest_mysql_misc
         __unit_obj_u_nova_guest_mysql_MySqlGuest
         __unit_obj_u_nova_guest_mysql_MySqlPreparer
@@ -334,14 +330,17 @@ unit u_nova_guest_mysql_MySqlMessageHandler
 
 alias guest_lib
     :   u_nova_configfile
+        u_nova_flags
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
         u_nova_guest_apt_AptException
+        u_nova_guest_utils
         u_nova_json
         u_nova_Log
-        #u_nova_guest_mysql_misc
-        #u_nova_guest_mysql_MySqlGuest
-        #u_nova_guest_mysql_MySqlMessageHandler
+        u_nova_guest_mysql_misc
+        u_nova_guest_mysql_MySqlConnection
+        u_nova_guest_mysql_MySqlGuest
+        u_nova_guest_mysql_MySqlMessageHandler
         u_nova_rpc_Receiver
         u_nova_utils_regex
         u_nova_rpc_Sender
@@ -417,10 +416,15 @@ exe apt_install
     ;
 explicit apt_install ;
 
+
+obj obj_receiver_daemon
+    :   src/receiver_daemon.cc
+    ;
+
 exe receiver
     :   dependencies
         guest_lib
-        src/receiver_daemon.cc
+        obj_receiver_daemon
     :   #<dependency>sql_guest_tests
        # <dependency>memory_tests
        <linkflags>"-pthread "
@@ -430,7 +434,7 @@ exe sreceiver
 	:	static_dependencies
         #dependencies
 		guest_lib
-        src/receiver_daemon.cc
+        obj_receiver_daemon
     :   #<dependency>sql_guest_tests
 	   # <dependency>memory_tests
         #<linkflags>"-static -pthread -static-libgcc -L~/." #" -static-libgcc "

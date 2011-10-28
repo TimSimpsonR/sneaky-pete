@@ -1,3 +1,5 @@
+cd ~/
+
 # Add rabbit debian repo
 echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee -a /etc/apt/sources.list
 wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
@@ -14,7 +16,7 @@ pkg_install () {
 pkg_install mercurial \
   git-core autoconf libtool uuid-dev libmysqlcppconn-dev g++ valgrind \
  mysql-server-5.1 libboost1.40-dev bjam boost-build libboost-test-dev \
- libboost-thread1.40-dev rabbitmq-server libconfuse-dev
+ libboost-thread1.40-dev rabbitmq-server libconfuse-dev libboost-python1.40-dev
 
 mkdir ~/build
 

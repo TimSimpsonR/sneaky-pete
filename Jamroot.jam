@@ -12,7 +12,7 @@ project
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
-	;
+        ;
 
 ###############################################################################
 #       Dependencies
@@ -56,8 +56,8 @@ alias test_dependencies
 # alias alone cannot declare a dependency, a second object file is used. There
 # is probably a way around this.
 
-rule unit ( name : sources * : dependencies * : test-sources *
-                 :  test-properties * : env-vars * )
+local rule unit ( name : sources * : dependencies * : test-sources *
+                  :  test-properties * : env-vars * )
 {
     if $(test-sources) > []
     {
@@ -68,7 +68,8 @@ rule unit ( name : sources * : dependencies * : test-sources *
                 test_dependencies
                 $(dependencies)
             :   <define>BOOST_TEST_DYN_LINK
-                <testing.launcher>"$(env-vars) valgrind --leak-check=full"
+                #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
+                <testing.launcher>"$(env-vars) "
                 $(test-properties)
             ;
         obj __unit_obj_$(name) : $(sources)
@@ -100,20 +101,20 @@ rule unit ( name : sources * : dependencies * : test-sources *
 # We make a unique object file if we compile the test version differently.
 
 
-unit u_nova_guest_guest_exception
-    :   src/nova/guest/guest_exception.cc
+unit u_nova_guest_GuestException
+    :   src/nova/guest/GuestException.cc
     ;
 
 unit u_nova_configfile
     :   src/nova/configfile.cc
     :   lib_confuse
-        u_nova_guest_guest_exception
+        u_nova_guest_GuestException
     :   tests/configfile_tests.cc
     ;
 
 unit u_nova_utils_io
     :   src/nova/utils/io.cc
-    :   u_nova_log
+    :   u_nova_Log
     ;
 
 unit u_nova_json
@@ -122,25 +123,26 @@ unit u_nova_json
     : tests/nova/json_tests.cc
     ;
 
-unit u_nova_log
-    : src/nova/log.cc
+unit u_nova_Log
+    : src/nova/Log.cc
     :
     : tests/log_tests.cc
     ;
 
 
 exe parrot
-    :   u_nova_log
+    :   u_nova_Log
         tests/nova/parrot.cc
     ;
 unit u_nova_process
     :   src/nova/process.cc
     :   lib_rt
         u_nova_utils_io
-        u_nova_log
+        u_nova_Log
     :   tests/nova/process_tests.cc
     :   <dependency>parrot
         #<define>_NOVA_PROCESS_VERBOSE
+    :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
     ;
 
 unit u_nova_utils_regex
@@ -149,23 +151,23 @@ unit u_nova_utils_regex
     :   tests/nova/utils/regex_tests.cc
     ;
 
-unit u_nova_guest_apt_exception
-    :   src/nova/guest/apt_exception.cc
+unit u_nova_guest_apt_AptException
+    :   src/nova/guest/apt/AptException.cc
     ;
 
-unit u_nova_guest_apt_json
-    :   src/nova/guest/apt_json.cc
+unit u_nova_guest_apt_AptMessageHandler
+    :   src/nova/guest/apt/AptMessageHandler.cc
     :   # lib_json # <-- this should be automatic...
-        u_nova_guest_apt_exception
+        u_nova_guest_apt_AptException
         u_nova_json
-        u_nova_log
+        u_nova_Log
     :   tests/nova/guest/apt_json_tests.cc
     ;
 
-unit u_nova_guest_apt
-    :   src/nova/guest/apt.cc
-    :   u_nova_log
-        u_nova_guest_apt_exception
+unit u_nova_guest_apt_apt
+    :   src/nova/guest/apt/apt.cc
+    :   u_nova_Log
+        u_nova_guest_apt_AptException
         u_nova_utils_io
         u_nova_process
         u_nova_utils_regex
@@ -182,46 +184,82 @@ unit u_nova_rpc_amqp
     :   lib_rabbitmq
     ;
 
-unit u_nova_rpc_sender
-    :   src/nova/rpc/sender.cc
+unit u_nova_rpc_Sender
+    :   src/nova/rpc/Sender.cc
     :   u_nova_rpc_amqp
         u_nova_json
-        u_nova_log
+        u_nova_Log
     ;
 
-unit u_nova_rpc_receiver
-    :   src/nova/rpc/receiver.cc
+unit u_nova_rpc_Receiver
+    :   src/nova/rpc/Receiver.cc
     :   u_nova_rpc_amqp
         u_nova_json
-        u_nova_log
-    :   u_nova_rpc_sender
+        u_nova_Log
+    :   u_nova_rpc_Sender
         tests/send_and_receive.cc
     ;
 
-unit u_nova_guest_sql_guest
-    :   src/nova/guest/sql_guest.cc
-    :   lib_mysqlcppconn
-        lib_uuid
-        u_nova_configfile
-        u_nova_json
-        u_nova_log
-        u_nova_utils_regex
-    :   tests/sql_guest_tests.cc
+
+unit u_nova_guest_mysql_misc
+    :   src/nova/guest/mysql/misc.cc
+    :   lib_uuid
+    :   tests/nova/guest/mysql/mysql_unit_tests.cc
     ;
 
 
+alias nova_guest_mysql_deps
+    :   lib_mysqlcppconn
+        u_nova_configfile
+        u_nova_utils_io
+        u_nova_guest_mysql_misc
+        u_nova_Log
+        u_nova_process
+        u_nova_utils_regex
+    ;
+
+unit u_nova_guest_mysql_MySqlGuest
+    :   src/nova/guest/mysql/MySqlGuest.cc
+    :   nova_guest_mysql_deps
+    ;
+
+unit u_nova_guest_mysql_MySqlPreparer
+    :   src/nova/guest/mysql/MySqlPreparer.cc
+    :   nova_guest_mysql_deps
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_configfile
+        u_nova_guest_mysql_misc
+        __unit_obj_u_nova_guest_mysql_MySqlGuest
+    ;
+
+unit u_nova_guest_mysql_MySqlMessageHandler
+    :   src/nova/guest/mysql/MySqlMessageHandler.cc
+    :   u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_json
+        nova_guest_mysql_deps
+        lib_mysqlcppconn
+        u_nova_guest_mysql_misc
+        __unit_obj_u_nova_guest_mysql_MySqlGuest
+        __unit_obj_u_nova_guest_mysql_MySqlPreparer
+    :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
+    :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
+    ;
+
 lib guest_lib
     :   u_nova_configfile
-        u_nova_guest_apt
-        u_nova_guest_apt_json
-        u_nova_guest_apt_exception
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptMessageHandler
+        u_nova_guest_apt_AptException
         u_nova_json
-        u_nova_log
-        u_nova_guest_apt_exception
-        u_nova_guest_sql_guest
-        u_nova_rpc_receiver
+        u_nova_Log
+        u_nova_guest_mysql_misc
+        u_nova_guest_mysql_MySqlGuest
+        u_nova_guest_mysql_MySqlMessageHandler
+        u_nova_rpc_Receiver
         u_nova_utils_regex
-        u_nova_rpc_sender
+        u_nova_rpc_Sender
     ;
 
 
@@ -242,13 +280,32 @@ run     dependencies
 
 
 ###############################################################################
+#      Integration Tests
+###############################################################################
+
+unit-test int_tests
+    :   u_nova_Log
+        #u_nova_guest_apt_apt
+        #u_nova_guest_apt_AptException
+        u_nova_guest_mysql_MySqlPreparer
+        tests/nova/guest/mysql/mysql_integration_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+    ;
+
+# Make it so this won't run unless we explicitly ask for it.
+explicit int_tests ;
+
+###############################################################################
 #      Binaries
 ###############################################################################
 
 exe apt_install
-    :   u_nova_log
-        src/nova/guest/apt.cc
-        u_nova_guest_apt_exception
+    :   u_nova_Log
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
         tests/nova/guest/apt_install.cc
         u_nova_utils_io
         u_nova_process
@@ -256,6 +313,7 @@ exe apt_install
         lib_rt
     :   <define>_NOVA_PROCESS_VERBOSE
     ;
+explicit apt_install ;
 
 exe receiver
 	:	dependencies
@@ -281,4 +339,5 @@ exe leak_tester
 	:   #<link>shared:<dependency>sql_guest_tests
 	    #<link>shared:<dependency>memory_tests
 	;
+explicit leak_tester ;
 

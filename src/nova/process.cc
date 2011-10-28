@@ -1,7 +1,8 @@
 #include "nova/process.h"
 
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <errno.h>
+#include <boost/foreach.hpp>
 #include <fstream>
 #include "nova/utils/io.h"
 #include <iostream>
@@ -15,6 +16,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 // Be careful with this Macro, as it comments out the entire line.
 #ifdef _NOVA_PROCESS_VERBOSE
@@ -75,6 +77,10 @@ ProcessException::~ProcessException() throw() {
 
 const char * ProcessException::what() const throw() {
     switch(code) {
+        case EXIT_CODE_NOT_ZERO:
+            return "The exit code was not zero.";
+        case NO_PROGRAM_GIVEN:
+            return "No program to launch was given (first element was null).";
         case PROGRAM_FINISHED:
             return "Program is already finished.";
         default:
@@ -87,8 +93,9 @@ const char * ProcessException::what() const throw() {
  *- Process
  *---------------------------------------------------------------------------*/
 
-Process::Process(const char * program_path, const char * const argv[])
-: argv(argv), eof_flag(false), log(), program_path(program_path)
+Process::Process(const CommandList & cmds, bool wait_for_close)
+: argv(argv), eof_flag(false), log(), success(false),
+  wait_for_close(wait_for_close)
 {
      // Remember 0 is for reading, 1 is for writing.
     checkGE0(log, pipe(std_out_fd) < 0);
@@ -108,9 +115,13 @@ Process::Process(const char * program_path, const char * const argv[])
     checkEqual0(log, posix_spawn_file_actions_addclose(&file_actions,
         std_out_fd[0]));
 
+    if (cmds.size() < 1) {
+        throw ProcessException(ProcessException::NO_PROGRAM_GIVEN);
+    }
+    const char * program_path = cmds.front();
     char * * new_argv;
     int new_argv_length;
-    create_argv(new_argv, new_argv_length, program_path, argv);
+    create_argv(new_argv, new_argv_length, cmds);
     int status = posix_spawn(&pid, program_path, &file_actions, NULL,
                              new_argv, environ);
     delete_argv(new_argv, new_argv_length);
@@ -131,18 +142,13 @@ Process::~Process() {
 }
 
 void Process::create_argv(char * * & new_argv, int & new_argv_length,
-                          const char * program_path,
-                          const char * const argv[]) {
-    int old_argv_length = 0;
-    while(argv[old_argv_length] != 0) {
-      old_argv_length ++;
-    }
+                          const CommandList & cmds) {
     const size_t max = 2048;
-    new_argv_length = old_argv_length + 2;
+    new_argv_length = cmds.size() + 1;
     new_argv = new char * [new_argv_length];
-    new_argv[0] = strndup(program_path, max);
-    for (int i = 0; i < old_argv_length; i ++) {
-      new_argv[i + 1] = strndup(argv[i], max);
+    size_t i = 0;
+    BOOST_FOREACH(const char * cmd, cmds) {
+        new_argv[i ++] = strndup(cmd, max);
     }
     new_argv[new_argv_length - 1] = NULL;
 }
@@ -156,12 +162,28 @@ void Process::delete_argv(char * * & new_argv, int & new_argv_length) {
     new_argv_length = 0;
 }
 
+void Process::execute(const CommandList & cmds, double time_out) {
+    stringstream str;
+    execute(str, cmds, time_out);
+}
+
+void Process::execute(std::stringstream & out, const CommandList & cmds,
+                      double time_out) {
+    Process proc(cmds, true);
+    proc.wait_for_eof(out, time_out);
+    if (!proc.successful()) {
+        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+    }
+}
+
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
+    LOG_DEBUG2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (eof_flag == true) {
         throw ProcessException(ProcessException::PROGRAM_FINISHED);
     }
     char buf[1048];
     if (!ready(std_out_fd[0], seconds)) {
+        LOG_DEBUG("read_into: ready returned false, returning zero from read_into");
         return 0;
     }
     size_t count = io::read_with_throw(log, std_out_fd[0], buf, 1047);
@@ -210,15 +232,38 @@ void Process::set_eof() {
         eof_flag = true;
         close(std_out_fd[0]);
         close(std_in_fd[0]);
+        int status;
+        int child_pid;
+        int options = wait_for_close ? 0 : WNOHANG;
+        while(((child_pid = waitpid(pid, &status, options)) == -1)
+              && (errno == EINTR));
+        #ifdef _NOVA_PROCESS_VERBOSE
+            Log log;
+            log.debug("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
+                      "WIFEXITED=%d, WEXITSTATUS=%d, "
+                      "WIFSIGNALED=%d, WIFSTOPPED=%d",
+                       child_pid, pid,
+                       (child_pid == pid ? "true" : "false"),
+                       WIFEXITED(status), (int) WEXITSTATUS(status),
+                       WIFSIGNALED(status), WIFSTOPPED(status));
+        #endif
+        success = child_pid == pid && WIFEXITED(status)
+                  && WEXITSTATUS(status) == 0;
     }
 }
 
 void Process::wait_for_eof(double seconds) {
     stringstream str;
+    wait_for_eof(str, seconds);
+}
+
+void Process::wait_for_eof(stringstream & out, double seconds) {
+    LOG_DEBUG2("wait_for_eof, timeout=%f", seconds);
     Timer timer(seconds);
-    while(read_into(str, optional<double>(seconds) > 0));
+    while(read_into(out, optional<double>(seconds)));
     if (!eof()) {
-        log.error("Something went wrong, EOF not reached!");
+        log.error2("Something went wrong, EOF not reached! Time out=%f",
+                   seconds);
     }
 }
 

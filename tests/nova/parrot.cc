@@ -3,7 +3,8 @@
  * more noise.
  */
 #include <iostream>
-#include "nova/log.h"
+#include "nova/Log.h"
+#include <stdlib.h>
 #include <string>
 #include <string.h>
 
@@ -49,8 +50,11 @@ int main(int argc, const char* argv[]) {
         while(true) {
             speak("blah");
         }
+    } else if (argc >= 2 && strncmp(argv[1], "chirp", 5) == 0) {
+        cout << "(@'> < * chirp * )" << endl;
+        return 0;
     } else {
         error("zzz");
-        return 57;
+        exit(57);
     }
 }

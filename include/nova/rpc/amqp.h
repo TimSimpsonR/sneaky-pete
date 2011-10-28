@@ -8,7 +8,7 @@ extern "C" {
     #include <amqp.h>
     #include <amqp_framing.h>
 }
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <memory>
 #include <vector>
 

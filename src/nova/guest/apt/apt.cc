@@ -1,7 +1,8 @@
 #include "nova/guest/apt.h"
 
 
-#include "nova/log.h"
+#include <boost/assign/list_of.hpp>
+#include "nova/Log.h"
 #include <errno.h>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
@@ -22,6 +23,7 @@
 
 extern char **environ;
 
+using namespace boost::assign;
 using std::auto_ptr;
 using boost::format;
 using boost::optional;
@@ -57,14 +59,13 @@ enum OperationResult {
 
 void fix(double time_out) {
     // sudo -E dpkg --configure -a
-    const char * program_path = "/usr/bin/sudo"; // "/bin/cat"; //"/bin/ls";
-    const char * const argv[] = {"-E", "dpkg", "--configure", "-a", (char *) 0};
-    Process process(program_path, argv);
+    Process process(list_of("/usr/bin/sudo")("-E")("dpkg")("--configure")("-a"),
+                    false);
 
     // Expect just a simple EOF.
     stringstream std_out;
     int bytes_read = process.read_until_pause(std_out, time_out, time_out);
-    if (bytes_read > 0 || !process.eof()) {
+    if (!process.eof()) {
         throw AptException(AptException::COULD_NOT_FIX);
     }
 }
@@ -88,8 +89,6 @@ optional<ProcessResult> match_output(Process & process,
     }
     stringstream std_out;
 
-    //TODO: There is a possibility here that if a process outputs unlimited
-    // data this function will hang.
     Timer timer(seconds);
     while(!process.eof()) {
         size_t count = process.read_into(std_out, boost::none);
@@ -131,11 +130,10 @@ optional<ProcessResult> match_output(Process & process,
  */
 OperationResult _install(const char * package_name, double time_out) {
     Log log;
-    const char * program_path = "/usr/bin/sudo"; // "/bin/cat"; //"/bin/ls";
-    const char * const argv[] = {"-E", "DEBIAN_FRONTEND=noninteractive",
-        "apt-get", "-y", "--allow-unauthenticated", "install", package_name,
-        (char *) 0};
-    Process process(program_path, argv);
+    Process process(list_of("/usr/bin/sudo")("-E")
+                    ("DEBIAN_FRONTEND=noninteractive")("apt-get")("-y")
+                    ("--allow-unauthenticated")("install")(package_name),
+                    false);
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -210,10 +208,8 @@ void install(const char * package_name, const double time_out) {
 
 OperationResult _remove(const char * package_name, double time_out) {
     Log log;
-    const char * program_path = "/usr/bin/sudo"; // "/bin/cat"; //"/bin/ls";
-    const char * const argv[] = {"-E", "apt-get", "-y",
-        "--allow-unauthenticated", "remove", package_name, (char *) 0};
-    Process process(program_path, argv);
+    Process process(list_of("/usr/bin/sudo")("-E")("apt-get")("-y")
+                    ("--allow-unauthenticated")("remove")(package_name), false);
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -295,9 +291,7 @@ typedef boost::optional<std::string> optional_string;
 
 optional<string> version(const char * package_name, const double time_out) {
     Log log;
-    const char * program_path = "/usr/bin/dpkg";
-    const char * const argv[] = {"-l", package_name, (char *) 0};
-    Process process(program_path, argv);
+    Process process(list_of("/usr/bin/dpkg")("-l")(package_name), false);
 
     vector<string> patterns;
     // 0 = Not found

@@ -1,7 +1,7 @@
 #include "nova/guest/apt.h"
 
 #include <boost/optional.hpp>
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <sstream>
 #include <string>
 
@@ -14,7 +14,7 @@ using boost::optional;
 using std::string;
 using std::stringstream;
 
-namespace nova { namespace guest {
+namespace nova { namespace guest { namespace apt {
 
 AptMessageHandler::AptMessageHandler() {
 }
@@ -51,4 +51,4 @@ JsonObjectPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
     return rtn_obj;
 }
 
-} }  // end namespace nova::guest
+} } } // end namespace nova::guest

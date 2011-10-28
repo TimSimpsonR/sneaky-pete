@@ -2,7 +2,7 @@
 #define _NOVA_UTILS_IO_H
 
 #include <boost/optional.hpp>
-#include "nova/log.h"
+#include "nova/Log.h"
 #include <sys/select.h>
 #include <signal.h>
 #include <time.h>
@@ -32,6 +32,9 @@ class Timer {
         Log log;
 };
 
+
+bool is_file(const char * file_path);
+
 /** Throws exceptions if errors are detected. */
 size_t read_with_throw(Log & log, int fd, char * const buf, size_t count);
 
@@ -46,6 +49,7 @@ class IOException : public std::exception {
 
     public:
         enum Code {
+            ACCESS_DENIED,
             GENERAL,
             READ_ERROR,
             SIGNAL_HANDLER_DESTROY_ERROR,

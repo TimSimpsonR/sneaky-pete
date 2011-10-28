@@ -1,15 +1,15 @@
-#include "nova/configfile.h"
+#include "nova/ConfigFile.h"
 #include "nova/guest/guest_exception.h"
 
 
-using nova::Configfile;
+using nova::ConfigFile;
 using nova::guest::GuestException;
 
 // Disable GCC's (correct) warning about passing a "const char *"" to a function
 // declared as merely "char *".
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
-Configfile::Configfile(const char * config_path) {
+ConfigFile::ConfigFile(const char * config_path) {
     cfg_opt_t opts[] = {
         CFG_STR("amqp_host", "localhost", CFGF_NONE),
         CFG_INT("amqp_port", 5672, CFGF_NONE),
@@ -25,15 +25,15 @@ Configfile::Configfile(const char * config_path) {
     }
 }
 
-Configfile::~Configfile() {
+ConfigFile::~ConfigFile() {
     cfg_free(cfg);
 }
 
-int Configfile::get_int(const std::string & key) {
+int ConfigFile::get_int(const std::string & key) {
     return cfg_getint(cfg, key.c_str());
 }
 
-std::string Configfile::get_string(const std::string & key) {
+std::string ConfigFile::get_string(const std::string & key) {
     std::string rtn(cfg_getstr(cfg, key.c_str()));
     return rtn;
 }

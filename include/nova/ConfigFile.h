@@ -6,10 +6,10 @@
 
 namespace nova {
 
-    class Configfile {
+    class ConfigFile {
     public:
-        Configfile(const char * config_path);
-        ~Configfile();
+        ConfigFile(const char * config_path);
+        ~ConfigFile();
         int get_int(const std::string & key);
         std::string get_string(const std::string & key);
     private:

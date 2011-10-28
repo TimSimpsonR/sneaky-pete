@@ -1,4 +1,4 @@
-#include "nova/log.h"
+#include "nova/Log.h"
 #ifdef _DEBUG
     #include <iostream>
 #endif
@@ -19,7 +19,7 @@ void Log::debug(const char* format, ... ) {
         vsnprintf(buf, BUFF_SIZE, format, args);
 
         #ifdef _DEBUG
-            std::cout << buf << std::endl;
+            std::cerr << buf << std::endl;
         #endif
 
         va_end(args);

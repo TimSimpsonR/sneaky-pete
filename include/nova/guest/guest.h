@@ -14,7 +14,7 @@ namespace nova { namespace guest {
 
         /** Takes a JSON object as input and returns one as output. Returns nullptr
          *  if it doesn't know how to handle the input. */
-        virtual nova::JsonObjectPtr handle_message(JsonObjectPtr json) = 0;
+        virtual nova::JsonDataPtr handle_message(JsonObjectPtr json) = 0;
 
     };
 

@@ -10,9 +10,6 @@ using nova::JsonObject;
 using nova::JsonObjectPtr;
 using namespace nova::guest;
 using namespace nova::guest::mysql;
-using sql::PreparedStatement;
-using sql::ResultSet;
-using sql::SQLException;
 using namespace std;
 
 

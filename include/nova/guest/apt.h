@@ -55,7 +55,7 @@ namespace nova { namespace guest { namespace apt {
         public:
           AptMessageHandler();
 
-          virtual nova::JsonObjectPtr handle_message(nova::JsonObjectPtr input);
+          virtual nova::JsonDataPtr handle_message(nova::JsonObjectPtr input);
     };
 
 } } }  // end namespace

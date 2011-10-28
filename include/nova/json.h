@@ -9,6 +9,7 @@
 struct json_object;
 
 
+
 namespace nova {
 
     class JsonException : public std::exception {
@@ -23,12 +24,15 @@ namespace nova {
                 TYPE_ERROR_NOT_ARRAY,
                 TYPE_ERROR_NOT_INT,
                 TYPE_ERROR_NOT_OBJECT,
-                TYPE_ERROR_NOT_STRING
+                TYPE_ERROR_NOT_STRING,
+                TYPE_INCORRECT
             };
 
             JsonException(Code code) throw();
 
             virtual ~JsonException() throw();
+
+            static const char * code_to_string(Code code);
 
             virtual const char * what() const throw();
 
@@ -37,7 +41,11 @@ namespace nova {
 
     class JsonArray;
 
+    class JsonData;
+
     class JsonObject;
+
+    typedef boost::shared_ptr<JsonData> JsonDataPtr;
 
     typedef boost::shared_ptr<JsonArray> JsonArrayPtr;
 
@@ -47,7 +55,19 @@ namespace nova {
     class JsonData {
 
         public:
+            JsonData(json_object * obj);
+
             virtual ~JsonData();
+
+            static JsonDataPtr from_boolean(bool value);
+
+            static JsonDataPtr from_number(int number);
+
+            static JsonDataPtr from_null();
+
+            static JsonDataPtr from_string(const char * text);
+
+            const char * to_string() const;
 
         protected:
             struct Root {
@@ -57,11 +77,30 @@ namespace nova {
 
             JsonData();
 
-            void initialize_child(json_object * obj, Root * root);
-            void initialize_root(json_object * obj);
+            // Validates that json_object is of the given type and sets obj.
+            // If anything fails it will *not* free the json_object and throw.
+            // Sets root without validation.
+            void initialize_child(json_object * obj, int type,
+                                  JsonException::Code exception_code,
+                                  Root * root);
+
+            // Validates that json_object is of the given type and sets root.
+            // If anything fails it will free the json_object and throw.
+            void initialize_root(json_object * obj, int type,
+                                 JsonException::Code exception_code);
 
             json_object * object;
             Root * root;
+
+        private:
+            JsonData(json_object * obj, int type);
+
+            // Validates that obj is not null, is of the given type. If not it
+            // frees it if "owned" is set to true and throws.
+            void check_initial_object(bool owned, json_object * obj, int type,
+                                      JsonException::Code exception_code);
+
+            void set_root(json_object * obj);
     };
 
     class JsonArray : public JsonData {
@@ -115,8 +154,6 @@ namespace nova {
             const char * get_string(const char * key) const;
 
             void get_string(const char * key, std::string & value) const;
-
-            const char * to_string() const;
 
         protected:
 

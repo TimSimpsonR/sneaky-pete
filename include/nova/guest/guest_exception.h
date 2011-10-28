@@ -12,7 +12,11 @@ namespace nova { namespace guest {
 
         public:
             enum Code {
-                CONFIG_FILE_PARSE_ERROR
+                CONFIG_FILE_PARSE_ERROR,
+                COULD_NOT_CONVERT_ADDRESS,
+                COULD_NOT_GET_DEVICE,
+                COULD_NOT_GET_INTERFACES,
+                NO_SUCH_METHOD
             };
 
             GuestException(Code code) throw();

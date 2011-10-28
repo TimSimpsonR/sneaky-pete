@@ -1,38 +1,97 @@
 #include "nova/rpc/receiver.h"
 #include "nova/rpc/amqp.h"
+
+#include <boost/format.hpp>
+#include "nova/Log.h"
+#include <string>
 #include <sstream>
 
-
+using boost::format;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using nova::Log;
+using std::string;
 
 namespace nova { namespace rpc {
 
 
 Receiver::Receiver(const char * host, int port,
                    const char * user_name, const char * password,
-                   const char * queue_name)
+                   const char * topic)
 :   connection(),
     last_delivery_tag(-1),
     log(),
     queue(),
-    queue_name(queue_name)
+    topic(topic)
 {
     connection = AmqpConnection::create(host, port, user_name, password);
     queue = connection->new_channel();
+
+
+    // Nova seems to declare the following
+    // Queues:
+    // "%s" % topic
+    // "%s.%s" % (topic,hostname) - hostname is the instance ID
+    // "%s_fanout_%s" % (topic, random int?)
+
+    // Then it makes the following exchanges
+    // "%s_fanout" % topic, 'fanout'
+    // "nova" 'topic'
+    // "nova" 'direct"'
+
+    // TODO : Make three extra queues to listen to. :c
+    const char * queue_name = topic;
+    queue->declare_queue(queue_name);
+    // queue->declare_
+
+    //queue->declare_exchange(exchange_name, 'direct')
+
+    // string
+    //queue->declare_queue(topic);
+    const char * exchange_name = "nova";
+    queue->bind_queue_to_exchange(queue_name, exchange_name, queue_name);
 }
 
 Receiver::~Receiver() {
 }
 
-void Receiver::finish_message(JsonObjectPtr arguments, JsonObjectPtr output) {
+void Receiver::finish_message(JsonObjectPtr input, JsonObjectPtr output) {
     queue->ack_message(last_delivery_tag);
+
+    // Send reply.
+    string msg_id_str;
+    try {
+        msg_id_str = input->get_string("_msg_id");
+    } catch(const JsonException & je) {
+        // If _msg_id wasn't found, ignore it.
+        log.info("JsonException sending response.");
+        return;
+    }
+    string exchange_name_str = str(format("__agent_response_%s") % msg_id_str);
+
+    //const char * const queue_name = msg_id_str.c_str();
+    const char * const exchange_name = msg_id_str.c_str();
+    const char * const routing_key = msg_id_str.c_str(); //"";
+
+    // queue_name, exchange_name, and routing_key are all the same.
+    AmqpChannelPtr rtn_ex_channel = connection->new_channel();
+    //rtn_ex_channel->declare_exchange(exchange_name, "direct");
+
+    //AmqpChannelPtr rtn_queue_channel = connection->new_channel();
+    //rtn_queue_channel->declare_queue(queue_name);
+    //rtn_queue_channel->bind_queue_to_exchange(queue_name, exchange_name,
+    //                                          routing_key);
+    //rtn_ex_channel->bind_queue_to_exchange(queue_name, exchange_name,
+    //                                          routing_key);
+    Log log;
+    log.debug("Outputting the following: %s", output->to_string());
+    rtn_ex_channel->publish(exchange_name, routing_key, output->to_string());
 }
 
 JsonObjectPtr Receiver::next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
-        msg = queue->get_message(queue_name.c_str());
+        msg = queue->get_message(topic.c_str());
         log.info("Received an empty message.");
     }
     std::stringstream log_msg;

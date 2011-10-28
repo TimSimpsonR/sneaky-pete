@@ -119,9 +119,12 @@ namespace nova { namespace rpc {
 
             void close();
 
-            void declare_exchange(const char * exchange_name);
+            // Types are 'direct', 'topic'.
+            void declare_exchange(const char * exchange_name,
+                                  const char * type);
 
-            void declare_queue(const char * queue_name);
+            void declare_queue(const char * queue_name, bool exclusive=false,
+                               bool auto_delete=false);
 
             inline int get_channel_number() const {
                 return channel_number;

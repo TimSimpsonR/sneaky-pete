@@ -11,13 +11,8 @@
 #include <unistd.h>
 #include <vector>
 
+#include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
-#include <mysql_connection.h>
-#include <cppconn/driver.h>
-#include <cppconn/exception.h>
-#include <cppconn/resultset.h>
-#include <cppconn/statement.h>
-#include <cppconn/prepared_statement.h>
 #include <json/json.h>
 #include <vector>
 
@@ -26,23 +21,40 @@ namespace nova { namespace guest { namespace mysql {
 
     std::string generate_password();
 
-    class MySqlGuestException : public std::exception {
+    class MySqlException : public std::exception {
 
         public:
             enum Code {
+                BIND_RESULT_SET_FAILED,
+                COULD_NOT_CONNECT,
+                ESCAPE_STRING_BUFFER_TOO_SMALL,
+                FIELD_INDEX_OUT_OF_BOUNDS,
                 GENERAL,
+                GET_QUERY_RESULT_FAILED,
                 MY_CNF_FILE_NOT_FOUND,
+                NEXT_FETCH_FAILED,
+                PARAMETER_INDEX_OUT_OF_BOUNDS,
+                PREPARE_BIND_FAILED,
+                PREPARE_FAILED,
+                QUERY_FAILED,
+                QUERY_FETCH_RESULT_FAILED,
+                QUERY_RESULT_SET_FINISHED,
+                QUERY_RESULT_SET_NOT_STARTED,
+                RESULT_INDEX_OUT_OF_BOUNDS,
+                RESULT_SET_FINISHED,
+                RESULT_SET_LEAK,
+                RESULT_SET_NOT_STARTED,
             };
 
-            MySqlGuestException(Code code) throw();
+            MySqlException(Code code) throw();
 
-            virtual ~MySqlGuestException() throw();
+            virtual ~MySqlException() throw();
+
+            static const char * code_to_string(Code code);
 
             virtual const char * what() const throw();
 
-        private:
-
-            Code code;
+            const Code code;
     };
 
 
@@ -111,10 +123,16 @@ namespace nova { namespace guest { namespace mysql {
     typedef std::vector<MySqlUserPtr> MySqlUserList;
     typedef boost::shared_ptr<MySqlUserList> MySqlUserListPtr;
 
+    class MySqlResultSet;
+
+    typedef std::auto_ptr<MySqlResultSet> MySqlResultSetPtr;
+
+    class MySqlPreparedStatement;
+
+    typedef boost::shared_ptr<MySqlPreparedStatement> MySqlPreparedStatementPtr;
+
     class MySqlConnection {
         public:
-            typedef std::auto_ptr<sql::PreparedStatement> PreparedStatementPtr;
-
             MySqlConnection(const std::string & uri, const std::string & user,
                             const std::string & password);
 
@@ -129,19 +147,43 @@ namespace nova { namespace guest { namespace mysql {
 
             void init();
 
-            PreparedStatementPtr prepare_statement(const char * text);
+            MySqlPreparedStatementPtr prepare_statement(const char * text);
 
-            void use_database(const char * database);
+            MySqlResultSetPtr query(const char * text);
+
+            //void use_database(const char * database);
 
         private:
-            sql::Driver *driver;
-            sql::Connection *con;
-            std::string database;
+            void * con;
             const std::string password;
             const std::string uri;
             const std::string user;
 
-            sql::Connection * get_con();
+            void * get_con();
+    };
+
+    class MySqlResultSet {
+        public:
+            virtual ~MySqlResultSet();
+
+            virtual void close() = 0;
+
+            virtual int get_field_count() const = 0;
+
+            virtual int get_row_count() const = 0;
+
+            virtual boost::optional<std::string> get_string(int index) const = 0;
+
+            virtual bool next() = 0;
+    };
+
+    class MySqlPreparedStatement {
+        public:
+            virtual ~MySqlPreparedStatement();
+            virtual void close() = 0;
+            virtual MySqlResultSetPtr execute(int result_count = 0) = 0;
+            virtual int get_parameter_count() const = 0;
+            virtual void set_string(int index, const char * value) = 0;
     };
 
     typedef boost::shared_ptr<MySqlConnection> MySqlConnectionPtr;
@@ -149,8 +191,6 @@ namespace nova { namespace guest { namespace mysql {
     class MySqlGuest {
 
         public:
-            typedef MySqlConnection::PreparedStatementPtr PreparedStatementPtr;
-
             MySqlGuest(const std::string & uri);
             MySqlGuest(const std::string & uri, const std::string & user,
                        const std::string & password);
@@ -195,7 +235,7 @@ namespace nova { namespace guest { namespace mysql {
             MySqlMessageHandler(MySqlGuestPtr guest);
             MySqlMessageHandler(const MySqlMessageHandler & other);
 
-            virtual JsonObjectPtr handle_message(JsonObjectPtr json);
+            virtual JsonDataPtr handle_message(JsonObjectPtr json);
 
 
             typedef nova::JsonObjectPtr (* MethodPtr)(const MySqlGuestPtr &,

@@ -1,6 +1,4 @@
 #include "nova/json.h"
-
-
 #include <json/json.h>
 
 
@@ -68,7 +66,7 @@ JsonException::JsonException(JsonException::Code code) throw()
 JsonException::~JsonException() throw() {
 }
 
-const char * JsonException::what() const throw() {
+const char * JsonException::code_to_string(Code code) {
     switch(code) {
         case CTOR_ARGUMENT_IS_NOT_JSON_STRING:
             return "Argument is not a valid JSON string.";
@@ -90,9 +88,15 @@ const char * JsonException::what() const throw() {
             return "The value is not an object.";
         case TYPE_ERROR_NOT_STRING:
             return "The value is not a string.";
+        case TYPE_INCORRECT:
+            return "The JSON type was different than expected.";
         default:
             return "An error occurred.";
     }
+}
+
+const char * JsonException::what() const throw() {
+    return code_to_string(code);
 }
 
 /**---------------------------------------------------------------------------
@@ -101,6 +105,37 @@ const char * JsonException::what() const throw() {
 
 JsonData::JsonData()
 : object(0), root(0) {
+}
+
+JsonData::JsonData(json_object * obj)
+: object(0), root(0)
+{
+    if (obj == 0) {
+        json_object_put(obj);
+        throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
+    }
+    set_root(obj);
+}
+
+JsonData::JsonData(json_object * obj, int type_i)
+: object(0), root(0)
+{
+    json_type type = (json_type) type_i;
+    if (type != json_type_null) {
+        if (obj == 0) {
+            json_object_put(obj);
+            throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
+        }
+        if (json_object_get_type(obj) != type) {
+            json_object_put(obj);
+            throw JsonException(JsonException::TYPE_INCORRECT);
+        }
+    } else {
+        if (obj != 0) {
+            throw JsonException(JsonException::TYPE_INCORRECT);
+        }
+    }
+    set_root(obj);
 }
 
 JsonData::~JsonData() {
@@ -113,18 +148,86 @@ JsonData::~JsonData() {
     }
 }
 
-void JsonData::initialize_child(json_object * obj, JsonData::Root * root) {
-    this->root = root;
-    root->reference_count ++;
-    this->object = obj;
-}
+void JsonData::check_initial_object(bool owned, json_object * obj,
+                                    int type_i,
+                                    JsonException::Code exception_code) {
+    if (obj == (json_object*) 0) {
+        if (owned) {
+            json_object_put(obj);
+        }
+        throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
+    }
+    json_type type = (json_type) type_i;
+    if (json_object_is_type(obj, type) == 0) {
+        if (owned) {
+            json_object_put(obj);
+        }
+        throw JsonException(exception_code);
+    }
 
-void JsonData::initialize_root(json_object * obj) {
     this->root = new JsonData::Root();
     root->reference_count = 1;
     root->original = obj;
     this->object = obj;
 }
+
+JsonDataPtr JsonData::from_boolean(bool value) {
+    json_object * obj = json_object_new_boolean(value);
+    JsonDataPtr ptr(new JsonData(obj, json_type_boolean));
+    return ptr;
+}
+
+JsonDataPtr JsonData::from_number(int number) {
+    json_object * obj = json_object_new_int(number);
+    JsonDataPtr ptr(new JsonData(obj, json_type_int));
+    return ptr;
+}
+
+JsonDataPtr JsonData::from_null() {
+    json_object * obj = json_tokener_parse("null");
+    JsonDataPtr ptr(new JsonData(obj, json_type_null));
+    return ptr;
+}
+
+JsonDataPtr JsonData::from_string(const char * text) {
+    json_object * obj = json_object_new_string(text);
+    JsonDataPtr ptr(new JsonData(obj, json_type_string));
+    return ptr;
+}
+
+
+void JsonData::initialize_child(json_object * obj, int type_i,
+                                JsonException::Code exception_code,
+                                Root * root) {
+    json_type type = (json_type) type_i;
+    check_initial_object(false, obj, type, exception_code);
+    this->root = root;
+    root->reference_count ++;
+    this->object = obj;
+}
+
+void JsonData::initialize_root(json_object * obj, int type_i,
+                               JsonException::Code exception_code) {
+    json_type type = (json_type) type_i;
+    check_initial_object(true, obj, type, exception_code);
+
+    set_root(obj);
+}
+
+void JsonData::set_root(json_object * obj) {
+    this->root = new JsonData::Root();
+    root->reference_count = 1;
+    root->original = obj;
+    this->object = obj;
+}
+
+const char * JsonData::to_string() const {
+    if (object == 0) {
+        return "null";
+    }
+    return json_object_to_json_string(object);
+}
+
 
 /**---------------------------------------------------------------------------
  *- JsonArray
@@ -138,22 +241,22 @@ JsonArray::JsonArray(const char * json_text)
         json_object_put(obj);
         throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
     }
-    check_initial_object(obj, true);
-    initialize_root(obj);
+    initialize_root(obj, json_type_array,
+                    JsonException::CTOR_ARGUMENT_NOT_ARRAY);
     length = json_object_array_length(object);
 }
 
 JsonArray::JsonArray(json_object * obj)
 : JsonData(), length(0) {
-    check_initial_object(obj, false);
-    initialize_root(obj);
+    initialize_root(obj, json_type_array,
+                    JsonException::CTOR_ARGUMENT_NOT_ARRAY);
     length = json_object_array_length(object);
 }
 
 JsonArray::JsonArray(json_object * obj, Root * root)
 : JsonData(), length(0) {
-    check_initial_object(obj, false);
-    initialize_child(obj, root);
+    initialize_child(obj, json_type_array,
+                     JsonException::CTOR_ARGUMENT_NOT_ARRAY, root);
     length = json_object_array_length(object);
 }
 
@@ -167,20 +270,6 @@ json_object * JsonArray::get(int index) const {
     return json_object_array_get_idx(object, index);
 }
 
-void JsonArray::check_initial_object(json_object * obj, bool owned) {
-    if (obj == (json_object*) 0) {
-        if (owned) {
-            json_object_put(obj);
-        }
-        throw JsonException(JsonException::CTOR_ARGUMENT_IS_NULL);
-    }
-    if (json_object_is_type(obj, json_type_array) == 0) {
-        if (owned) {
-            json_object_put(obj);
-        }
-        throw JsonException(JsonException::CTOR_ARGUMENT_NOT_ARRAY);
-    }
-}
 
 JsonArrayPtr JsonArray::get_array(const int index) const {
     json_object * array_obj = get(index);
@@ -222,21 +311,21 @@ JsonObject::JsonObject(const char * json_text)
         json_object_put(obj);
         throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
     }
-    check_initial_object(obj, true);
-    initialize_root(obj);
+    initialize_root(obj, json_type_object,
+                    JsonException::CTOR_ARGUMENT_NOT_OBJECT);
 }
 
 JsonObject::JsonObject(json_object * obj)
 : JsonData()
 {
-    check_initial_object(obj, false);
-    initialize_root(obj);
+    initialize_root(obj, json_type_object,
+                    JsonException::CTOR_ARGUMENT_NOT_OBJECT);
 }
 
 JsonObject::JsonObject(json_object * obj, Root * root)
 : JsonData() {
-    check_initial_object(obj, false);
-    initialize_child(obj, root);
+    initialize_child(obj, json_type_object,
+                     JsonException::CTOR_ARGUMENT_NOT_OBJECT, root);
 }
 
 void JsonObject::check_initial_object(json_object * obj, bool owned) {
@@ -280,10 +369,6 @@ const char * JsonObject::get_string(const char * key) const {
 
 void JsonObject::get_string(const char * key, string & value) const {
     value = get_string(key);
-}
-
-const char * JsonObject::to_string() const {
-    return json_object_get_string(object);
 }
 
 } // end namespace nova

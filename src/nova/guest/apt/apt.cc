@@ -64,7 +64,7 @@ void fix(double time_out) {
 
     // Expect just a simple EOF.
     stringstream std_out;
-    int bytes_read = process.read_until_pause(std_out, time_out, time_out);
+    process.read_until_pause(std_out, time_out, time_out);
     if (!process.eof()) {
         throw AptException(AptException::COULD_NOT_FIX);
     }
@@ -291,6 +291,7 @@ typedef boost::optional<std::string> optional_string;
 
 optional<string> version(const char * package_name, const double time_out) {
     Log log;
+    log.debug("Getting version of %s", package_name);
     Process process(list_of("/usr/bin/dpkg")("-l")(package_name), false);
 
     vector<string> patterns;

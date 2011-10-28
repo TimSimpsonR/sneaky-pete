@@ -15,8 +15,9 @@ pkg_install () {
 # Install deps
 pkg_install mercurial \
   git-core autoconf libtool uuid-dev libmysqlcppconn-dev g++ valgrind \
- mysql-server-5.1 libboost1.40-dev bjam boost-build libboost-test-dev \
- libboost-thread1.40-dev rabbitmq-server libconfuse-dev libboost-python1.40-dev
+ mysql-server-5.1 libboost-dev bjam boost-build libboost-test-dev \
+ libboost-thread-dev libconfuse-dev \
+ libmysqlclient-dev # rabbitmq-server #<-- Reddwarf CI script will install this
 
 mkdir ~/build
 
@@ -40,3 +41,11 @@ sh autogen.sh
 ./configure
 make
 sudo make install
+
+# On the Reddwarf VM this seems to be necessary.
+sudo cp /usr/local/lib/libjson* /usr/lib/
+sudo cp /usr/local/lib/librabbit* /usr/lib/
+
+# Needed for static compile magic.
+cd ~/
+ln -s `g++ -print-file-name=libstdc++.a`

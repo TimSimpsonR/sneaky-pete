@@ -1,5 +1,5 @@
 #include "nova/ConfigFile.h"
-#include "nova/guest/guest_exception.h"
+#include "nova/guest/GuestException.h"
 
 
 using nova::ConfigFile;

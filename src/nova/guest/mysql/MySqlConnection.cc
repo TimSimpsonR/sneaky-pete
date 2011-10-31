@@ -375,7 +375,6 @@ MySqlConnection::MySqlConnection(const std::string & uri,
 
 MySqlConnection::~MySqlConnection() {
     if (mysql_con(con) != 0) {
-        //delete mysql_con(con);
         mysql_close(mysql_con(con));
     }
 }
@@ -460,6 +459,13 @@ MySqlResultSetPtr MySqlConnection::query(const char * text) {
     return rtn;
 }
 
+void MySqlConnection::start_up() {
+    mysql_library_init(0, NULL, NULL);
+}
+
+void MySqlConnection::shut_down() {
+    mysql_library_end();
+}
 // void MySqlConnection::use_database(const char * database) {
 //     MySqlPreparedStatementPtr stmt = prepare_statement("use ?");
 //     stmt->set_string(1, database);

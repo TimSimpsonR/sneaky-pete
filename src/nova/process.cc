@@ -193,9 +193,9 @@ size_t Process::read_into(stringstream & std_out, const optional<double> seconds
         return 0; // eof
     }
     LOG_DEBUG("Writing.");
+    buf[count] = 0;  // Have to do this or Valgrind fails.
     std_out.write(buf, count);
     LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());
-    buf[count] = 0;  // Have to do this or Valgrind fails.
     LOG_DEBUG2("OUTPUT:%s", buf);
     LOG_DEBUG("Exit read_into");
     return (size_t) count;

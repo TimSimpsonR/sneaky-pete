@@ -1,6 +1,6 @@
 #include "nova/guest/apt.h"
 
-#include "nova/guest/guest_exception.h"
+#include "nova/guest/GuestException.h"
 #include "nova/Log.h"
 #include <boost/optional.hpp>
 #include <sstream>
@@ -40,7 +40,7 @@ JsonDataPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
             return JsonData::from_null();
         }
     } else {
-        throw GuestException(GuestException::NO_SUCH_METHOD);
+        return JsonDataPtr();
     }
 }
 

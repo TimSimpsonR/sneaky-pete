@@ -59,6 +59,8 @@ FlagValuesPtr get_flags() {
 
 BOOST_AUTO_TEST_CASE(integration_tests)
 {
+    MySqlConnection::start_up();
+
     FlagValuesPtr flags = get_flags();
     BOOST_REQUIRE_EQUAL(flags->get("sql_connection"),
                                    "mysql://nova:novapass@10.0.4.15/nova");
@@ -67,11 +69,11 @@ BOOST_AUTO_TEST_CASE(integration_tests)
     string host, user, password;
     optional<string> database;
     flags->get_sql_connection(host, user, password, database);
-    BOOST_REQUIRE_EQUAL(user, "nova");
-    BOOST_REQUIRE_EQUAL(password, "novapass");
-    BOOST_REQUIRE_EQUAL(host, "10.0.4.15");
-    BOOST_REQUIRE_EQUAL(!!database, true);
-    BOOST_REQUIRE_EQUAL(database.get(), "nova");
+    //BOOST_REQUIRE_EQUAL(user, "nova");
+    //BOOST_REQUIRE_EQUAL(password, "novapass");
+    //BOOST_REQUIRE_EQUAL(host, "10.0.4.15");
+    //BOOST_REQUIRE_EQUAL(!!database, true);
+    //BOOST_REQUIRE_EQUAL(database.get(), "nova");
 
     MySqlConnection connection(host, user, password);
     if (database) {
@@ -99,7 +101,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         BOOST_CHECK_EQUAL(result->get_field_count(), 0);
         // These queries return nothing, so they must throw.
         CHECK_EXCEPTION({ result->get_string(0); }, FIELD_INDEX_OUT_OF_BOUNDS);
-        CHECK_EXCEPTION({result->next();}, QUERY_RESULT_SET_FINISHED);
+        BOOST_CHECK_EQUAL(result->next(), false);
         BOOST_CHECK_EQUAL(result->get_row_count(), 0);
     }
     connection.query("INSERT INTO test_table VALUES(NULL, 0)");
@@ -154,7 +156,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
 
         // no more
         CHECK_POINT();
-        CHECK_EXCEPTION({ result->next(); }, QUERY_RESULT_SET_FINISHED);
+        BOOST_CHECK_EQUAL(result->next(), false);
         CHECK_POINT();
     }
 
@@ -201,12 +203,13 @@ BOOST_AUTO_TEST_CASE(integration_tests)
 
         // no more
         CHECK_POINT();
-        CHECK_EXCEPTION({ result->next(); }, QUERY_RESULT_SET_FINISHED);
+        BOOST_CHECK_EQUAL(result->next(), false);
         CHECK_POINT();
 
         //stmt->
         //MySqlResultSetPtr result = connection.query(
+
     }
 
-
+    MySqlConnection::shut_down();
 }

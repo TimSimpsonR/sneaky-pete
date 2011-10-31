@@ -164,11 +164,6 @@ void JsonData::check_initial_object(bool owned, json_object * obj,
         }
         throw JsonException(exception_code);
     }
-
-    this->root = new JsonData::Root();
-    root->reference_count = 1;
-    root->original = obj;
-    this->object = obj;
 }
 
 JsonDataPtr JsonData::from_boolean(bool value) {
@@ -260,6 +255,10 @@ JsonArray::JsonArray(json_object * obj, Root * root)
     length = json_object_array_length(object);
 }
 
+JsonArray::~JsonArray() {
+
+}
+
 json_object * JsonArray::get(int index) const {
     // Shouldn't be necessary but Valgrind pollutes the test logs with
     // messages about invalid reads when "json_object_array_get_idx" is called
@@ -326,6 +325,10 @@ JsonObject::JsonObject(json_object * obj, Root * root)
 : JsonData() {
     initialize_child(obj, json_type_object,
                      JsonException::CTOR_ARGUMENT_NOT_OBJECT, root);
+}
+
+JsonObject::~JsonObject() {
+
 }
 
 void JsonObject::check_initial_object(json_object * obj, bool owned) {

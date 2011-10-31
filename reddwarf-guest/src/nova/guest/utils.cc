@@ -2,19 +2,28 @@
 
 #include <arpa/inet.h>
 //#include <fcntl.h>
-#include "nova/guest/guest_exception.h"
+#include "nova/guest/GuestException.h"
 //#include <netinet/in.h>
 //#include <sys/socket.h>
 //#include <stropts.h>
 #include <string.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include <sys/socket.h>
 
 
 using nova::guest::GuestException;
 using std::string;
 
 namespace nova { namespace guest { namespace utils {
+
+string get_host_name() {
+    char buf[256];
+    if (gethostname(buf, 256) < 0) {
+        throw GuestException(GuestException::ERROR_GRABBING_HOST_NAME);
+    }
+    return string(buf);
+}
 
 string get_ipv4_address(const char * device_name) {
     char buf[128];

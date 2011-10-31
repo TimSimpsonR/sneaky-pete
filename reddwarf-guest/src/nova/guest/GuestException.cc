@@ -1,4 +1,4 @@
-#include "nova/guest/guest_exception.h"
+#include "nova/guest/GuestException.h"
 
 
 namespace nova { namespace guest {
@@ -21,6 +21,8 @@ const char * GuestException::what() throw() {
             return "Could not grab info on the given device.";
         case COULD_NOT_GET_INTERFACES:
             return "Could not get the network interfaces.";
+        case ERROR_GRABBING_HOST_NAME:
+            return "Error grabbing the host name.";
         case NO_SUCH_METHOD:
             return "Could not handle the JSON input. No such method was found.";
         default:

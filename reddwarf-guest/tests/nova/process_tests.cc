@@ -95,15 +95,18 @@ BOOST_AUTO_TEST_CASE(sending_to_stderr)
 BOOST_AUTO_TEST_CASE(execute_test) {
     const double TIME_OUT = 4.0;
     // Returns zero exit code.
-    Process::execute(list_of(parrot_path())("chirp"), TIME_OUT);
+    Process::CommandList cmds = list_of(parrot_path())("chirp");
+    Process::execute(cmds, TIME_OUT);
 
     try {
-        Process::execute(list_of(parrot_path()), TIME_OUT);
+        Process::CommandList cmds = list_of(parrot_path());
+        Process::execute(cmds, TIME_OUT);
         BOOST_FAIL("Should have thrown.");
     } catch(const ProcessException & pe) {
         BOOST_REQUIRE_EQUAL(ProcessException::EXIT_CODE_NOT_ZERO, pe.code);
     }
 }
+
 
 //TODO: Need a test for a process which outputs infinite data to standard out.
 

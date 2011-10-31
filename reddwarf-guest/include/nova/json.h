@@ -111,6 +111,8 @@ namespace nova {
 
             JsonArray(json_object * obj);
 
+            virtual ~JsonArray();
+
             JsonArrayPtr get_array(const int index) const;
 
             int get_int(const int index) const;
@@ -144,6 +146,8 @@ namespace nova {
             JsonObject(const char * json_text);
 
             JsonObject(json_object * obj);
+
+            virtual ~JsonObject();
 
             JsonArrayPtr get_array(const char * key) const;
 

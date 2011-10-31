@@ -5,6 +5,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <string>
 #include <syslog.h>
@@ -153,6 +154,13 @@ namespace nova { namespace guest { namespace mysql {
 
             //void use_database(const char * database);
 
+            // MySQL allocates some global memory it keeps up with as it runs.
+            static void start_up();
+
+            // Call this once you're 100% finished with MySQL or Valgrind
+            // will complain about a leak. If you forget it isn't a huge deal.
+            static void shut_down();
+
         private:
             void * con;
             const std::string password;
@@ -238,8 +246,8 @@ namespace nova { namespace guest { namespace mysql {
             virtual JsonDataPtr handle_message(JsonObjectPtr json);
 
 
-            typedef nova::JsonObjectPtr (* MethodPtr)(const MySqlGuestPtr &,
-                                                      nova::JsonObjectPtr);
+            typedef nova::JsonDataPtr (* MethodPtr)(const MySqlGuestPtr &,
+                                                    nova::JsonObjectPtr);
             typedef std::map<std::string, MethodPtr> MethodMap;
 
         private:

@@ -1,7 +1,39 @@
+###############################################################################
+#  -----------------------
+#  Sneaky Pete Guest Agent
+#  -----------------------
+#
+#  To build, install bjam and execute "bjam -d+2". "-d+2" is optional and will
+#  show you each command executed by Boost Build.
+#
+#  There are extra settings which can be defined by environment variables. They
+#  are as follows:
+#    AGENT_DIR - Give this the absolute file path to the directory containing
+#      this file (Jamroot.jam). Its needed for the Process tests.
+#    TEST_ARGS - Assign this flag values. For example, if you set this to
+#      --flagfile=blah.conf, then blah.conf will have its flag values loaded.
+#      This is needed only for the integration tests.
+#    DESTROY_MYSQL_ON_THIS_MACHINE - Set this to the string "PLEASE" to run
+#      the MySQL preparation integration tests, which will uninstall and
+#      destroy any installation of MySQL on this machine (all data will be
+#      deleted).
+#
+#  Note on the Valgrind error:
+#    ...
+#    Syscall param timer_create(evp) points to uninitialised byte(s) "
+#    ==5279==    at 0x4E2D0DD: timer_create@@GLIBC_2.3.3 (timer_create.c:99)
+#    ...
+#  This is a known issuewith the timer_create call. It is harmless and there
+#  does not appear to be a way to disable the error.
+#
+###############################################################################
+
 
 # Using environment variables isn't the best form, but its a start.
 import os ;
 using testing ;
+
+local TEST_LAUNCHER = "BOOST_TEST_CATCH_SYSTEM_ERRORS=no $(env-vars) valgrind --leak-check=full" ;
 
 project
 	:	requirements
@@ -120,8 +152,10 @@ local rule unit ( name : sources * : dependencies * : test-sources *
                 test_dependencies
                 $(dependencies)
             :   <define>BOOST_TEST_DYN_LINK
-                #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
-                <testing.launcher>"$(env-vars) "
+                #<testing.launcher>"$(TEST_LAUNCHER)"
+                <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no $(env-vars) valgrind --leak-check=full"
+                #<testing.launcher>"valgrind --leak-check=full"
+                #<testing.launcher>"$(env-vars) "
                 $(test-properties)
             ;
         explicit __unit_tests_$(name) ;
@@ -378,7 +412,8 @@ unit-test int_tests_mysql
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
         #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
-        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+        #<testing.launcher>"$(TEST_LAUNCHER)"
     ;
 
 explicit int_tests_mysql ;
@@ -393,7 +428,8 @@ unit-test int_tests
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
         #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
-        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+        #<testing.launcher>"$(TEST_LAUNCHER)"
     ;
 
 # Make it so this won't run unless we explicitly ask for it.

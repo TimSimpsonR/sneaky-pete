@@ -65,17 +65,17 @@ Log log;
       } \
     }
 
-FlagValuesPtr get_flags() {
+FlagMapPtr get_flags() {
     //int argc = boost::unit_test::framework::master_test_suite().argc;
     //char ** argv = boost::unit_test::framework::master_test_suite().argv;
     //BOOST_REQUIRE_EQUAL(2, argc);
-    FlagValuesPtr ptr(new FlagValues());
+    FlagMapPtr ptr(new FlagMap());
     char * test_args = getenv("TEST_ARGS");
     BOOST_REQUIRE_MESSAGE(test_args != 0, "TEST_ARGS environment var not defined.");
     if (test_args != 0) {
         ptr->add_from_arg(test_args);
     }
-    //return FlagValues::create_from_args(argc, argv, true);
+    //return FlagMap::create_from_args(argc, argv, true);
     return ptr;
 }
 

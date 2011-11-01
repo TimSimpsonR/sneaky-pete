@@ -5,6 +5,10 @@
 #
 #  To build, install bjam and execute "bjam -d+2". "-d+2" is optional and will
 #  show you each command executed by Boost Build.
+#  To build in debug mode, use:
+#      bjam -d+2
+#  To build staticly, use:
+#      bjam -d+2 release link=static sreceiver
 #
 #  There are extra settings which can be defined by environment variables. They
 #  are as follows:
@@ -88,7 +92,7 @@ lib lib_stdc++ : : <name>stdc++ ;
 #lib lib_crypt : : <file>/lib/libcrypt-2.11.1.so ;
 ###lib lib_z : : <name>z ;
 ###lib lib_c : : <name>c-2.11.1 ;
-#lib lib_z : : <file>/lib/libz.so.1.2.3.3 ;
+lib lib_z : : <file>/usr/lib/libz.so.1 ;
 lib lib_c : : <name>c ;
 
 ###lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient_r.so.16.0.0 ;
@@ -234,11 +238,6 @@ unit u_nova_Log
 unit u_nova_guest_utils
     : src/nova/guest/utils.cc
     : u_nova_guest_GuestException
-    ;
-
-exe get_ipv4_address
-    :   u_nova_guest_utils
-        tests/nova/guest/get_ipv4_address.cc
     ;
 
 exe parrot_e
@@ -439,6 +438,12 @@ explicit int_tests ;
 #      Binaries
 ###############################################################################
 
+exe start_up
+    :   u_nova_guest_utils
+        u_nova_flags
+        tests/nova/guest/start_up.cc
+    ;
+
 exe apt_install
     :   u_nova_Log
         u_nova_guest_apt_apt
@@ -471,6 +476,10 @@ exe sreceiver
         #dependencies
 		guest_lib
         obj_receiver_daemon
+        lib_z
+        lib_m
+        lib_c
+        #lib_pthread
     :   #<dependency>sql_guest_tests
 	   # <dependency>memory_tests
         #<linkflags>"-static -pthread -static-libgcc -L~/." #" -static-libgcc "
@@ -486,7 +495,7 @@ exe sreceiver
         # "-pthread" makes the thread stuff get brought in without specifying
         # libraries.
 
-        <linkflags>"-pthread -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. " #" -static-libgcc " #static-libstdc++"
+        <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread " #-static -lpthread -lz " #" -static-libgcc " #static-libstdc++"
 
 	;
 

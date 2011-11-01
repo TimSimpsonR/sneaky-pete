@@ -26,48 +26,38 @@ const char error_message [] =
 "    \"error\":\"could not interpret message.\""
 "}";
 
+
+
 int main(int argc, char* argv[]) {
-    Log log;
-    const char * config_location = "config/test-configfile.txt";
-    if (argc >= 2) {
-        config_location = argv[1];
-    }
-
-    ConfigFile configfile(config_location);
-
-    /* Grab flag values. */
-    FlagValuesPtr flags = FlagValues::create_from_args(argc, argv, true);
-
-    std::string amqp_host = flags->get("rabbit_host"); //configfile.get_string("amqp_host");
-    int amqp_port = flags->get_as_int("rabbit_port"); // configfile.get_as_int("amqp_port");
-    string amqp_user_name = flags->get("rabbit_userid"); // configfile.get_string("amqp_user_name");
-    string amqp_password = flags->get("rabbit_password"); // configfile.get_string("amqp_password");
-    string amqp_queue = ::nova::guest::utils::get_host_name(); //configfile.get_string("amqp_queue");
-
-    string host, user, password;
-    optional<string> database;
-    flags->get_sql_connection(host, user, password, database);
-
-    /* Create MySQL Guest. */
-    std::string mysql_uri = configfile.get_string("mysql_uri");
-    MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
-
-    /* Create JSON message handlers. */
-    const int handler_count = 2;
-    MessageHandlerPtr handlers[handler_count];
-    handlers[0].reset(new MySqlMessageHandler(guest));
-    handlers[1].reset(new apt::AptMessageHandler());
-
-    /* Create receiver. */
-    Receiver receiver(amqp_host.c_str(), amqp_port, amqp_user_name.c_str(),
-                      amqp_password.c_str(),
-                      amqp_queue.c_str());
-
 
 #ifndef _DEBUG
+    Log log;
+
     try {
         daemon(1,0);
 #endif
+
+        /* Grab flag values. */
+        FlagValues flags(FlagMap::create_from_args(argc, argv, true));
+
+        /* Create MySQL Guest. */
+        std::string mysql_uri = "unix:///var/run/mysqld/mysqld.sock";
+        MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
+
+
+        string rabbit_queue = nova::guest::utils::get_host_name();
+
+        /* Create JSON message handlers. */
+        const int handler_count = 2;
+        MessageHandlerPtr handlers[handler_count];
+        handlers[0].reset(new MySqlMessageHandler(guest));
+        handlers[1].reset(new apt::AptMessageHandler());
+
+        /* Create receiver. */
+        Receiver receiver(flags.rabbit_host(), flags.rabbit_port(),
+                          flags.rabbit_userid(), flags.rabbit_password(),
+                          rabbit_queue.c_str());
+
         bool quit = false;
         while(!quit) {
             log.info("getting and getting");
@@ -87,7 +77,7 @@ int main(int argc, char* argv[]) {
 
                 JsonDataPtr result;
                 for (int i = 0; i < handler_count && !result; i ++) {
-                    result = handlers[0]->handle_message(input);
+                    result = handlers[i]->handle_message(input);
                 }
                 if (!result) {
                     throw GuestException(GuestException::NO_SUCH_METHOD);

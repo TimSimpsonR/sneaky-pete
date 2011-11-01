@@ -22,28 +22,28 @@ using std::string;
 
 BOOST_AUTO_TEST_CASE(adding_an_arg)
 {
-    FlagValuesPtr flags(new FlagValues());
+    FlagMapPtr flags(new FlagMap());
     flags->add_from_arg("--blah=10");
     BOOST_CHECK_EQUAL(flags->get("blah"), "10");
 }
 
 BOOST_AUTO_TEST_CASE(when_no_dashes)
 {
-    FlagValuesPtr flags(new FlagValues());
+    FlagMapPtr flags(new FlagMap());
     CHECK_EXCEPTION({flags->add_from_arg("blah=10");},
                     NO_STARTING_DASHES);
 }
 
 BOOST_AUTO_TEST_CASE(when_no_equal_sign)
 {
-    FlagValuesPtr flags(new FlagValues());
+    FlagMapPtr flags(new FlagMap());
     CHECK_EXCEPTION({flags->add_from_arg("--blah  10");},
                     NO_EQUAL_SIGN);
 }
 
 BOOST_AUTO_TEST_CASE(accessing_missing_value)
 {
-    FlagValuesPtr flags(new FlagValues());
+    FlagMapPtr flags(new FlagMap());
     flags->add_from_arg("--blah=10");
     CHECK_EXCEPTION({flags->get("blarg");},
                     KEY_NOT_FOUND);

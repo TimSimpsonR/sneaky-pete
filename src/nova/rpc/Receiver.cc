@@ -44,7 +44,7 @@ Receiver::Receiver(const char * host, int port,
     queue->declare_queue(queue_name);
     // queue->declare_
 
-    //queue->declare_exchange(exchange_name, 'direct')
+    queue->declare_exchange(topic, "direct");
 
     // string
     //queue->declare_queue(topic);

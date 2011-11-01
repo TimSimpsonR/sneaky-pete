@@ -36,12 +36,12 @@ class FlagException : public std::exception {
             bool use_msg;
 };
 
-class FlagValues;
-typedef boost::shared_ptr<FlagValues> FlagValuesPtr;
+class FlagMap;
+typedef boost::shared_ptr<FlagMap> FlagMapPtr;
 
 /** This is a bumpkin version of Nova flags that can't do fancy things such
  *  as read vaues with spaces in them.  */
-class FlagValues {
+class FlagMap {
 
     public:
 
@@ -53,18 +53,24 @@ class FlagValues {
         // Opens up a file and adds everything.
         void add_from_file(const char * file_path);
 
-        static FlagValuesPtr create_from_args(size_t count, char** argv,
+        static FlagMapPtr create_from_args(size_t count, char** argv,
                                               bool ignore_mismatch=false);
 
-        static FlagValuesPtr create_from_file(const char* argv);
+        static FlagMapPtr create_from_file(const char* argv);
 
         const char * get(const char * const name);
 
+        const char * get(const char * const name,
+                         const char * const default_value);
+
+        const char * get(const char * const name, bool throw_on_missing);
+
         int get_as_int(const char * const name);
 
+        int get_as_int(const char * const name, int default_value);
+
         void get_sql_connection(std::string & host, std::string & user,
-                                std::string & password,
-                                boost::optional<std::string> & database);
+                                std::string & password, std::string & database);
 
     private:
 
@@ -73,6 +79,44 @@ class FlagValues {
         Map map;
 };
 
+
+class FlagValues {
+
+    public:
+
+        FlagValues(FlagMapPtr flags);
+
+        const char * guest_ethernet_device() const;
+
+        const char * nova_sql_database() const;
+
+        const char * nova_sql_host() const;
+
+        const char * nova_sql_password() const;
+
+        const char * nova_sql_user() const;
+
+        const char * rabbit_host() const;
+
+        const char * rabbit_password() const;
+
+        const int rabbit_port() const;
+
+        const char * rabbit_userid() const;
+
+    private:
+
+        FlagMapPtr map;
+
+        std::string _nova_sql_database;
+
+        std::string _nova_sql_host;
+
+        std::string _nova_sql_password;
+
+        std::string _nova_sql_user;
+
+};
 
 } } // end nova::flags
 

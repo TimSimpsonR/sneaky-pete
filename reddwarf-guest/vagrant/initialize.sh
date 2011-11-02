@@ -52,3 +52,9 @@ ln -s `g++ -print-file-name=libstdc++.a`
 
 # To disable the Python guest from installing, run this:
 # sudo -E reprepro -Vb /var/www/debian remove squeeze nova-guest
+
+# Then go to the debian directory and run:
+# sudo DEB_BUILD_OPTIONS=nocheck,nodocs dpkg-buildpackage -rfakeroot -b -uc -us
+
+# Install it to the Reddwarf VM's repo with:
+# sudo -E reprepro --ignore=wrongdistribution -Vb /var/www/debian includedeb squeeze /nova-guest_2012.21.12_all.deb

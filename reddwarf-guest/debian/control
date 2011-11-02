@@ -1,0 +1,19 @@
+Source: nova-guest
+Section: net
+Priority: extra
+Maintainer: Openstack Maintainers <openstack@lists.launchpad.net>
+Uploaders: Soren Hansen <soren@ubuntu.com>, Thomas Goirand <zigo@debian.org>
+Build-Depends: debhelper (>= 7.0.50),
+Build-Depends-Indep: python-support,
+ python-setuptools,
+ python-distutils-extra
+Build-Conflicts: python-cjson
+Standards-Version: 3.9.1
+Homepage: http://launchpad.net/nova
+Vcs-Browser: http://bazaar.launchpad.net/~openstack-ubuntu-packagers/ubuntu/natty/nova/ubuntu/files
+Vcs-Bzr: http://bazaar.launchpad.net/~openstack-ubuntu-packagers/ubuntu/natty/nova/ubuntu/
+
+Package: nova-guest
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends}
+Description: Red Dwarf - Nova - Guest Configuration

@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
 
         bool quit = false;
         while(!quit) {
-            log.info("getting and getting");
+            log.info("Waiting for next message...");
             JsonObjectPtr input = receiver.next_message();
             JsonObjectPtr output;
             try {

@@ -8,7 +8,7 @@
 #  To build in debug mode, use:
 #      bjam -d+2
 #  To build staticly, use:
-#      bjam -d+2 release link=static sreceiver
+#      bjam -d+2 release link=static nova-guest
 #
 #  There are extra settings which can be defined by environment variables. They
 #  are as follows:
@@ -472,7 +472,7 @@ exe receiver
        <linkflags>"-pthread "
     ;
 
-exe sreceiver
+exe nova-guest
 	:	static_dependencies
         #dependencies
 		guest_lib

@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+
+# Verbose mode
+#export DH_VERBOSE=1
+
+
+DEB_PYTHON_SYSTEM=pysupport
+
+#export DH_VERBOSE=1
+
+%:
+	dh $@
+
+
+override_dh_auto_build: 
+	bjam -d+2 release link=static sreceiver
+	#dh_auto_build

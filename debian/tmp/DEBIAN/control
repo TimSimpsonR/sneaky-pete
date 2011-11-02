@@ -1,9 +1,0 @@
-Package: nova-guest
-Version: 2012.21.12
-Architecture: all
-Maintainer: Openstack Maintainers <openstack@lists.launchpad.net>
-Installed-Size: 2676
-Section: net
-Priority: extra
-Homepage: http://launchpad.net/nova
-Description: Red Dwarf - Nova - Guest Configuration

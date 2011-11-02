@@ -1,0 +1,10 @@
+Cmnd_Alias NOVACMDS = /bin/mv,              \
+                      /bin/cp,              \
+                      /bin/rm,              \
+                      /bin/ln,              \
+                      /usr/sbin/service,    \
+                      /usr/bin/dpkg,        \
+                      /usr/bin/apt-get
+
+nova ALL=(root) NOPASSWD: SETENV: NOVACMDS
+

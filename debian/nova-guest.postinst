@@ -1,0 +1,13 @@
+#!/bin/sh -e
+
+if [ "$1" = "configure" ]; then
+    mkdir -p /var/lib/nova
+    mkdir -p /var/log/nova
+    if ! getent passwd nova > /dev/null 2>&1; then
+        adduser --system --home /var/lib/nova --no-create-home --shell /bin/bash nova
+    fi
+    chown -R nova:root /var/lib/nova/ /var/log/nova/
+	chmod 0440 /etc/sudoers.d/guest_sudoers
+fi
+
+#DEBHELPER#

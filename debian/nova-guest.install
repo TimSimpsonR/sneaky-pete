@@ -1,1 +1,2 @@
-bin/gcc-4.4.5/release/link-static/sreceiver usr/bin/
+bin/gcc-4.4.5/release/link-static/nova-guest usr/bin/
+debian/guest_sudoers etc/sudoers.d

@@ -6,8 +6,9 @@
 
 namespace nova { namespace guest { namespace utils {
 
-std::string get_ipv4_address(const char * device_name);
+std::string get_host_name();
 
+std::string get_ipv4_address(const char * device_name);
 
 }}} // end nova::guest::utils
 

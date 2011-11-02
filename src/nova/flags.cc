@@ -63,16 +63,16 @@ const char * FlagException::what() const throw() {
 }
 
 /**---------------------------------------------------------------------------
- *- FlagValues
+ *- FlagMap
  *---------------------------------------------------------------------------*/
 
-void FlagValues::add_from_arg(const char * arg, bool ignore_mismatch) {
+void FlagMap::add_from_arg(const char * arg, bool ignore_mismatch) {
     string line = arg;
     add_from_arg(line, ignore_mismatch);
 }
 
 // Adds a line in the form "--name=value"
-void FlagValues::add_from_arg(const std::string & arg, bool ignore_mismatch) {
+void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
     string line = arg;
     if (line.size() > 0 && line.substr(0, 1) == "#") {
         return;
@@ -105,7 +105,7 @@ void FlagValues::add_from_arg(const std::string & arg, bool ignore_mismatch) {
 }
 
 // Opens up a file and adds everything.
-void FlagValues::add_from_file(const char * file_path) {
+void FlagMap::add_from_file(const char * file_path) {
     std::ifstream file(file_path);
     if (!file.is_open()) {
         throw FlagException(FlagException::FILE_NOT_FOUND, file_path);
@@ -118,38 +118,63 @@ void FlagValues::add_from_file(const char * file_path) {
     file.close();
 }
 
-FlagValuesPtr FlagValues::create_from_args(size_t count, char** argv,
+FlagMapPtr FlagMap::create_from_args(size_t count, char** argv,
                                            bool ignore_mismatch) {
-    FlagValuesPtr flags(new FlagValues());
+    FlagMapPtr flags(new FlagMap());
     for (size_t i = 0; i < count; i ++) {
         flags->add_from_arg(argv[i], ignore_mismatch);
     }
     return flags;
 }
 
-FlagValuesPtr FlagValues::create_from_file(const char* file_path) {
-    FlagValuesPtr flags(new FlagValues());
+FlagMapPtr FlagMap::create_from_file(const char* file_path) {
+    FlagMapPtr flags(new FlagMap());
     flags->add_from_file(file_path);
     return flags;
 }
 
-const char * FlagValues::get(const char * const name) {
+const char * FlagMap::get(const char * const name) {
+    return get(name, true);
+}
+
+const char * FlagMap::get(const char * const name,
+                             const char * const default_value) {
+    const char * value = get(name, false);
+    if (value == 0) {
+        map[name] = default_value;
+        value = get(name, true);
+    }
+    return value;
+}
+
+const char * FlagMap::get(const char * const name, bool throw_on_missing) {
     if (map.count(name) == 0) {
-        throw FlagException(FlagException::KEY_NOT_FOUND, name);
+        if (throw_on_missing) {
+            throw FlagException(FlagException::KEY_NOT_FOUND, name);
+        } else {
+            return 0;
+        }
     }
     return map[name].c_str();
 }
 
-int FlagValues::get_as_int(const char * const name) {
+int FlagMap::get_as_int(const char * const name) {
     if (map.count(name) == 0) {
         throw FlagException(FlagException::KEY_NOT_FOUND, name);
     }
     return boost::lexical_cast<int>(map[name].c_str());
 }
 
-void FlagValues::get_sql_connection(string & host, string & user,
-                                    string & password,
-                                    optional<string> & database) {
+int FlagMap::get_as_int(const char * const name, int default_value) {
+    if (map.count(name) == 0) {
+        map[name] = str(format("%d") % default_value);
+    }
+    return boost::lexical_cast<int>(map[name].c_str());
+}
+
+void FlagMap::get_sql_connection(string & host, string & user,
+                                 string & password,
+                                 string & database) {
     const char * value = get("sql_connection");
     //--sql_connection=mysql://nova:novapass@10.0.4.15/nova
     Regex regex("mysql:\\/\\/(\\w+):(\\w+)@([0-9\\.]+)\\/(\\w+)");
@@ -157,7 +182,7 @@ void FlagValues::get_sql_connection(string & host, string & user,
     if (!matches) {
         throw FlagException(FlagException::PATTERN_NOT_MATCHED, value);
     }
-    for (int i = 0; i < 3; i ++) {
+    for (int i = 0; i < 4; i ++) {
         if (!matches->exists_at(i)) {
             throw FlagException(FlagException::PATTERN_GROUP_NOT_MATCHED,
                                 value);
@@ -166,11 +191,66 @@ void FlagValues::get_sql_connection(string & host, string & user,
     user = matches->get(1);
     password = matches->get(2);
     host = matches->get(3);
-    if (!matches->exists_at(4)) {
-        database = boost::none;
-    } else {
-        database = optional<string>(matches->get(4));
-    }
+    database = matches->get(4);
 }
+
+
+/**---------------------------------------------------------------------------
+ *- FlagValues
+ *---------------------------------------------------------------------------*/
+
+FlagValues::FlagValues(FlagMapPtr map)
+: map(map)
+{
+    map->get_sql_connection(_nova_sql_host, _nova_sql_user,
+                            _nova_sql_password, _nova_sql_database);
+}
+
+bool FlagValues::apt_use_sudo() const {
+    const char * value = map->get("apt_use_sudo", "true");
+    return strncmp(value, "true", 4) == 0;
+}
+
+const char * FlagValues::guest_ethernet_device() const {
+    return map->get("guest_ethernet_device", "eth0");
+}
+
+const char * FlagValues::nova_sql_database() const {
+    return _nova_sql_database.c_str();
+}
+
+const char * FlagValues::nova_sql_host() const {
+    return _nova_sql_host.c_str();
+}
+
+const char * FlagValues::nova_sql_password() const {
+    return _nova_sql_password.c_str();
+}
+
+const char * FlagValues::nova_sql_user() const {
+    return _nova_sql_user.c_str();
+}
+
+size_t FlagValues::rabbit_client_memory() const {
+    const char * value = map->get("rabbit_client_memory", "2048");
+    return boost::lexical_cast<size_t>(value);
+}
+
+const char * FlagValues::rabbit_host() const {
+    return map->get("rabbit_host", "localhost");
+}
+
+const char * FlagValues::rabbit_password() const {
+    return map->get("rabbit_password", "guest");
+}
+
+const int FlagValues::rabbit_port() const {
+    return map->get_as_int("rabbit_port", 5672);
+}
+
+const char * FlagValues::rabbit_userid() const {
+    return map->get("rabbit_userid", "guest");
+}
+
 
 } } // end nova::flags

@@ -5,6 +5,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <string>
 #include <syslog.h>
@@ -17,7 +18,13 @@
 #include <vector>
 
 
-namespace nova { namespace guest { namespace mysql {
+namespace nova { namespace guest {
+
+namespace apt {
+    class AptGuest;
+};
+
+namespace mysql {
 
     std::string generate_password();
 
@@ -131,12 +138,21 @@ namespace nova { namespace guest { namespace mysql {
 
     typedef boost::shared_ptr<MySqlPreparedStatement> MySqlPreparedStatementPtr;
 
+    class MySqlConnection;
+
+    typedef boost::shared_ptr<MySqlConnection> MySqlConnectionPtr;
+
     class MySqlConnection {
         public:
             MySqlConnection(const std::string & uri, const std::string & user,
                             const std::string & password);
 
+            /* The user name and password are loaded from the my.cnf file. */
+            MySqlConnection(const std::string & uri);
+
             ~MySqlConnection();
+
+            void close();
 
             std::string escape_string(const char * original);
 
@@ -153,13 +169,25 @@ namespace nova { namespace guest { namespace mysql {
 
             //void use_database(const char * database);
 
+            // MySQL allocates some global memory it keeps up with as it runs.
+            static void start_up();
+
+            // Call this once you're 100% finished with MySQL or Valgrind
+            // will complain about a leak. If you forget it isn't a huge deal.
+            static void shut_down();
+
         private:
             void * con;
-            const std::string password;
-            const std::string uri;
-            const std::string user;
 
             void * get_con();
+
+            std::string password;
+
+            const std::string uri;
+
+            bool use_mycnf;
+
+            std::string user;
     };
 
     class MySqlResultSet {
@@ -186,14 +214,11 @@ namespace nova { namespace guest { namespace mysql {
             virtual void set_string(int index, const char * value) = 0;
     };
 
-    typedef boost::shared_ptr<MySqlConnection> MySqlConnectionPtr;
-
     class MySqlGuest {
 
         public:
-            MySqlGuest(const std::string & uri);
-            MySqlGuest(const std::string & uri, const std::string & user,
-                       const std::string & password);
+            MySqlGuest(MySqlConnectionPtr con);
+
             ~MySqlGuest();
 
             void create_database(MySqlDatabaseListPtr databases);
@@ -232,20 +257,25 @@ namespace nova { namespace guest { namespace mysql {
     class MySqlMessageHandler : public MessageHandler {
 
         public:
-            MySqlMessageHandler(MySqlGuestPtr guest);
-            MySqlMessageHandler(const MySqlMessageHandler & other);
+            MySqlMessageHandler(MySqlGuestPtr sql_guest,
+                                nova::guest::apt::AptGuest * apt_guest);
 
             virtual JsonDataPtr handle_message(JsonObjectPtr json);
 
 
-            typedef nova::JsonObjectPtr (* MethodPtr)(const MySqlGuestPtr &,
-                                                      nova::JsonObjectPtr);
+            typedef nova::JsonDataPtr (* MethodPtr)(
+                nova::guest::apt::AptGuest * apt,
+                const MySqlGuestPtr &,
+                nova::JsonObjectPtr);
+
             typedef std::map<std::string, MethodPtr> MethodMap;
 
         private:
+            MySqlMessageHandler(const MySqlMessageHandler & other);
 
-            MySqlGuestPtr guest;
+            nova::guest::apt::AptGuest * apt;
             MethodMap methods;
+            MySqlGuestPtr sql;
     };
 
 } } }  // end namespace

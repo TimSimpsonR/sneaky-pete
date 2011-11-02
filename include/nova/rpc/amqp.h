@@ -61,7 +61,8 @@ namespace nova { namespace rpc {
         public:
             static AmqpConnectionPtr create(const char * host_name, const int port,
                                             const char * user_name,
-                                            const char * password);
+                                            const char * password,
+                                            size_t client_memory);
             AmqpChannelPtr new_channel();
 
             void close();
@@ -72,7 +73,8 @@ namespace nova { namespace rpc {
 
         protected:
             AmqpConnection(const char * host_name, const int port,
-                           const char * user_name, const char * password);
+                           const char * user_name, const char * password,
+                           size_t client_memory);
 
             ~AmqpConnection();
 

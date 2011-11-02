@@ -103,6 +103,7 @@ namespace nova {
             void set_root(json_object * obj);
     };
 
+
     class JsonArray : public JsonData {
         friend class JsonObject;
 
@@ -111,9 +112,15 @@ namespace nova {
 
             JsonArray(json_object * obj);
 
+            virtual ~JsonArray();
+
             JsonArrayPtr get_array(const int index) const;
 
             int get_int(const int index) const;
+
+            inline int get_length() const {
+                return length;
+            }
 
             JsonObjectPtr get_object(const int index) const;
 
@@ -145,6 +152,8 @@ namespace nova {
 
             JsonObject(json_object * obj);
 
+            virtual ~JsonObject();
+
             JsonArrayPtr get_array(const char * key) const;
 
             int get_int(const char * key) const;
@@ -166,5 +175,6 @@ namespace nova {
     };
 
 } // end namespace
+
 
 #endif

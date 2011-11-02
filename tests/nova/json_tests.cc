@@ -140,7 +140,6 @@ BOOST_AUTO_TEST_CASE(must_not_allow_non_array_type_in_constructor)
     json_object * object = json_tokener_parse("{'hello':'hi'}");
     CHECK_JSON_EXCEPTION({ JsonArray array(object); },
                          CTOR_ARGUMENT_NOT_ARRAY);
-    json_object_put(object);
 }
 
 BOOST_AUTO_TEST_CASE(must_not_allow_null_in_array_constructor)
@@ -210,9 +209,6 @@ BOOST_AUTO_TEST_CASE(must_not_allow_non_object_type_in_constructor)
     json_object * original = json_object_new_string("hello");
     CHECK_JSON_EXCEPTION({ JsonObject object(original); },
                          CTOR_ARGUMENT_NOT_OBJECT);
-
-    // If the constructor throws, the memory isn't freed.
-    json_object_put(original);
 }
 
 BOOST_AUTO_TEST_CASE(must_not_allow_null_in_constructor)

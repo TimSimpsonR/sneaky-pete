@@ -49,3 +49,6 @@ sudo cp /usr/local/lib/librabbit* /usr/lib/
 # Needed for static compile magic.
 cd ~/
 ln -s `g++ -print-file-name=libstdc++.a`
+
+# To disable the Python guest from installing, run this:
+# sudo -E reprepro -Vb /var/www/debian remove squeeze nova-guest

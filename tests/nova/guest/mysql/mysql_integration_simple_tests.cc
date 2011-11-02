@@ -43,35 +43,36 @@ const double INITIAL_USER_COUNT = 4;
 const double TIME_OUT = 60;
 const char * URI = "localhost:5672";
 
-FlagValuesPtr get_flags() {
+FlagMapPtr get_flags() {
     //int argc = boost::unit_test::framework::master_test_suite().argc;
     //char ** argv = boost::unit_test::framework::master_test_suite().argv;
     //BOOST_REQUIRE_EQUAL(2, argc);
-    FlagValuesPtr ptr(new FlagValues());
+    FlagMapPtr ptr(new FlagMap());
     char * test_args = getenv("TEST_ARGS");
     BOOST_REQUIRE_MESSAGE(test_args != 0, "TEST_ARGS environment var not defined.");
     if (test_args != 0) {
         ptr->add_from_arg(test_args);
     }
-    //return FlagValues::create_from_args(argc, argv, true);
+    //return FlagMap::create_from_args(argc, argv, true);
     return ptr;
 }
 
 BOOST_AUTO_TEST_CASE(integration_tests)
 {
-    FlagValuesPtr flags = get_flags();
+    MySqlConnection::start_up();
+
+    FlagMapPtr flags = get_flags();
     BOOST_REQUIRE_EQUAL(flags->get("sql_connection"),
                                    "mysql://nova:novapass@10.0.4.15/nova");
     //flags->add_from_arg("--sql_connection=mysql://nova:novapass@10.0.4.15/nova");
 
-    string host, user, password;
-    optional<string> database;
+    string host, user, password, database;
     flags->get_sql_connection(host, user, password, database);
-    BOOST_REQUIRE_EQUAL(user, "nova");
-    BOOST_REQUIRE_EQUAL(password, "novapass");
-    BOOST_REQUIRE_EQUAL(host, "10.0.4.15");
-    BOOST_REQUIRE_EQUAL(!!database, true);
-    BOOST_REQUIRE_EQUAL(database.get(), "nova");
+    //BOOST_REQUIRE_EQUAL(user, "nova");
+    //BOOST_REQUIRE_EQUAL(password, "novapass");
+    //BOOST_REQUIRE_EQUAL(host, "10.0.4.15");
+    //BOOST_REQUIRE_EQUAL(!!database, true);
+    //BOOST_REQUIRE_EQUAL(database.get(), "nova");
 
     MySqlConnection connection(host, user, password);
     if (database) {
@@ -99,7 +100,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         BOOST_CHECK_EQUAL(result->get_field_count(), 0);
         // These queries return nothing, so they must throw.
         CHECK_EXCEPTION({ result->get_string(0); }, FIELD_INDEX_OUT_OF_BOUNDS);
-        CHECK_EXCEPTION({result->next();}, QUERY_RESULT_SET_FINISHED);
+        BOOST_CHECK_EQUAL(result->next(), false);
         BOOST_CHECK_EQUAL(result->get_row_count(), 0);
     }
     connection.query("INSERT INTO test_table VALUES(NULL, 0)");
@@ -154,7 +155,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
 
         // no more
         CHECK_POINT();
-        CHECK_EXCEPTION({ result->next(); }, QUERY_RESULT_SET_FINISHED);
+        BOOST_CHECK_EQUAL(result->next(), false);
         CHECK_POINT();
     }
 
@@ -201,12 +202,13 @@ BOOST_AUTO_TEST_CASE(integration_tests)
 
         // no more
         CHECK_POINT();
-        CHECK_EXCEPTION({ result->next(); }, QUERY_RESULT_SET_FINISHED);
+        BOOST_CHECK_EQUAL(result->next(), false);
         CHECK_POINT();
 
         //stmt->
         //MySqlResultSetPtr result = connection.query(
+
     }
 
-
+    MySqlConnection::shut_down();
 }

@@ -1,6 +1,6 @@
 #include "nova/guest/apt.h"
 
-#include "nova/guest/guest_exception.h"
+#include "nova/guest/GuestException.h"
 #include "nova/Log.h"
 #include <boost/optional.hpp>
 #include <sstream>
@@ -16,7 +16,8 @@ using std::stringstream;
 
 namespace nova { namespace guest { namespace apt {
 
-AptMessageHandler::AptMessageHandler() {
+AptMessageHandler::AptMessageHandler(AptGuest * apt_guest)
+: apt_guest(apt_guest) {
 }
 
 JsonDataPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
@@ -24,23 +25,23 @@ JsonDataPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
     input->get_string("method", method_name);
     JsonObjectPtr args = input->get_object("args");
     if (method_name == "install") {
-        apt::install(args->get_string("package_name"),
+        apt_guest->install(args->get_string("package_name"),
                      args->get_int("time_out"));
         return JsonData::from_null();
     } else if (method_name == "remove") {
-        apt::remove(args->get_string("package_name"),
+        apt_guest->remove(args->get_string("package_name"),
                     args->get_int("time_out"));
         return JsonData::from_null();
     } else if (method_name == "version") {
         const char * package_name = args->get_string("package_name");
-        optional<string> version = apt::version(package_name);
+        optional<string> version = apt_guest->version(package_name);
         if (version) {
             return JsonData::from_string(version.get().c_str());
         } else {
             return JsonData::from_null();
         }
     } else {
-        throw GuestException(GuestException::NO_SUCH_METHOD);
+        return JsonDataPtr();
     }
 }
 

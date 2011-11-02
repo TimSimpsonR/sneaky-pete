@@ -14,7 +14,7 @@ namespace nova { namespace rpc {
     public:
         Receiver(const char * host, int port,
                  const char * user_name, const char * password,
-                 const char * queue_name);
+                 const char * queue_name, size_t client_memory);
 
         ~Receiver();
 

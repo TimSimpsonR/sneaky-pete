@@ -17,14 +17,15 @@ namespace nova { namespace rpc {
 
 Receiver::Receiver(const char * host, int port,
                    const char * user_name, const char * password,
-                   const char * topic)
+                   const char * topic, size_t client_memory)
 :   connection(),
     last_delivery_tag(-1),
     log(),
     queue(),
     topic(topic)
 {
-    connection = AmqpConnection::create(host, port, user_name, password);
+    connection = AmqpConnection::create(host, port, user_name, password,
+                                        client_memory);
     queue = connection->new_channel();
 
 
@@ -44,7 +45,7 @@ Receiver::Receiver(const char * host, int port,
     queue->declare_queue(queue_name);
     // queue->declare_
 
-    //queue->declare_exchange(exchange_name, 'direct')
+    queue->declare_exchange(topic, "direct");
 
     // string
     //queue->declare_queue(topic);
@@ -84,7 +85,7 @@ void Receiver::finish_message(JsonObjectPtr input, JsonObjectPtr output) {
     //rtn_ex_channel->bind_queue_to_exchange(queue_name, exchange_name,
     //                                          routing_key);
     Log log;
-    log.debug("Outputting the following: %s", output->to_string());
+    log.info2("Outputting the following: %s", output->to_string());
     rtn_ex_channel->publish(exchange_name, routing_key, output->to_string());
 }
 

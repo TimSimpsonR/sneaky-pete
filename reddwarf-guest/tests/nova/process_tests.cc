@@ -107,6 +107,21 @@ BOOST_AUTO_TEST_CASE(execute_test) {
     }
 }
 
+BOOST_AUTO_TEST_CASE(environment_variables_should_transfer) {
+    const double TIME_OUT = 4.0;
+    // Returns zero exit code.
+    Process::CommandList cmds = list_of(parrot_path())("eat");
+
+    stringstream out;
+    Process::execute(out, cmds, TIME_OUT);
+    BOOST_CHECK_EQUAL(out.str(), "(@'> <( I can't eat this! AWK! )\n");
+
+    setenv("food", "birdseed", 1);
+    stringstream out2;
+    Process::execute(out2, cmds, TIME_OUT);
+    BOOST_CHECK_EQUAL(out2.str(), "(@'> < * crunch * )\n");
+}
+
 
 //TODO: Need a test for a process which outputs infinite data to standard out.
 

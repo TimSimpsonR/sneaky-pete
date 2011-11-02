@@ -15,7 +15,7 @@ namespace nova { namespace guest { namespace mysql {
 class MySqlPreparer {
     public:
 
-        MySqlPreparer(MySqlGuestPtr guest);
+        MySqlPreparer(nova::guest::apt::AptGuest * apt);
 
         void create_admin_user(const std::string & password);
 
@@ -41,7 +41,8 @@ class MySqlPreparer {
         void restart_mysql();
 
     private:
-        MySqlGuestPtr guest;
+        nova::guest::apt::AptGuest * apt;
+        MySqlGuestPtr sql;
 };
 
 typedef boost::shared_ptr<MySqlPreparer> MySqlPreparerPtr;

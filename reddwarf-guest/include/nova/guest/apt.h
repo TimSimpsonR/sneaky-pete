@@ -7,15 +7,26 @@
 
 namespace nova { namespace guest { namespace apt {
 
-    void fix(double time_out);
 
-    void install(const char * package_name, const double time_out);
+    class AptGuest {
 
-    void remove(const char * package_name, const double time_out);
+        public:
+            AptGuest(bool with_sudo);
 
-    boost::optional<std::string> version(const char * package_name,
-                                         const double time_out=30);
+            void fix(double time_out);
 
+            void install(const char * package_name, const double time_out);
+
+            void remove(const char * package_name, const double time_out);
+
+            void update(const double time_out);
+
+            boost::optional<std::string> version(const char * package_name,
+                                                 const double time_out=30);
+
+        private:
+            bool with_sudo;
+    };
 
     class AptException : public std::exception {
 
@@ -35,8 +46,8 @@ namespace nova { namespace guest { namespace apt {
                 PERMISSION_ERROR = 50,
                 PROCESS_CLOSE_TIME_OUT = 60,
                 PROCESS_TIME_OUT = 70,
-                UNEXPECTED_PROCESS_OUTPUT = 80
-
+                UNEXPECTED_PROCESS_OUTPUT = 80,
+                UPDATE_FAILED = 90
             };
 
             AptException(const Code code) throw();
@@ -53,9 +64,13 @@ namespace nova { namespace guest { namespace apt {
     class AptMessageHandler : public MessageHandler {
 
         public:
-          AptMessageHandler();
+          AptMessageHandler(AptGuest * apt_guest);
 
           virtual nova::JsonDataPtr handle_message(nova::JsonObjectPtr input);
+
+        private:
+
+          AptGuest * apt_guest;
     };
 
 } } }  // end namespace

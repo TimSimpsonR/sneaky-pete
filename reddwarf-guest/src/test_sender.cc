@@ -16,8 +16,7 @@ int main(int argc, const char* argv[]) {
 		std::cerr << "Please specify the method name as the first argument."
 		          << std::endl;
 		return 1;
-	}
-	const char * method_name = argv[1];
+	}	
     try {
         // daemon(1,0);
         const char * const queue_name = "6140cf9cf3164e229ef39cb1b0bd1287";

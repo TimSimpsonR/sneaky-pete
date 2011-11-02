@@ -30,6 +30,8 @@ const char * AptException::what() const throw() {
                    "predicted.";
         case UNEXPECTED_PROCESS_OUTPUT:
             return "The process returned unexpected output.";
+        case UPDATE_FAILED:
+            return "Attempt to call apt-get update failed.";
         default:
             return "An error occurred.";
     }

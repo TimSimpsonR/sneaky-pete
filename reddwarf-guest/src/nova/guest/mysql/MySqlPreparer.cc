@@ -8,6 +8,7 @@
 #include "nova/Log.h"
 #include "nova/process.h"
 
+using nova::guest::apt::AptGuest;
 using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
 using namespace nova::guest;
@@ -39,18 +40,17 @@ namespace {
     public:
         IsoTime() {
             time_t t = time(NULL);
+            // The returned pointer is statically allocated and shared, so
+            // don't free it.
             tm * tmp = localtime(&t);
             if (tmp == NULL) {
-                log.debug("Could not get localtime!");
-                delete tmp;
+                log.error("Could not get localtime!");
                 throw MySqlException(MySqlException::GENERAL);
             }
             if (strftime(str, sizeof(str), "%Y-%m-%d", tmp) == 0) {
-                log.debug("strftime returned 0");
-                delete tmp;
+                log.error("strftime returned 0");
                 throw MySqlException(MySqlException::GENERAL);
             }
-            delete tmp;
         }
 
         const char * c_str() const {
@@ -69,9 +69,9 @@ namespace {
             IsoTime time;
             string new_mycnf = str(format("%s.%s") % original_path
                                    % time.c_str());
-            Process::execute(list_of("sudo")("mv")(original_path)
+            Process::execute(list_of("/usr/bin/sudo")("mv")(original_path)
                              (new_mycnf.c_str()));
-            Process::execute(list_of("sudo")("cp")(template_path)
+            Process::execute(list_of("/usr/bin/sudo")("cp")(template_path)
                              (original_path));
         }
     }
@@ -86,7 +86,7 @@ namespace {
         ofstream tmp_file;
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
-            log.debug("Couldn't open temp file: %s.", temp_file_path);
+            log.error2("Couldn't open temp file: %s.", temp_file_path);
         }
         string line;
         while(!mycnf_file.eof()) {
@@ -101,84 +101,94 @@ namespace {
     }
 }
 
-MySqlPreparer::MySqlPreparer(MySqlGuestPtr guest)
-: guest(guest)
+MySqlPreparer::MySqlPreparer(AptGuest * apt)
+: apt(apt), sql()
 {
+    MySqlConnectionPtr con(new MySqlConnection("localhost", "root", ""));
+    sql.reset(new MySqlGuest(con));
 }
 
 void MySqlPreparer::create_admin_user(const std::string & password) {
     MySqlUserPtr user(new MySqlUser());
     user->set_name(ADMIN_USER_NAME);
     user->set_password(password);
-    guest->create_user(user, "localhost");
-    guest->get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
+    sql->create_user(user, "localhost");
+    sql->get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
 }
 
 void MySqlPreparer::generate_root_password() {
-    guest->set_password("root", mysql::generate_password().c_str());
+    sql->set_password("root", mysql::generate_password().c_str());
 }
 
 void MySqlPreparer::init_mycnf(const std::string & password) {
-    log.debug("Installing my.cnf templates");
+    log.info("Installing my.cnf templates");
 
-    apt::install("dbaas-mycnf", TIME_OUT);
+    apt->install("dbaas-mycnf", TIME_OUT);
 
     replace_mycnf_with_template(ORIG_MYCNF, DBAAS_MYCNF);
 
     write_temp_mycnf_with_admin_account(ORIG_MYCNF, TMP_MYCNF, password.c_str());
 
-    Process::execute(list_of("sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
-    Process::execute(list_of("sudo")("rm")(ORIG_MYCNF));
-    Process::execute(list_of("sudo")("ln")("-s")(FINAL_MYCNF)(ORIG_MYCNF));
+    Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
+    Process::execute(list_of("/usr/bin/sudo")("rm")(ORIG_MYCNF));
+    Process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
+                            (ORIG_MYCNF));
 }
 
 void MySqlPreparer::install_mysql() {
     Log log;
-    log.debug("Installing mysql server.");
-    apt::install("mysql-server-5.1", TIME_OUT);
+    log.info("Installing mysql server.");
+    apt->install("mysql-server-5.1", TIME_OUT);
 }
 
 void MySqlPreparer::prepare() {
-    log.debug("Preparing Guest as MySQL Server");
+    log.info("Preparing Guest as MySQL Server");
     install_mysql();
     string admin_password = mysql::generate_password();
 
+    log.info("Generating root password...");
     generate_root_password();
+    log.info("Removing anonymous users...");
     remove_anonymous_user();
+    log.info("Removing root access...");
     remove_remote_root_access();
+    log.info("Creating admin user...");
     create_admin_user(admin_password);
-    guest->get_connection()->flush_privileges();
+    log.info("Flushing privileges");
+    sql->get_connection()->flush_privileges();
 
+    log.info("Initiating config.");
     init_mycnf(admin_password);
+    log.info("Restarting MySQL...");
     restart_mysql();
 
-    log.debug("Dbaas preparation complete.");
+    log.info("Dbaas preparation complete.");
 }
 
 void MySqlPreparer::remove_anonymous_user() {
-    guest->get_connection()->query("DELETE FROM mysql.user WHERE User=''");
+    sql->get_connection()->query("DELETE FROM mysql.user WHERE User=''");
 }
 
 void MySqlPreparer::remove_remote_root_access() {
-    guest->get_connection()->query("DELETE FROM mysql.user"
+    sql->get_connection()->query("DELETE FROM mysql.user"
                                    "    WHERE User='root'"
                                    "    AND Host!='localhost'");
-    guest->get_connection()->flush_privileges();
+    sql->get_connection()->flush_privileges();
 }
 
 void MySqlPreparer::restart_mysql() {
     //TODO(rnirmal): To be replaced by the mounted volume location
     //FIXME once we have volumes in place, use default till then
     const char * MYSQL_BASE_DIR = "/var/lib/mysql";
-    log.debug("Restarting mysql...");
-    Process::execute(list_of("sudo")("service")("mysql")("stop"));
+    log.info("Restarting mysql...");
+    Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("stop"));
 
     // Remove the ib_logfile, if not mysql won't start.
     // For some reason wildcards don't seem to work, so
     // deleting both the files separately
     string logfile0 = str(format("%s/ib_logfile0") % MYSQL_BASE_DIR);
-    Process::execute(list_of("sudo")("rm")(logfile0.c_str()));
-    Process::execute(list_of("sudo")("service")("mysql")("start"));
+    Process::execute(list_of("/usr/bin/sudo")("rm")(logfile0.c_str()));
+    Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("start"));
 }
 
 } } }  // end nova::guest::mysql

@@ -79,7 +79,8 @@ void intrusive_ptr_release(AmqpConnection * ref) {
 }
 
 AmqpConnection::AmqpConnection(const char * host_name, const int port,
-                               const char * user_name, const char * password)
+                               const char * user_name, const char * password,
+                               size_t client_memory)
 : channels(), connection(0), log(), reference_count(0), sockfd(-1)
 {
     // Create connection.
@@ -91,7 +92,7 @@ AmqpConnection::AmqpConnection(const char * host_name, const int port,
     amqp_set_sockfd(connection, sockfd);
 
     // Login
-    amqp_check(amqp_login(connection, "/", 0, 1024 * 4, 0,
+    amqp_check(amqp_login(connection, "/", 0, client_memory, 0,
                      AMQP_SASL_METHOD_PLAIN, user_name, password),
                AmqpException::LOGIN_FAILED);
 
@@ -128,9 +129,11 @@ void AmqpConnection::close() {
 
 AmqpConnectionPtr AmqpConnection::create(const char * host_name, const int port,
                                          const char * user_name,
-                                         const char * password) {
+                                         const char * password,
+                                         size_t client_memory) {
     AmqpConnectionPtr ptr(new AmqpConnection(host_name, port,
-                                             user_name, password));
+                                             user_name, password,
+                                             client_memory));
     return ptr;
 }
 

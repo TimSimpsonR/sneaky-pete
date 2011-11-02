@@ -20,7 +20,8 @@ Sender::Sender(const char * host_name, int port,
     routing_key(routing_key)
 {
     AmqpConnectionPtr connection = AmqpConnection::create(host_name, port,
-                                                          user_name, password);
+                                                          user_name, password,
+                                                          1024 * 4);
     exchange = connection->new_channel();
     //exchange->declare_exchange(exchange_name, "direct");
 

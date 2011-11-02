@@ -2,6 +2,7 @@
 
 
 #include <boost/assign/list_of.hpp>
+#include <boost/assign/std/list.hpp>
 #include "nova/Log.h"
 #include <errno.h>
 #include <boost/foreach.hpp>
@@ -17,6 +18,7 @@
 #include <spawn.h>
 #include <sstream>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <vector>
 
@@ -57,10 +59,20 @@ enum OperationResult {
 //TODO(tim.simpson): Make this the actual standard.
 #define PACKAGE_NAME_REGEX "\\S+"
 
-void fix(double time_out) {
+
+AptGuest::AptGuest(bool with_sudo)
+: with_sudo(with_sudo) {
+}
+
+
+void AptGuest::fix(double time_out) {
     // sudo -E dpkg --configure -a
-    Process process(list_of("/usr/bin/sudo")("-E")("dpkg")("--configure")("-a"),
-                    false);
+    Process::CommandList cmds;
+    if (with_sudo) {
+        cmds += "/usr/bin/sudo", "-E";
+    }
+    cmds += "/usr/bin/dpkg", "--configure", "-a";
+    Process process(cmds, false);
 
     // Expect just a simple EOF.
     stringstream std_out;
@@ -128,12 +140,17 @@ optional<ProcessResult> match_output(Process & process,
  *  recoverable-error occurred.
  *  Raises an exception if a non-recoverable error or time out occurs.
  */
-OperationResult _install(const char * package_name, double time_out) {
+OperationResult _install(bool with_sudo, const char * package_name,
+                         double time_out) {
     Log log;
-    Process process(list_of("/usr/bin/sudo")("-E")
-                    ("DEBIAN_FRONTEND=noninteractive")("apt-get")("-y")
-                    ("--allow-unauthenticated")("install")(package_name),
-                    false);
+    Process::CommandList cmds;
+    if (with_sudo) {
+        cmds += "/usr/bin/sudo", "-E";
+    }
+    setenv("DEBIAN_FRONTEND", "noninteractive", 1);
+    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
+            package_name;
+    Process process(cmds, false);
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -149,7 +166,7 @@ OperationResult _install(const char * package_name, double time_out) {
     // 4 = lock error
     patterns.push_back("Unable to lock the administration directory");
     // 5 - 6 = Success, but only if followed up by EOF.
-    patterns.push_back("Setting up (" PACKAGE_NAME_REGEX ")\\s+");
+    patterns.push_back(str(format("Setting up %s") % package_name));
     patterns.push_back("is already the newest version");
 
     optional<ProcessResult> result;
@@ -170,15 +187,6 @@ OperationResult _install(const char * package_name, double time_out) {
         } else if (index == 4) {
             throw AptException(AptException::ADMIN_LOCK_ERROR);
         } else {
-            if (index == 5) {
-                string output_package_name = result.get().matches->get(1);
-                if (output_package_name != package_name) {
-                    log.error2("Wait, saw 'Setting up' but it wasn't our "
-                               "package! %s != %s", package_name,
-                               output_package_name.c_str());
-                    throw AptException(AptException::GENERAL);
-                }
-            }
             try {
                 process.wait_for_eof(time_out);
             } catch(const TimeOutException & toe) {
@@ -191,14 +199,15 @@ OperationResult _install(const char * package_name, double time_out) {
     throw AptException(AptException::GENERAL);
 }
 
-void install(const char * package_name, const double time_out) {
+void AptGuest::install(const char * package_name, const double time_out) {
     Log log;
-    OperationResult result = _install(package_name, time_out);
+    update(time_out);
+    OperationResult result = _install(with_sudo, package_name, time_out);
     if (result != OK) {
         if (result == RUN_DPKG_FIRST) {
             fix(time_out);
         }
-        result = _install(package_name, time_out);
+        result = _install(with_sudo, package_name, time_out);
         if (result != OK) {
             log.error2("Package %s is in a bad state.", package_name);
             throw AptException(AptException::PACKAGE_STATE_ERROR);
@@ -206,10 +215,15 @@ void install(const char * package_name, const double time_out) {
     }
 }
 
-OperationResult _remove(const char * package_name, double time_out) {
+OperationResult _remove(bool with_sudo, const char * package_name,
+                        double time_out) {
     Log log;
-    Process process(list_of("/usr/bin/sudo")("-E")("apt-get")("-y")
-                    ("--allow-unauthenticated")("remove")(package_name), false);
+    Process::CommandList cmds;
+    if (with_sudo) {
+        cmds += "/usr/bin/sudo", "-E";
+    }
+    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "remove", package_name;
+    Process process(cmds, false);
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -272,24 +286,42 @@ OperationResult _remove(const char * package_name, double time_out) {
     throw AptException(AptException::GENERAL);
 }
 
-void remove(const char * package_name, const double time_out) {
-    OperationResult result = _remove(package_name, time_out);
+void AptGuest::remove(const char * package_name, const double time_out) {
+    OperationResult result = _remove(with_sudo, package_name, time_out);
     if (result != OK) {
         if (result == REINSTALL_FIRST) {
-            _install(package_name, time_out);
+            _install(with_sudo, package_name, time_out);
         } else if (result == RUN_DPKG_FIRST) {
             fix(time_out);
         }
-        result = _remove(package_name, time_out);
+        result = _remove(with_sudo, package_name, time_out);
         if (result != OK) {
             throw AptException(AptException::PACKAGE_STATE_ERROR);
         }
     }
 }
 
+void AptGuest::update(const double time_out) {
+    Log log;
+    Process::CommandList cmds;
+    if (with_sudo) {
+        cmds += "/usr/bin/sudo", "-E";
+    }
+    cmds += "/usr/bin/apt-get", "update";
+    try {
+        Process::execute(cmds, time_out);
+    } catch(const TimeOutException & toe) {
+        throw AptException(AptException::PROCESS_TIME_OUT);
+    } catch(const ProcessException & pe) {
+        log.error2("An error occurred calling apt-get update:%s", pe.what());
+        throw AptException(AptException::UPDATE_FAILED);
+    }
+}
+
 typedef boost::optional<std::string> optional_string;
 
-optional<string> version(const char * package_name, const double time_out) {
+optional<string> AptGuest::version(const char * package_name,
+                                   const double time_out) {
     Log log;
     log.debug("Getting version of %s", package_name);
     Process process(list_of("/usr/bin/dpkg")("-l")(package_name), false);

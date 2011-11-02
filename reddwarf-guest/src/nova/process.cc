@@ -20,13 +20,15 @@
 
 // Be careful with this Macro, as it comments out the entire line.
 #ifdef _NOVA_PROCESS_VERBOSE
-#define LOG_DEBUG(a) log.debug(a)
-#define LOG_DEBUG2(a, b) log.debug(a, b)
-#define LOG_DEBUG3(a, b, c) log.debug(a, b, c)
+#define LOG_DEBUG(a) log.info2(a)
+#define LOG_DEBUG2(a, b) log.info2(a, b)
+#define LOG_DEBUG3(a, b, c) log.info2(a, b, c)
+#define LOG_DEBUG8(a, b, c, d, e, f, g, h) log.info2(a, b, c, d, e, f, g, h)
 #else
 #define LOG_DEBUG(a) /* log.debug(a) */
 #define LOG_DEBUG2(a, b) /* log.debug(a, b) */
 #define LOG_DEBUG3(a, b, c) /* log.debug(a, b, c) */
+#define LOG_DEBUG8(a, b, c, d, e, f, g, h) /* log.debug(a, b, c, d, e, f, g, h)*/
 #endif
 
 extern char **environ;
@@ -37,6 +39,7 @@ using nova::Log;
 using namespace nova::utils;
 using std::stringstream;
 using std::string;
+using nova::utils::io::TimeOutException;
 using nova::utils::io::Timer;
 
 bool time_out_occurred;
@@ -62,7 +65,6 @@ namespace {
 }  // end anonymous namespace
 
 namespace nova {
-
 
 /**---------------------------------------------------------------------------
  *- ProcessException
@@ -122,6 +124,10 @@ Process::Process(const CommandList & cmds, bool wait_for_close)
     char * * new_argv;
     int new_argv_length;
     create_argv(new_argv, new_argv_length, cmds);
+    LOG_DEBUG("Running the following process:");
+    BOOST_FOREACH(const char * cmd, cmds) {
+        LOG_DEBUG(cmd);
+    }
     int status = posix_spawn(&pid, program_path, &file_actions, NULL,
                              new_argv, environ);
     delete_argv(new_argv, new_argv_length);
@@ -224,7 +230,8 @@ bool Process::ready(int file_desc, const optional<double> seconds) {
     fd_set file_set;
     FD_ZERO(&file_set);
     FD_SET(file_desc, &file_set);
-    return io::select_with_throw(file_desc + 1, &file_set, NULL, NULL, seconds);
+    return io::select_with_throw(file_desc + 1, &file_set, NULL, NULL, seconds)
+           != 0;
 }
 
 void Process::set_eof() {
@@ -239,7 +246,7 @@ void Process::set_eof() {
               && (errno == EINTR));
         #ifdef _NOVA_PROCESS_VERBOSE
             Log log;
-            log.debug("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
+            LOG_DEBUG8("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
                       "WIFEXITED=%d, WEXITSTATUS=%d, "
                       "WIFSIGNALED=%d, WIFSTOPPED=%d",
                        child_pid, pid,
@@ -264,6 +271,7 @@ void Process::wait_for_eof(stringstream & out, double seconds) {
     if (!eof()) {
         log.error2("Something went wrong, EOF not reached! Time out=%f",
                    seconds);
+        throw TimeOutException();
     }
 }
 

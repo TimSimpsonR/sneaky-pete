@@ -3,4 +3,4 @@ amqp_port=5672
 amqp_user_name="guest"
 amqp_password="guest"
 amqp_queue="guest.test-2011-10-26-112630224103-instance-6"
-mysql_uri="unix:///var/run/mysqld/mysqld.sock"
+mysql_uri="localhost"

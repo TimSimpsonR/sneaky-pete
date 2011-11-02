@@ -53,6 +53,13 @@ int main(int argc, const char* argv[]) {
     } else if (argc >= 2 && strncmp(argv[1], "chirp", 5) == 0) {
         cout << "(@'> < * chirp * )" << endl;
         return 0;
+    } else if (argc >= 2 && strncmp(argv[1], "eat", 3) == 0) {
+        char * food = getenv("food");
+        if (food == 0 || strncmp(food, "birdseed", 8) != 0) {
+            speak("I can't eat this!");
+        } else {
+            cout << "(@'> < * crunch * )" << endl;
+        }
     } else {
         error("zzz");
         exit(57);

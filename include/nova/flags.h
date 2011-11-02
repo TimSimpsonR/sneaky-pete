@@ -86,6 +86,8 @@ class FlagValues {
 
         FlagValues(FlagMapPtr flags);
 
+        bool apt_use_sudo() const;
+
         const char * guest_ethernet_device() const;
 
         const char * nova_sql_database() const;
@@ -95,6 +97,8 @@ class FlagValues {
         const char * nova_sql_password() const;
 
         const char * nova_sql_user() const;
+
+        size_t rabbit_client_memory() const;
 
         const char * rabbit_host() const;
 

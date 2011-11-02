@@ -46,7 +46,7 @@ project
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
         # Uncomment the line below to make the Process class print all output.
-        # <define>_NOVA_PROCESS_VERBOSE
+        <define>_NOVA_PROCESS_VERBOSE
         ;
 
 ###############################################################################
@@ -260,16 +260,6 @@ unit u_nova_guest_apt_AptException
     :   src/nova/guest/apt/AptException.cc
     ;
 
-unit u_nova_guest_apt_AptMessageHandler
-    :   src/nova/guest/apt/AptMessageHandler.cc
-    :   # lib_json # <-- this should be automatic...
-        u_nova_guest_apt_AptException
-        u_nova_guest_GuestException
-        u_nova_json
-        u_nova_Log
-    :   tests/nova/guest/apt_json_tests.cc
-    ;
-
 unit u_nova_guest_apt_apt
     :   src/nova/guest/apt/apt.cc
     :   u_nova_Log
@@ -283,6 +273,17 @@ unit u_nova_guest_apt_apt
         # Its a bug thats been fixed in recent versions.
         #http://stackoverflow.com/questions/5325202/boostunit-test-case-fails-because-a-child-process-exits-with-nonzero
         BOOST_TEST_CATCH_SYSTEM_ERRORS=no
+    ;
+
+unit u_nova_guest_apt_AptMessageHandler
+    :   src/nova/guest/apt/AptMessageHandler.cc
+    :   # lib_json # <-- this should be automatic...
+        u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_guest_GuestException
+        u_nova_json
+        u_nova_Log
+    :   tests/nova/guest/apt_json_tests.cc
     ;
 
 unit u_nova_rpc_amqp

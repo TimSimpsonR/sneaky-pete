@@ -12,6 +12,7 @@
 #include <sstream>
 #include "nova/guest/utils.h"
 
+using nova::guest::apt::AptGuest;
 using boost::optional;
 using namespace nova;
 using namespace nova::flags;
@@ -30,8 +31,9 @@ const char error_message [] =
 
 int main(int argc, char* argv[]) {
 
-#ifndef _DEBUG
     Log log;
+
+#ifndef _DEBUG
 
     try {
         daemon(1,0);
@@ -40,29 +42,32 @@ int main(int argc, char* argv[]) {
         /* Grab flag values. */
         FlagValues flags(FlagMap::create_from_args(argc, argv, true));
 
+        /* Create Apt Guest */
+        AptGuest apt_guest(flags.apt_use_sudo());
+
         /* Create MySQL Guest. */
-        std::string mysql_uri = "unix:///var/run/mysqld/mysqld.sock";
-        MySqlGuestPtr guest(new MySqlGuest(mysql_uri));
+        std::string mysql_uri = "localhost"; //unix:///var/run/mysqld/mysqld.sock";
+        MySqlConnectionPtr sql_connection(new MySqlConnection(mysql_uri));
+        MySqlGuestPtr mysql_guest(new MySqlGuest(sql_connection));
 
-
-        string rabbit_queue = nova::guest::utils::get_host_name();
+        string rabbit_queue = "guest.";
+        rabbit_queue += nova::guest::utils::get_host_name();
 
         /* Create JSON message handlers. */
         const int handler_count = 2;
         MessageHandlerPtr handlers[handler_count];
-        handlers[0].reset(new MySqlMessageHandler(guest));
-        handlers[1].reset(new apt::AptMessageHandler());
+        handlers[0].reset(new MySqlMessageHandler(mysql_guest, &apt_guest));
+        handlers[1].reset(new apt::AptMessageHandler(&apt_guest));
 
         /* Create receiver. */
         Receiver receiver(flags.rabbit_host(), flags.rabbit_port(),
                           flags.rabbit_userid(), flags.rabbit_password(),
-                          rabbit_queue.c_str());
+                          rabbit_queue.c_str(), flags.rabbit_client_memory());
 
         bool quit = false;
         while(!quit) {
             log.info("getting and getting");
             JsonObjectPtr input = receiver.next_message();
-            log.info2("incoming json: %s", input->to_string());
             JsonObjectPtr output;
             try {
 

@@ -8,6 +8,7 @@
 #include <memory>
 #include <mysql/mysql.h>
 #include <sstream>
+#include <regex.h>
 
 using boost::format;
 using boost::none;
@@ -24,6 +25,58 @@ namespace {
 
     inline MYSQL * mysql_con(void * con) {
         return (MYSQL *) con;
+    }
+
+    void append_match_to_string(string & str, regex_t regex,
+                                const char * line) {
+        // 2 matches, the 2nd is the ()
+        int num_matches = 2;
+        regmatch_t matches[num_matches];
+        if (regexec(&regex, line, num_matches, matches, 0) == 0) {
+            const regoff_t & start_index = matches[num_matches-1].rm_so;
+            const regoff_t & end_index = matches[num_matches-1].rm_eo;
+            const char* begin_of_new_string = line + start_index;
+            const regoff_t match_size = end_index - start_index;
+            if (match_size > 0) {
+                str.append(begin_of_new_string, match_size);
+            }
+        }
+    }
+
+    void get_username_and_password_from_config_file(string & user,
+                                                    string & password) {
+        const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
+        regex_t regex;
+        regcomp(&regex, pattern, REG_EXTENDED);
+
+        ifstream my_cnf("/etc/mysql/my.cnf");
+        if (!my_cnf.is_open()) {
+            throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
+        }
+        std::string line;
+        //char  tmp[256]={0x0};
+        bool is_in_client = false;
+        while(my_cnf.good()) {
+        //while(fp!=NULL && fgets(tmp, sizeof(tmp) -1,fp) != NULL)
+        //{
+            getline(my_cnf, line);
+            if (strstr(line.c_str(), "[client]")) {
+                is_in_client = true;
+            }
+            if (strstr(line.c_str(), "[mysqld]")) {
+                is_in_client = false;
+            }
+            // Be careful - end index is non-inclusive.
+            if (is_in_client && strstr(line.c_str(), "user")) {
+                append_match_to_string(user, regex, line.c_str());
+            }
+            if (is_in_client && strstr(line.c_str(), "password")) {
+                append_match_to_string(password, regex, line.c_str());
+            }
+        }
+        my_cnf.close();
+
+        regfree(&regex);
     }
 
     struct StringParameterBuffer {
@@ -362,20 +415,21 @@ private:
 MySqlConnection::MySqlConnection(const std::string & uri,
                                  const std::string & user,
                                  const std::string & password)
-: con(0), password(password), uri(uri), user(user) {
+: con(0), password(password), uri(uri), use_mycnf(false), user(user) {
+}
 
-
-  // if (mysql_query(con, "create database testdb")) {
-  //     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
-  //     exit(1);
-  // }
-
-
+MySqlConnection::MySqlConnection(const std::string & uri)
+: con(0), password(""), uri(uri), use_mycnf(true), user("") {
 }
 
 MySqlConnection::~MySqlConnection() {
+    this->close();
+}
+
+void MySqlConnection::close() {
     if (mysql_con(con) != 0) {
         mysql_close(mysql_con(con));
+        con = 0;
     }
 }
 
@@ -417,6 +471,12 @@ void MySqlConnection::grant_all_privileges(const char * username,
 void MySqlConnection::init() {
     if (con != 0) {
         throw std::exception();
+    }
+
+    if (use_mycnf) {
+        get_username_and_password_from_config_file(user, password);
+        log.info2("Got the following from my.cnf: %s, %s",
+                  user.c_str(), password.c_str());
     }
 
     con = mysql_init(NULL);

@@ -206,6 +206,11 @@ FlagValues::FlagValues(FlagMapPtr map)
                             _nova_sql_password, _nova_sql_database);
 }
 
+bool FlagValues::apt_use_sudo() const {
+    const char * value = map->get("apt_use_sudo", "true");
+    return strncmp(value, "true", 4) == 0;
+}
+
 const char * FlagValues::guest_ethernet_device() const {
     return map->get("guest_ethernet_device", "eth0");
 }
@@ -224,6 +229,11 @@ const char * FlagValues::nova_sql_password() const {
 
 const char * FlagValues::nova_sql_user() const {
     return _nova_sql_user.c_str();
+}
+
+size_t FlagValues::rabbit_client_memory() const {
+    const char * value = map->get("rabbit_client_memory", "2048");
+    return boost::lexical_cast<size_t>(value);
 }
 
 const char * FlagValues::rabbit_host() const {

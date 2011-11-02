@@ -5,4 +5,5 @@ receive
 receiver
 a.out
 bin/*
+debian/tmp
 vagrant/.vagrant

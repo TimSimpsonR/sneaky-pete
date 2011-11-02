@@ -4,6 +4,7 @@
 
 
 #include "nova/guest/apt.h"
+#include "nova/utils/regex.h"
 #include <fstream>
 #include <unistd.h>
 
@@ -12,6 +13,8 @@ using boost::optional;
 using namespace nova;
 using namespace nova::guest;
 using namespace nova::guest::apt;
+using nova::utils::Regex;
+using nova::utils::RegexMatchesPtr;
 using std::string;
 using std::stringstream;
 
@@ -49,10 +52,13 @@ BOOST_AUTO_TEST_CASE(real_uninstalled_package_returns_nothing)
 BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 {
     apt::AptGuest guest(USE_SUDO);
-    optional<string> version = guest.version("rabbitmq-server");
+    optional<string> version = guest.version("dpkg");
     BOOST_REQUIRE_EQUAL(!!version, true);
-    BOOST_REQUIRE(version.get() == "2.6.1-1"
-                  || version.get() == "2.2.0-1~maverick0");
+    Regex regex("(\\w+)\\.(\\w+)\\.(\\w+)\\.(\\w+)");
+    RegexMatchesPtr matches = regex.match(version.get().c_str(), 5);
+    BOOST_REQUIRE(!!matches);
+    BOOST_REQUIRE(matches->exists_at(0));
+    BOOST_REQUIRE(matches->exists_at(4));
 }
 
 BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)

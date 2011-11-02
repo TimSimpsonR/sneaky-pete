@@ -42,14 +42,28 @@ Receiver::Receiver(const char * host, int port,
 
     // TODO : Make three extra queues to listen to. :c
     const char * queue_name = topic;
-    queue->declare_queue(queue_name);
-    // queue->declare_
-
-    queue->declare_exchange(topic, "direct");
-
-    // string
-    //queue->declare_queue(topic);
     const char * exchange_name = "nova";
+
+    //MB queue->declare_queue(queue_name);
+
+
+    queue->declare_queue(queue_name);
+
+    // This should be legit but if both exchanges are declared it doesn't work.
+    // TODO(tim.simpson): Move this code somewhere else, maybe its own channel,
+    // to make sure the exchange at least exists...
+    // try {
+    //     queue->declare_exchange(exchange_name, "direct");
+    // } catch(const AmqpException & ae) {
+    //     if (ae.code == AmqpException::EXCHANGE_DECLARE_FAIL) {
+    //         log.info2("Could not declare exchange %s. Was it already declared?",
+    //                   exchange_name);
+    //     } else {
+    //         log.error("AmqpException was thrown trying to declare exchange.");
+    //         throw ae;
+    //     }
+    // }
+    queue->declare_exchange(topic, "direct");
     queue->bind_queue_to_exchange(queue_name, exchange_name, queue_name);
 }
 
@@ -93,7 +107,9 @@ JsonObjectPtr Receiver::next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
         msg = queue->get_message(topic.c_str());
-        log.info("Received an empty message.");
+        if (!msg) {
+            log.info("Received an empty message.");
+        }
     }
     std::stringstream log_msg;
     log_msg << "Received message "

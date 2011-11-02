@@ -33,6 +33,8 @@ const char *  MySqlException::code_to_string(Code code) {
     switch(code) {
         case BIND_RESULT_SET_FAILED:
             return "Binding result set failed.";
+        case CANT_WRITE_TMP_MYCNF:
+            return "Couldn't write temp my.cnf file.";
         case COULD_NOT_CONNECT:
             return "Could not connect to database.";
         case ESCAPE_STRING_BUFFER_TOO_SMALL:

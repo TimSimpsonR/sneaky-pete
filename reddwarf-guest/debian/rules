@@ -13,5 +13,5 @@ DEB_PYTHON_SYSTEM=pysupport
 
 
 override_dh_auto_build: 
-	bjam -d+2 release link=static sreceiver
+	bjam -d+2 release link=static nova-guest
 	#dh_auto_build

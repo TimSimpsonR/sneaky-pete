@@ -33,6 +33,7 @@ namespace mysql {
         public:
             enum Code {
                 BIND_RESULT_SET_FAILED,
+                CANT_WRITE_TMP_MYCNF,
                 COULD_NOT_CONNECT,
                 ESCAPE_STRING_BUFFER_TOO_SMALL,
                 FIELD_INDEX_OUT_OF_BOUNDS,

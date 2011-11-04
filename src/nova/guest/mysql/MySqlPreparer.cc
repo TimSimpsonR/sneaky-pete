@@ -87,10 +87,12 @@ namespace {
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
             log.error2("Couldn't open temp file: %s.", temp_file_path);
+            throw MySqlException(MySqlException::CANT_WRITE_TMP_MYCNF);
         }
         string line;
         while(!mycnf_file.eof()) {
             std::getline(mycnf_file, line);
+            tmp_file << line << std::endl;
             if (line.find("[client]", 0) != string::npos) {
                 tmp_file << "user\t\t= " << ADMIN_USER_NAME << std::endl;
                 tmp_file << "password\t= " << password << std::endl;
@@ -125,12 +127,17 @@ void MySqlPreparer::init_mycnf(const std::string & password) {
 
     apt->install("dbaas-mycnf", TIME_OUT);
 
+    log.info("Replacing my.cnf with template.");
     replace_mycnf_with_template(ORIG_MYCNF, DBAAS_MYCNF);
 
+    log.info("Writing new temp my.cnf.");
     write_temp_mycnf_with_admin_account(ORIG_MYCNF, TMP_MYCNF, password.c_str());
 
+    log.info("Moving tmp into final.");
     Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
+    log.info("Removing original my.cnf.");
     Process::execute(list_of("/usr/bin/sudo")("rm")(ORIG_MYCNF));
+    log.info("Symlinking final my.cnf.");
     Process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
                             (ORIG_MYCNF));
 }
@@ -159,6 +166,7 @@ void MySqlPreparer::prepare() {
 
     log.info("Initiating config.");
     init_mycnf(admin_password);
+    sql->get_connection()->close();
     log.info("Restarting MySQL...");
     restart_mysql();
 
@@ -177,8 +185,6 @@ void MySqlPreparer::remove_remote_root_access() {
 }
 
 void MySqlPreparer::restart_mysql() {
-    //TODO(rnirmal): To be replaced by the mounted volume location
-    //FIXME once we have volumes in place, use default till then
     const char * MYSQL_BASE_DIR = "/var/lib/mysql";
     log.info("Restarting mysql...");
     Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("stop"));
@@ -187,7 +193,9 @@ void MySqlPreparer::restart_mysql() {
     // For some reason wildcards don't seem to work, so
     // deleting both the files separately
     string logfile0 = str(format("%s/ib_logfile0") % MYSQL_BASE_DIR);
+    string logfile1 = str(format("%s/ib_logfile1") % MYSQL_BASE_DIR);
     Process::execute(list_of("/usr/bin/sudo")("rm")(logfile0.c_str()));
+    Process::execute(list_of("/usr/bin/sudo")("rm")(logfile1.c_str()));
     Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("start"));
 }
 

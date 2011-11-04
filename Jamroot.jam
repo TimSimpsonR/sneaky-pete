@@ -37,7 +37,6 @@
 import os ;
 using testing ;
 
-local TEST_LAUNCHER = "BOOST_TEST_CATCH_SYSTEM_ERRORS=no $(env-vars) valgrind --leak-check=full" ;
 
 project
 	:	requirements
@@ -156,10 +155,7 @@ local rule unit ( name : sources * : dependencies * : test-sources *
                 test_dependencies
                 $(dependencies)
             :   <define>BOOST_TEST_DYN_LINK
-                #<testing.launcher>"$(TEST_LAUNCHER)"
                 <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no $(env-vars) valgrind --leak-check=full"
-                #<testing.launcher>"valgrind --leak-check=full"
-                #<testing.launcher>"$(env-vars) "
                 $(test-properties)
             ;
         explicit __unit_tests_$(name) ;
@@ -411,9 +407,7 @@ unit-test int_tests_mysql
         tests/nova/guest/mysql/mysql_integration_simple_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
-        #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
-        #<testing.launcher>"$(TEST_LAUNCHER)"
     ;
 
 explicit int_tests_mysql ;
@@ -427,9 +421,7 @@ unit-test int_tests
         tests/nova/guest/mysql/mysql_integration_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
-        #<testing.launcher>"$(env-vars) valgrind --leak-check=full"
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
-        #<testing.launcher>"$(TEST_LAUNCHER)"
     ;
 
 # Make it so this won't run unless we explicitly ask for it.

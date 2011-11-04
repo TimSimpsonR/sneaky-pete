@@ -40,11 +40,10 @@ namespace nova { namespace rpc {
 
             virtual ~AmqpException() throw();
 
+            const Code code;
+
             virtual const char * what() const throw();
 
-        private:
-
-            Code code;
     };
 
     /** Throws an exception with the given code if the reply is not normal. */

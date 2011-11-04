@@ -124,10 +124,16 @@ Process::Process(const CommandList & cmds, bool wait_for_close)
     char * * new_argv;
     int new_argv_length;
     create_argv(new_argv, new_argv_length, cmds);
-    LOG_DEBUG("Running the following process:");
-    BOOST_FOREACH(const char * cmd, cmds) {
-        LOG_DEBUG(cmd);
-    }
+    #ifdef _NOVA_PROCESS_VERBOSE
+        stringstream str;
+        str << "Running the following process: { ";
+        BOOST_FOREACH(const char * cmd, cmds) {
+            str << cmd;
+            str << ",";
+        }
+        str << "}";
+        LOG_DEBUG(str.str().c_str());
+    #endif
     int status = posix_spawn(&pid, program_path, &file_actions, NULL,
                              new_argv, environ);
     delete_argv(new_argv, new_argv_length);

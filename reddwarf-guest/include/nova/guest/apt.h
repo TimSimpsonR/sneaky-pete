@@ -66,7 +66,8 @@ namespace nova { namespace guest { namespace apt {
         public:
           AptMessageHandler(AptGuest * apt_guest);
 
-          virtual nova::JsonDataPtr handle_message(nova::JsonObjectPtr input);
+          virtual nova::JsonDataPtr handle_message(const std::string & method,
+                                                   nova::JsonObjectPtr input);
 
         private:
 

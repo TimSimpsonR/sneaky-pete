@@ -72,7 +72,7 @@ lib lib_rt : : <name>rt ;
 lib lib_uuid : : <name>uuid ;
 
 alias dependencies
-	:   lib_json lib_rabbitmq  lib_uuid lib_confuse
+	:   lib_json lib_rabbitmq  lib_uuid lib_confuse lib_boost_thread
  	;
 
 ###lib libo_c : : <name>c ;  # Only needed to make pthread work in static builds.
@@ -216,7 +216,8 @@ unit u_nova_configfile
 
 unit u_nova_utils_io
     :   src/nova/utils/io.cc
-    :   u_nova_Log
+    :   lib_rt
+        u_nova_Log
     ;
 
 unit u_nova_json
@@ -243,8 +244,7 @@ exe parrot_e
 install parrot : parrot_e/<link>shared ;
 unit u_nova_process
     :   src/nova/process.cc
-    :   lib_rt
-        u_nova_utils_io
+    :   u_nova_utils_io
         u_nova_Log
     :   tests/nova/process_tests.cc
     :   <dependency>parrot/<link>shared
@@ -299,8 +299,6 @@ unit u_nova_rpc_Receiver
     :   u_nova_rpc_amqp
         u_nova_json
         u_nova_Log
-    :   # u_nova_rpc_Sender
-        # tests/send_and_receive.cc
     ;
 
 
@@ -312,9 +310,10 @@ unit u_nova_guest_mysql_misc
 
 unit u_nova_guest_mysql_MySqlConnection
     :   src/nova/guest/mysql/MySqlConnection.cc
-    :   u_nova_Log
-        u_nova_guest_mysql_misc
+    :   lib_z  # <-- needed by lib_mysqlclient
         lib_mysqlclient
+        u_nova_Log
+        u_nova_guest_mysql_misc
     ;
 
 
@@ -333,6 +332,14 @@ unit u_nova_guest_mysql_MySqlGuest
     :   nova_guest_mysql_deps
     ;
 
+unit u_nova_guest_mysql_MySqlNovaUpdater
+    :   src/nova/guest/mysql/MySqlNovaUpdater.cc
+    :   nova_guest_mysql_deps
+        u_nova_utils_io
+        u_nova_process
+        u_nova_guest_utils
+    ;
+
 unit u_nova_guest_mysql_MySqlPreparer
     :   src/nova/guest/mysql/MySqlPreparer.cc
     :   nova_guest_mysql_deps
@@ -341,6 +348,7 @@ unit u_nova_guest_mysql_MySqlPreparer
         u_nova_configfile
         u_nova_guest_mysql_misc
         __unit_obj_u_nova_guest_mysql_MySqlGuest
+        u_nova_guest_mysql_MySqlNovaUpdater
     ;
 
 unit u_nova_guest_mysql_MySqlMessageHandler
@@ -350,8 +358,9 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_json
         nova_guest_mysql_deps
         u_nova_guest_mysql_misc
-        __unit_obj_u_nova_guest_mysql_MySqlGuest
-        __unit_obj_u_nova_guest_mysql_MySqlPreparer
+        u_nova_guest_mysql_MySqlGuest
+        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlPreparer
     :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
     :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
     ;
@@ -398,6 +407,20 @@ explicit memory_tests ;
 #      Integration Tests
 ###############################################################################
 
+# Requires RabbitMQ server to be installed and running on localhost.
+unit-test send_and_receive
+    :   u_nova_rpc_Receiver
+        u_nova_rpc_Sender
+        u_nova_json
+        tests/send_and_receive.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        #<testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+    ;
+explicit send_and_receive ;
+
+
+# Requires MySQL to be installed with valid values in my.cnf.
 unit-test int_tests_mysql
     :   u_nova_Log
         #u_nova_guest_apt_apt
@@ -409,9 +432,10 @@ unit-test int_tests_mysql
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
-
 explicit int_tests_mysql ;
 
+
+# Requires that mysql be utterly destroyed and reinstalled on the machine.
 unit-test int_tests
     :   u_nova_flags
         u_nova_Log
@@ -423,9 +447,8 @@ unit-test int_tests
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
-
-# Make it so this won't run unless we explicitly ask for it.
 explicit int_tests ;
+
 
 ###############################################################################
 #      Binaries
@@ -435,6 +458,14 @@ exe start_up
     :   u_nova_guest_utils
         u_nova_flags
         tests/nova/guest/start_up.cc
+    ;
+
+exe MySqlNovaUpdater_demo
+    :   u_nova_guest_utils
+        u_nova_flags
+        u_nova_guest_mysql_MySqlNovaUpdater
+        tests/nova/guest/mysql/MySqlNovaUpdater_demo.cc
+    :   <linkflags>"-pthread "
     ;
 
 exe apt_install
@@ -469,7 +500,6 @@ exe nova-guest
         #dependencies
 		guest_lib
         obj_receiver_daemon
-        lib_z
         lib_m
         lib_c
         #lib_pthread

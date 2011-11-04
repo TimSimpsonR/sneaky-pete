@@ -30,6 +30,8 @@ namespace {
     const char * ADMIN_USER_NAME = "os_admin";
     const char * ORIG_MYCNF = "/etc/mysql/my.cnf";
     const char * FINAL_MYCNF ="/var/lib/mysql/my.cnf";
+    // There's a permisions issue which necessitates this.
+    const char * HACKY_MYCNF ="/var/lib/nova/my.cnf";
     const char * TMP_MYCNF = "/tmp/my.cnf.tmp";
     const char * DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.default";
 
@@ -63,8 +65,8 @@ namespace {
     /** If there is a file at template_path, back up the current file to a new
      *  file ending with today's date, and then copy the template file over
      *  it. */
-    void replace_mycnf_with_template(const char * original_path,
-                                     const char * template_path) {
+    void replace_mycnf_with_template(const char * template_path,
+                                     const char * original_path) {
         if (io::is_file(template_path)) {
             IsoTime time;
             string new_mycnf = str(format("%s.%s") % original_path
@@ -128,11 +130,13 @@ void MySqlPreparer::init_mycnf(const std::string & password) {
     apt->install("dbaas-mycnf", TIME_OUT);
 
     log.info("Replacing my.cnf with template.");
-    replace_mycnf_with_template(ORIG_MYCNF, DBAAS_MYCNF);
+    replace_mycnf_with_template(DBAAS_MYCNF, ORIG_MYCNF);
 
     log.info("Writing new temp my.cnf.");
     write_temp_mycnf_with_admin_account(ORIG_MYCNF, TMP_MYCNF, password.c_str());
 
+    log.info("Copying tmp file so we can log in (permissions work-around).");
+    Process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
     log.info("Moving tmp into final.");
     Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
     log.info("Removing original my.cnf.");

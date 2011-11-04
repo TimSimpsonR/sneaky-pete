@@ -58,10 +58,20 @@ namespace nova { namespace rpc {
         friend void intrusive_ptr_release(AmqpChannel * ref);
 
         public:
+            /** Attempts to declare the exchange. Does nothing if it fails. */
+            void attempt_declare_exchange(const char * exchange_name,
+                                          const char * type);
+
+            /** Attempts to declare a queue. Does nothing if it fails. */
+            void attempt_declare_queue(const char * queue_name,
+                                       bool exclusive=false,
+                                       bool auto_delete=false);
+
             static AmqpConnectionPtr create(const char * host_name, const int port,
                                             const char * user_name,
                                             const char * password,
                                             size_t client_memory);
+
             AmqpChannelPtr new_channel();
 
             void close();
@@ -79,12 +89,26 @@ namespace nova { namespace rpc {
 
             static void check_references(AmqpConnection * connection);
 
+            /* When certain operations such as declaring an exchange or queue
+             * fail, the channel seems to be bad and attempts to use it again
+             * result in the program hanging. This occurs even if the channel
+             * is closed and re-opened. This is a kludge but for now the
+             * solution is to mark those channels as bad. This means a program
+             * could eventually run out of channels; however, this will only
+             * happen if the exceptions are caught everywhere and execution
+             * proceeds. Right now the
+             * only exceptions worth catching are the ones from the declare
+             * methods- if a program only catches a few throughout its lifetime,
+             * this is workable. */
+            void mark_channel_as_bad(AmqpChannel * channel);
+
             int new_channel_number() const;
 
             /** Closes and deletes channel. */
             void remove_channel(AmqpChannel * channel);
 
         private:
+            std::vector<int> bad_channels;
             std::vector<AmqpChannel *> channels;
             amqp_connection_state_t connection;
             Log log;
@@ -122,10 +146,9 @@ namespace nova { namespace rpc {
 
             // Types are 'direct', 'topic'.
             void declare_exchange(const char * exchange_name,
-                                  const char * type);
+                                  const char * type, bool passive=false);
 
-            void declare_queue(const char * queue_name, bool exclusive=false,
-                               bool auto_delete=false);
+            void declare_queue(const char * queue_name, bool passive=false);
 
             inline int get_channel_number() const {
                 return channel_number;
@@ -143,9 +166,17 @@ namespace nova { namespace rpc {
 
         private:
             const int channel_number;
+
+            void check(const amqp_rpc_reply_t reply,
+                       const AmqpException::Code & code);
+
             bool is_open;
+
             AmqpConnection * parent;
+
             int reference_count;
+
+            void _throw(const AmqpException::Code & code);
     };
 
 } } // end namespace

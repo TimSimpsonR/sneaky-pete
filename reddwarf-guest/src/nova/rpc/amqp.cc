@@ -81,7 +81,8 @@ void intrusive_ptr_release(AmqpConnection * ref) {
 AmqpConnection::AmqpConnection(const char * host_name, const int port,
                                const char * user_name, const char * password,
                                size_t client_memory)
-: channels(), connection(0), log(), reference_count(0), sockfd(-1)
+: bad_channels(), channels(), connection(0), log(), reference_count(0),
+  sockfd(-1)
 {
     // Create connection.
     connection = amqp_new_connection();
@@ -137,16 +138,67 @@ AmqpConnectionPtr AmqpConnection::create(const char * host_name, const int port,
     return ptr;
 }
 
+void AmqpConnection::attempt_declare_exchange(const char * exchange_name,
+                                              const char * type) {
+    AmqpChannelPtr channel = new_channel();
+    log.info2("Attempting to declare exchange %s.", exchange_name);
+    try {
+        channel->declare_exchange(exchange_name, "direct", true);
+        log.info("Exchange already declared.");
+    } catch(const AmqpException & ae) {
+        if (ae.code == AmqpException::EXCHANGE_DECLARE_FAIL) {
+            log.info("Could not passive declare exchange. Trying non-passive.");
+            new_channel()->declare_exchange(exchange_name, "direct", false);
+        } else {
+            log.error("AmqpException was thrown trying to declare exchange.");
+            throw ae;
+        }
+    }
+}
+
+void AmqpConnection::attempt_declare_queue(const char * queue_name,
+                                           bool exclusive,
+                                           bool auto_delete) {
+    AmqpChannelPtr channel = new_channel();
+    log.info2("Attempting to declare queue %s.", queue_name);
+    try {
+        channel->declare_queue(queue_name, true);
+        log.info2("Queue already declared.");
+    } catch(const AmqpException & ae) {
+        if (ae.code == AmqpException::DECLARE_QUEUE_FAILURE) {
+            log.info2("Could not declare queue %s. Trying non-passive.",
+                      queue_name);
+            new_channel()->declare_queue(queue_name, false);
+        } else {
+            log.error("AmqpException was thrown trying to declare queue.");
+            throw ae;
+        }
+    }
+}
+
+void AmqpConnection::mark_channel_as_bad(AmqpChannel * channel) {
+    bad_channels.push_back(channel->get_channel_number());
+}
+
 int AmqpConnection::new_channel_number() const {
     bool found=false;
     int number = 10;
     while(!found) {
         found = true;
-        BOOST_FOREACH(const AmqpChannel * const channel, channels) {
-            if (channel->get_channel_number() == number) {
+        BOOST_FOREACH(int bad_channel, bad_channels) {
+            if (bad_channel == number) {
                 found = false;
                 number ++;
                 break;
+            }
+        }
+        if (found == true) {
+            BOOST_FOREACH(const AmqpChannel * const channel, channels) {
+                if (channel->get_channel_number() == number) {
+                    found = false;
+                    number ++;
+                    break;
+                }
             }
         }
     }
@@ -230,12 +282,19 @@ void AmqpChannel::ack_message(int delivery_tag) {
     amqp_basic_ack(conn, channel_number, delivery_tag, 0);
 }
 
+void AmqpChannel::check(const amqp_rpc_reply_t reply,
+                             const AmqpException::Code & code) {
+    if (reply.reply_type != AMQP_RESPONSE_NORMAL) {
+        _throw(code);
+    }
+}
+
 void AmqpChannel::close() {
     if (is_open) {
         parent->log.debug("Closing channel #%d", channel_number);
         amqp_connection_state_t conn = parent->get_connection();
-        amqp_check(amqp_channel_close(conn, channel_number, AMQP_REPLY_SUCCESS),
-                   AmqpException::CLOSE_CHANNEL_FAILED);
+        check(amqp_channel_close(conn, channel_number, AMQP_REPLY_SUCCESS),
+              AmqpException::CLOSE_CHANNEL_FAILED);
         is_open = false;
     }
 }
@@ -259,29 +318,30 @@ void AmqpChannel::bind_queue_to_exchange(const char * queue_name,
                                              AMQP_QUEUE_BIND_METHOD,
                                              &number,
                                              &args);
-    amqp_check(reply, AmqpException::BIND_QUEUE_FAILURE);
+    check(reply, AmqpException::BIND_QUEUE_FAILURE);
 }
 
 void AmqpChannel::declare_exchange(const char * exchange_name,
-                                   const char * type) {
-    // Declare a direct exchange.
-    //(amqp_channel_t)
+                                   const char * type, bool passive) {
     amqp_connection_state_t conn = parent->get_connection();
     amqp_exchange_declare(conn, channel_number,
                           amqp_cstring_bytes(exchange_name),
                           amqp_cstring_bytes(type),
-                          0, 0, AMQP_EMPTY_TABLE);
-    amqp_check(amqp_get_rpc_reply(conn), AmqpException::EXCHANGE_DECLARE_FAIL);
+                          passive ? 1 : 0,
+                          0, /* durable */
+                          AMQP_EMPTY_TABLE);
+    check(amqp_get_rpc_reply(conn), AmqpException::EXCHANGE_DECLARE_FAIL);
 }
 
-void AmqpChannel::declare_queue(const char * queue_name, bool exclusive,
-                                bool auto_delete) {
+void AmqpChannel::declare_queue(const char * queue_name, bool passive) {
+    const bool exclusive=false;
+    const bool auto_delete=false;
     amqp_connection_state_t conn = parent->get_connection();
     // Declare a queue
     amqp_queue_declare_t args;
     args.ticket = 0;
     args.queue = amqp_cstring_bytes(queue_name);
-    args.passive = 0;
+    args.passive = passive ? 1 : 0;
     args.durable = 0;
     args.exclusive = exclusive ? 1 : 0;
     args.auto_delete = auto_delete ? 1 : 0;
@@ -292,8 +352,9 @@ void AmqpChannel::declare_queue(const char * queue_name, bool exclusive,
                                             AMQP_QUEUE_DECLARE_METHOD,
                                             &number,
                                             &args);
-    amqp_check(reply, AmqpException::DECLARE_QUEUE_FAILURE);
+    check(reply, AmqpException::DECLARE_QUEUE_FAILURE);
     if (reply.reply.id != AMQP_QUEUE_DECLARE_OK_METHOD) {
+        parent->mark_channel_as_bad(this);
         throw AmqpException(AmqpException::DECLARE_QUEUE_FAILURE);
     }
 }
@@ -388,6 +449,11 @@ void AmqpChannel::publish(const char * exchange_name,
     if (result < 0) {
         throw AmqpException(AmqpException::PUBLISH_FAILURE);
     }
+}
+
+void AmqpChannel::_throw(const AmqpException::Code & code) {
+    parent->mark_channel_as_bad(this);
+    throw AmqpException(code);
 }
 
 } } // end namespace

@@ -231,6 +231,11 @@ const char * FlagValues::nova_sql_user() const {
     return _nova_sql_user.c_str();
 }
 
+unsigned long FlagValues::periodic_interval() const {
+    const char * value = map->get("periodic_interval", "60");
+    return boost::lexical_cast<unsigned long>(value);
+}
+
 size_t FlagValues::rabbit_client_memory() const {
     const char * value = map->get("rabbit_client_memory", "2048");
     return boost::lexical_cast<size_t>(value);

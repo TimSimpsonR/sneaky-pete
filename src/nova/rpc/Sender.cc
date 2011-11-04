@@ -8,26 +8,25 @@ using nova::JsonObjectPtr;
 using namespace nova::rpc;
 
 
-Sender::Sender(const char * host_name, int port,
-               const char * user_name, const char * password,
-               const char * exchange_name, const char * queue_name,
-               const char * routing_key)
+Sender::Sender(AmqpConnectionPtr connection, const char * topic)
 :   exchange(),
-    exchange_name(exchange_name),
+    exchange_name("nova"),
     log(),
-    queue(),
-    queue_name(queue_name),
-    routing_key(routing_key)
+    queue_name(topic),
+    routing_key(topic)
 {
-    AmqpConnectionPtr connection = AmqpConnection::create(host_name, port,
-                                                          user_name, password,
-                                                          1024 * 4);
     exchange = connection->new_channel();
-    //exchange->declare_exchange(exchange_name, "direct");
 
-    queue = connection->new_channel();
-    //queue->declare_queue(queue_name, false, true);
-    //queue->bind_queue_to_exchange(queue_name, exchange_name, routing_key);
+    log.debug("Declaring sender exchange and queue.");
+    connection->attempt_declare_exchange(exchange_name.c_str(), "direct");
+    connection->attempt_declare_queue(queue_name.c_str(), false, true);
+
+    log.debug("Binding queue to exchange.");
+    connection->new_channel()->
+        bind_queue_to_exchange(queue_name.c_str(), exchange_name.c_str(),
+                               routing_key.c_str());
+    log.debug("Creating exchange channel.");
+    exchange = connection->new_channel();
 }
 
 Sender::~Sender() {
@@ -38,8 +37,7 @@ void Sender::send(const char * publish_string) {
                       publish_string);
 }
 
-
-void Sender::send(JsonObjectPtr publish_object) {
-    log.info2("Sending message: %s", publish_object->to_string());
-    send(publish_object->to_string());
+void Sender::send(const JsonObject & publish_object) {
+    log.info2("Sending message: %s", publish_object.to_string());
+    send(publish_object.to_string());
 }

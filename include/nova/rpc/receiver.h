@@ -12,9 +12,7 @@ namespace nova { namespace rpc {
     class Receiver {
 
     public:
-        Receiver(const char * host, int port,
-                 const char * user_name, const char * password,
-                 const char * queue_name, size_t client_memory);
+        Receiver(AmqpConnectionPtr connection, const char * topic);
 
         ~Receiver();
 
@@ -26,7 +24,7 @@ namespace nova { namespace rpc {
         nova::JsonObjectPtr next_message();
 
     private:
-        AmqpConnectionPtr connection;
+        AmqpConnectionPtr & connection;
         int last_delivery_tag;
         Log log;
         AmqpChannelPtr queue;

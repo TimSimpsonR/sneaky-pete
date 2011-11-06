@@ -23,6 +23,8 @@ const char * GuestException::what() throw() {
             return "Could not get the network interfaces.";
         case ERROR_GRABBING_HOST_NAME:
             return "Error grabbing the host name.";
+        case MALFORMED_INPUT:
+            return "The input message was malformed.";
         case NO_SUCH_METHOD:
             return "Could not handle the JSON input. No such method was found.";
         default:

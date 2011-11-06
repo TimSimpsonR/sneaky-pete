@@ -2,6 +2,8 @@
 #include "nova/guest/mysql.h"
 #include <uuid/uuid.h>
 
+
+using boost::optional;
 using namespace std;
 
 
@@ -49,6 +51,8 @@ const char *  MySqlException::code_to_string(Code code) {
             return "my.cnf file not found.";
         case NEXT_FETCH_FAILED:
             return "Error fetching next result.";
+        case NO_PASSWORD_FOR_CREATE_USER:
+            return "Can't create user because no password was specified.";
         case PARAMETER_INDEX_OUT_OF_BOUNDS:
             return "Parameter index out of bounds.";
         case PREPARE_BIND_FAILED:
@@ -85,15 +89,15 @@ const char * MySqlException::what() const throw() {
  *---------------------------------------------------------------------------*/
 
 MySqlUser::MySqlUser()
-: name(""), password(""), databases(new MySqlDatabaseList())
+: name(""), password(boost::none), databases(new MySqlDatabaseList())
 {
 }
 
-void MySqlUser::set_name(const std::string & value) {
+void MySqlUser::set_name(const string & value) {
     this->name = value;
 }
 
-void MySqlUser::set_password(const std::string & value) {
+void MySqlUser::set_password(const optional<string> & value) {
     this->password = value;
 }
 
@@ -105,6 +109,14 @@ void MySqlUser::set_password(const std::string & value) {
 MySqlDatabase::MySqlDatabase()
 : character_set(""), collation(""), name("")
 {
+}
+
+const char * MySqlDatabase::default_character_set() {
+    return "utf8";
+}
+
+const char * MySqlDatabase::default_collation() {
+    return "utf8_general_ci";
 }
 
 void MySqlDatabase::set_name(const std::string & value) {

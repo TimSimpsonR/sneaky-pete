@@ -23,8 +23,7 @@ namespace nova { namespace guest { namespace mysql {
         public:
             MySqlMessageHandler(MySqlMessageHandlerConfig config);
 
-            virtual JsonDataPtr handle_message(const std::string & method,
-                                               JsonObjectPtr json);
+            virtual JsonDataPtr handle_message(const GuestInput & input);
 
             typedef nova::JsonDataPtr (* MethodPtr)(
                 const MySqlMessageHandler *, nova::JsonObjectPtr);

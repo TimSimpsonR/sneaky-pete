@@ -1,7 +1,7 @@
 #include "nova/json.h"
 #include <json/json.h>
 
-
+using boost::optional;
 using std::string;
 
 namespace nova {
@@ -51,6 +51,18 @@ namespace {
         }
         if (json_object_is_type(string_obj, json_type_string) == 0) {
             throw JsonException(JsonException::TYPE_ERROR_NOT_STRING);
+        }
+        return json_object_get_string(string_obj);
+    }
+
+    /* Get string from json_object, throw on error. */
+    inline const char * get_json_string_or_default(json_object * const string_obj,
+                                                   const char * default_value) {
+        if (string_obj == (json_object *)0) {
+            return default_value;
+        }
+        if (json_object_is_type(string_obj, json_type_string) == 0) {
+            return default_value;
         }
         return json_object_get_string(string_obj);
     }
@@ -164,6 +176,10 @@ void JsonData::check_initial_object(bool owned, json_object * obj,
         }
         throw JsonException(exception_code);
     }
+}
+
+std::string JsonData::json_string(const char * text) {
+    return from_string(text)->to_string();
 }
 
 JsonDataPtr JsonData::from_boolean(bool value) {
@@ -365,6 +381,29 @@ JsonObjectPtr JsonObject::get_object(const char * key) const {
     return rtn;
 }
 
+optional<string> JsonObject::get_optional_string(const char * key) const {
+    json_object * string_obj = json_object_object_get(object, key);
+    if (string_obj == (json_object *)0) {
+        return boost::none;
+    } else {
+        string rtn = validate_json_string(string_obj, JsonException::KEY_ERROR);
+        return optional<string>(rtn);
+    }
+}
+
+JsonObjectPtr JsonObject::get_object_or_empty(const char * key) const {
+    json_object * object_obj = json_object_object_get(object, key);
+    if (object_obj == (json_object *)0) {
+        JsonObjectPtr rtn(new JsonObject("{}"));
+        return rtn;
+    } else {
+        validate_json_object(object_obj, JsonException::INDEX_ERROR);
+        JsonObjectPtr rtn(new JsonObject(object_obj, root));
+        return rtn;
+    }
+}
+
+
 const char * JsonObject::get_string(const char * key) const {
     json_object * string_obj = json_object_object_get(object, key);
     return validate_json_string(string_obj, JsonException::KEY_ERROR);
@@ -372,6 +411,12 @@ const char * JsonObject::get_string(const char * key) const {
 
 void JsonObject::get_string(const char * key, string & value) const {
     value = get_string(key);
+}
+
+const char * JsonObject::get_string_or_default(const char * key,
+                                               const char * default_value) const {
+    json_object * string_obj = json_object_object_get(object, key);
+    return get_json_string_or_default(string_obj, default_value);
 }
 
 } // end namespace nova

@@ -43,21 +43,43 @@ namespace {
 
     MySqlDatabasePtr db_from_obj(JsonObjectPtr obj) {
         MySqlDatabasePtr db(new MySqlDatabase());
-        db->set_character_set(obj->get_string("_character_set"));
-        db->set_collation(obj->get_string("_collation"));
+        string char_set = obj->get_string_or_default(
+            "_character_set",
+            MySqlDatabase::default_character_set());
+        db->set_character_set(char_set);
+        string collate = obj->get_string_or_default(
+            "_collate", MySqlDatabase::default_collation());
+        db->set_collation(collate);
         db->set_name(obj->get_string("_name"));
         return db;
     }
 
+    void db_list_from_array(MySqlDatabaseListPtr db_list, JsonArrayPtr array) {
+        for (int i = 0; i < array->get_length(); i ++) {
+            JsonObjectPtr db_obj = array->get_object(i);
+            log.info2("database json info:%s", db_obj->to_string());
+            db_list->push_back(db_from_obj(db_obj));
+        };
+    }
+
     MySqlUserPtr user_from_obj(JsonObjectPtr obj) {
         MySqlUserPtr user(new MySqlUser());
-        user->set_name(obj->get_string("username"));
-        user->set_password(obj->get_string("password"));
+        user->set_name(obj->get_string("_name"));
+        user->set_password(obj->get_optional_string("_password"));
+        JsonArrayPtr db_array = obj->get_array("_databases");
+        db_list_from_array(user->get_databases(), db_array);
         return user;
     }
 
     void user_to_stream(stringstream & out, MySqlUserPtr user) {
-        out << "{'name':'" << user->get_name() << "'}";
+        out << "{\"_name\":" << JsonData::json_string(user->get_name().c_str())
+            << ", \"_password\":";
+        if (user->get_password()) {
+            out << JsonData::json_string(user->get_password().get().c_str());
+        } else {
+            out << "null";
+        }
+        out << " }";
     }
 
     JSON_METHOD(create_database) {
@@ -65,9 +87,7 @@ namespace {
         log.info2("guest create_database"); //", guest->create_database().c_str());
         MySqlDatabaseListPtr databases(new MySqlDatabaseList());
         JsonArrayPtr array = args->get_array("databases");
-        for (int i = 0; i < array->get_length(); i ++) {
-            databases->push_back(db_from_obj(array->get_object(i)));
-        };
+        db_list_from_array(databases, array);
         sql->create_database(databases);
         return JsonData::from_null();
     }
@@ -119,10 +139,13 @@ namespace {
                 database_xml << ", ";
             }
             once = true;
-            database_xml << "{'_name':'" << database->get_name()
-                         << "', '_collation':'" << database->get_collation()
-                         << "', '_character_set':'" << database->get_character_set()
-                         << "'}";
+            database_xml << "{ \"_name\":"
+                         << JsonData::json_string(database->get_name())
+                         << ", \"_collate\":"
+                         << JsonData::json_string(database->get_collation())
+                         << ", \"_character_set\":"
+                         << JsonData::json_string(database->get_character_set())
+                         << " }";
         }
         database_xml << "]";
         JsonDataPtr rtn(new JsonArray(database_xml.str().c_str()));
@@ -208,14 +231,13 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlMessageHandlerConfig config)
     }
 }
 
-JsonDataPtr MySqlMessageHandler::handle_message(const std::string & method_name,
-                                                JsonObjectPtr args) {
-    MethodMap::iterator method_itr = methods.find(method_name);
+JsonDataPtr MySqlMessageHandler::handle_message(const GuestInput & input) {
+    MethodMap::iterator method_itr = methods.find(input.method_name);
     if (method_itr != methods.end()) {
         // Make sure our connection is fresh.
         MethodPtr & method = method_itr->second;  // value
-        log.info2( "Executing method %s", method_name.c_str());
-        JsonDataPtr result = (*(method))(this, args);
+        log.info2( "Executing method %s", input.method_name.c_str());
+        JsonDataPtr result = (*(method))(this, input.args);
         return result;
     } else {
         return JsonDataPtr();

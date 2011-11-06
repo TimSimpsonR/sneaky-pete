@@ -1,7 +1,7 @@
 #ifndef __NOVA_JSON_H
 #define __NOVA_JSON_H
 
-
+#include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
 
@@ -66,6 +66,13 @@ namespace nova {
             static JsonDataPtr from_null();
 
             static JsonDataPtr from_string(const char * text);
+
+            // Escapes string. Adds quotes to beginning and end.
+            static std::string json_string(const char * text);
+
+            static inline std::string json_string(const std::string & text) {
+                return json_string((const char *) text.c_str());
+            }
 
             const char * to_string() const;
 
@@ -160,9 +167,17 @@ namespace nova {
 
             JsonObjectPtr get_object(const char * key) const;
 
+            JsonObjectPtr get_object_or_empty(const char * key) const;
+
+             boost::optional<std::string> get_optional_string(const char * key)
+                const;
+
             const char * get_string(const char * key) const;
 
             void get_string(const char * key, std::string & value) const;
+
+            const char * get_string_or_default(const char * key,
+                                               const char * default_value) const;
 
         protected:
 

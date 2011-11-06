@@ -9,22 +9,18 @@ namespace nova { namespace rpc {
 
     class Sender {
         public:
-            Sender(const char * host_name, int port,
-                   const char * user_name, const char * password,
-                   const char * exchange_name, const char * queue_name,
-                   const char * routing_key);
+            Sender(AmqpConnectionPtr connection, const char * topic);
 
             ~Sender();
 
-            void send(JsonObjectPtr object);
+            void send(const JsonObject & object);
 
             void send(const char * publish_string);
 
         private:
             AmqpChannelPtr exchange;
-            const std::string exchange_name;
+            std::string exchange_name;
             Log log;
-            AmqpChannelPtr queue;
             const std::string queue_name;
             const std::string routing_key;
     };

@@ -15,17 +15,13 @@ using std::string;
 namespace nova { namespace rpc {
 
 
-Receiver::Receiver(const char * host, int port,
-                   const char * user_name, const char * password,
-                   const char * topic, size_t client_memory)
-:   connection(),
+Receiver::Receiver(AmqpConnectionPtr connection, const char * topic)
+:   connection(connection),
     last_delivery_tag(-1),
     log(),
     queue(),
     topic(topic)
 {
-    connection = AmqpConnection::create(host, port, user_name, password,
-                                        client_memory);
     queue = connection->new_channel();
 
 
@@ -46,24 +42,10 @@ Receiver::Receiver(const char * host, int port,
 
     //MB queue->declare_queue(queue_name);
 
+    connection->attempt_declare_queue(queue_name);
+    connection->attempt_declare_exchange(exchange_name, "direct");
 
-    queue->declare_queue(queue_name);
-
-    // This should be legit but if both exchanges are declared it doesn't work.
-    // TODO(tim.simpson): Move this code somewhere else, maybe its own channel,
-    // to make sure the exchange at least exists...
-    // try {
-    //     queue->declare_exchange(exchange_name, "direct");
-    // } catch(const AmqpException & ae) {
-    //     if (ae.code == AmqpException::EXCHANGE_DECLARE_FAIL) {
-    //         log.info2("Could not declare exchange %s. Was it already declared?",
-    //                   exchange_name);
-    //     } else {
-    //         log.error("AmqpException was thrown trying to declare exchange.");
-    //         throw ae;
-    //     }
-    // }
-    queue->declare_exchange(topic, "direct");
+    //queue->declare_exchange(topic, "direct");  //TODO(tim.simpson): Remove?
     queue->bind_queue_to_exchange(queue_name, exchange_name, queue_name);
 }
 

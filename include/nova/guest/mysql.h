@@ -14,7 +14,6 @@
 
 #include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
-#include <json/json.h>
 #include <vector>
 
 
@@ -39,6 +38,7 @@ namespace mysql {
                 FIELD_INDEX_OUT_OF_BOUNDS,
                 GENERAL,
                 GET_QUERY_RESULT_FAILED,
+                GUEST_INSTANCE_ID_NOT_FOUND,
                 MY_CNF_FILE_NOT_FOUND,
                 NEXT_FETCH_FAILED,
                 PARAMETER_INDEX_OUT_OF_BOUNDS,
@@ -215,6 +215,8 @@ namespace mysql {
             virtual void set_string(int index, const char * value) = 0;
     };
 
+    //TODO(tim.simpson): This name doesn't really fit well enough.
+    // Think of a new one, like "MySqlAdmin" or something.
     class MySqlGuest {
 
         public:
@@ -254,30 +256,6 @@ namespace mysql {
     };
 
     typedef boost::shared_ptr<MySqlGuest> MySqlGuestPtr;
-
-    class MySqlMessageHandler : public MessageHandler {
-
-        public:
-            MySqlMessageHandler(MySqlGuestPtr sql_guest,
-                                nova::guest::apt::AptGuest * apt_guest);
-
-            virtual JsonDataPtr handle_message(JsonObjectPtr json);
-
-
-            typedef nova::JsonDataPtr (* MethodPtr)(
-                nova::guest::apt::AptGuest * apt,
-                const MySqlGuestPtr &,
-                nova::JsonObjectPtr);
-
-            typedef std::map<std::string, MethodPtr> MethodMap;
-
-        private:
-            MySqlMessageHandler(const MySqlMessageHandler & other);
-
-            nova::guest::apt::AptGuest * apt;
-            MethodMap methods;
-            MySqlGuestPtr sql;
-    };
 
 } } }  // end namespace
 

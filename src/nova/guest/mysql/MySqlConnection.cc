@@ -44,12 +44,15 @@ namespace {
     }
 
     void get_username_and_password_from_config_file(string & user,
-                                                    string & password) {
+                                                           string & password) {
         const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
         regex_t regex;
         regcomp(&regex, pattern, REG_EXTENDED);
 
-        ifstream my_cnf("/etc/mysql/my.cnf");
+        // TODO(tim.simpson): This should be the normal my.cnf, but we can't
+        // read it from there... yet.
+        //ifstream my_cnf("/etc/mysql/my.cnf");
+        ifstream my_cnf("/var/lib/nova/my.cnf");
         if (!my_cnf.is_open()) {
             throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
         }
@@ -79,13 +82,56 @@ namespace {
         regfree(&regex);
     }
 
+    //TODO(tim.simpson): Get rid of this class and IntParameterBuffer, turns out they aren't needed.
+    struct ParameterBuffer {
+
+        virtual void bind(MYSQL_BIND & bind) = 0;
+
+        virtual void set(const char * new_value) = 0;
+
+        virtual optional<string> to_string() = 0;
+    };
+
+    // This may need to go to the trash.
+    struct IntParameterBuffer {
+        int buffer;
+        my_bool error;
+        unsigned long length;
+        my_bool is_null;
+
+        virtual void bind(MYSQL_BIND & bind) {
+            bind.buffer_type= MYSQL_TYPE_LONG;
+            bind.buffer= (char *)&buffer;
+            //bind.buffer_length = 256; // Not specified?
+            bind.is_null = &is_null;
+            bind.length= &length;
+            bind.error= &error;
+        }
+
+        virtual void set(const int & new_value) {
+            buffer = new_value;
+            is_null = 0;
+            error = 0;
+        }
+
+        virtual optional<string> to_string() {
+            if (is_null) {
+                return boost::none;
+            } else {
+                string value = str(format("%s") % buffer);
+                optional<string> rtn(value);
+                return rtn;
+            }
+        }
+    };
+
     struct StringParameterBuffer {
         char buffer[256];
         my_bool error;
         unsigned long length;
         my_bool is_null;
 
-        void bind(MYSQL_BIND & bind) {
+        virtual void bind(MYSQL_BIND & bind) {
             bind.buffer_type = MYSQL_TYPE_STRING;
             bind.buffer = buffer;
             bind.buffer_length = 256;
@@ -94,14 +140,14 @@ namespace {
             bind.error = &error;
         }
 
-        void set(const char * new_value) {
+        virtual void set(const char * new_value) {
             length = strnlen(new_value, 256);
             strncpy(buffer, new_value, length);
             is_null = 0;
             error = 0;
         }
 
-        optional<string> to_string() {
+        virtual optional<string> to_string() {
             if (is_null) {
                 return boost::none;
             } else {
@@ -383,9 +429,14 @@ public:
         if (mysql_stmt_execute(stmt) != 0) {
             log.error2("execute failed: %s", mysql_stmt_error(stmt));
         }
-        MySqlResultSetPtr ptr(new MySqlQueryResultSet(con));//new MySqlPreparedResultSet(con, stmt,
-                              //                           result_count));
-        return ptr;
+        if (result_count == 0) {
+            MySqlResultSetPtr ptr(new MySqlQueryResultSet(con));
+            return ptr;
+        } else {
+            MySqlResultSetPtr ptr(new MySqlPreparedResultSet(con, stmt,
+                                                             result_count));
+            return ptr;
+        }
     }
 
     virtual int get_parameter_count() const {

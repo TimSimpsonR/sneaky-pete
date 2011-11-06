@@ -1,13 +1,17 @@
 #include "nova/guest/apt.h"
+#include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/mysql.h"
+#include "nova/guest/mysql/MySqlMessageHandler.h"
+#include "nova/guest/mysql/MySqlNovaUpdater.h"
 #include "nova/guest/mysql/MySqlPreparer.h"
 #include <sstream>
 
 
 using nova::guest::apt::AptGuest;
+using boost::format;
 using nova::Log;
 using nova::JsonData;
 using nova::JsonDataPtr;
@@ -32,16 +36,16 @@ namespace {
 #define METHOD_NAME(name) STR_VALUE(name)
 #define REGISTER(name) { METHOD_NAME(name), & name }
 #define JSON_METHOD(name) JsonDataPtr \
-    name(AptGuest * apt, const MySqlGuestPtr & sql, JsonObjectPtr args)
+    name(const MySqlMessageHandler * guest, JsonObjectPtr args)
 
 
 namespace {
 
     MySqlDatabasePtr db_from_obj(JsonObjectPtr obj) {
         MySqlDatabasePtr db(new MySqlDatabase());
-        db->set_character_set(obj->get_string("character_set"));
-        db->set_collation(obj->get_string("collation"));
-        db->set_name(obj->get_string("name"));
+        db->set_character_set(obj->get_string("_character_set"));
+        db->set_collation(obj->get_string("_collation"));
+        db->set_name(obj->get_string("_name"));
         return db;
     }
 
@@ -57,6 +61,7 @@ namespace {
     }
 
     JSON_METHOD(create_database) {
+        MySqlGuestPtr sql = guest->sql_admin();
         log.info2("guest create_database"); //", guest->create_database().c_str());
         MySqlDatabaseListPtr databases(new MySqlDatabaseList());
         JsonArrayPtr array = args->get_array("databases");
@@ -68,6 +73,7 @@ namespace {
     }
 
     JSON_METHOD(create_user) {
+        MySqlGuestPtr sql = guest->sql_admin();
         MySqlUserListPtr users(new MySqlUserList());
         JsonArrayPtr array = args->get_array("users");
         for (int i = 0; i < array->get_length(); i ++) {
@@ -78,6 +84,7 @@ namespace {
     }
 
     JSON_METHOD(list_users) {
+        MySqlGuestPtr sql = guest->sql_admin();
         std::stringstream user_xml;
         MySqlUserListPtr users = sql->list_users();
         user_xml << "[";
@@ -95,12 +102,14 @@ namespace {
     }
 
     JSON_METHOD(delete_user) {
+        MySqlGuestPtr sql = guest->sql_admin();
         MySqlUserPtr user = user_from_obj(args->get_object("user"));
         sql->delete_user(user->get_name());
         return JsonData::from_null();
     }
 
     JSON_METHOD(list_databases) {
+        MySqlGuestPtr sql = guest->sql_admin();
         std::stringstream database_xml;
         MySqlDatabaseListPtr databases = sql->list_databases();
         database_xml << "[";
@@ -110,9 +119,9 @@ namespace {
                 database_xml << ", ";
             }
             once = true;
-            database_xml << "{'name':'" << database->get_name()
-                         << "', 'collation':'" << database->get_collation()
-                         << "', 'charset':'" << database->get_character_set()
+            database_xml << "{'_name':'" << database->get_name()
+                         << "', '_collation':'" << database->get_collation()
+                         << "', '_character_set':'" << database->get_character_set()
                          << "'}";
         }
         database_xml << "]";
@@ -121,12 +130,14 @@ namespace {
     }
 
     JSON_METHOD(delete_database) {
+        MySqlGuestPtr sql = guest->sql_admin();
         MySqlDatabasePtr db = db_from_obj(args->get_object("database"));
         sql->delete_database(db->get_name());
         return JsonData::from_null();
     }
 
     JSON_METHOD(enable_root) {
+        MySqlGuestPtr sql = guest->sql_admin();
         MySqlUserPtr user = sql->enable_root();
         stringstream out;
         user_to_stream(out, user);
@@ -135,18 +146,35 @@ namespace {
     }
 
     JSON_METHOD(is_root_enabled) {
+        MySqlGuestPtr sql = guest->sql_admin();
         bool enabled = sql->is_root_enabled();
         return JsonData::from_boolean(enabled);
     }
 
+    JSON_METHOD(periodic_tasks) {
+        MySqlNovaUpdaterPtr updater = guest->sql_updater();
+        MySqlNovaUpdater::Status status = updater->get_local_db_status();
+        updater->update_status(status);
+        return JsonData::from_null();
+    }
+
     JSON_METHOD(prepare) {
-        log.info("Called prepare.");
-        MySqlPreparer preparer(apt);
-        preparer.prepare();
+        log.info("Prepare was called.");
+        log.info("Updating status to BUILDING...");
+        {
+            MySqlNovaUpdaterPtr updater = guest->sql_updater();
+            updater->update_status(MySqlNovaUpdater::BUILDING);
+        }
+        log.info("Calling prepare...");
+        {
+            MySqlPreparerPtr preparer = guest->sql_preparer();
+            preparer->prepare();
+        }
         // The argument signature is the same as create_database so just
         // forward the method.
         log.info("Creating initial databases following successful prepare");
-        return create_database(apt, sql, args);
+        log.info2("Here's the args: %s", args->to_string());
+        return create_database(guest, args);
     }
 
     struct MethodEntry {
@@ -156,11 +184,8 @@ namespace {
 
 }
 
-MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr sql_guest,
-                                         nova::guest::apt::AptGuest * apt_guest)
-:   apt(apt_guest),
-    methods(),
-    sql(sql_guest)
+MySqlMessageHandler::MySqlMessageHandler(MySqlMessageHandlerConfig config)
+:   config(config)
 {
     const MethodEntry static_method_entries [] = {
         REGISTER(create_database),
@@ -171,6 +196,7 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr sql_guest,
         REGISTER(is_root_enabled),
         REGISTER(list_databases),
         REGISTER(list_users),
+        REGISTER(periodic_tasks),
         REGISTER(prepare),
         {0, 0}
     };
@@ -182,25 +208,42 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlGuestPtr sql_guest,
     }
 }
 
-JsonDataPtr MySqlMessageHandler::handle_message(JsonObjectPtr arguments) {
-    string method_name;
-    arguments->get_string("method", method_name);
-
+JsonDataPtr MySqlMessageHandler::handle_message(const std::string & method_name,
+                                                JsonObjectPtr args) {
     MethodMap::iterator method_itr = methods.find(method_name);
     if (method_itr != methods.end()) {
         // Make sure our connection is fresh.
-        if (method_name != "prepare") {
-            this->sql->get_connection()->close();
-            this->sql->get_connection()->init();
-        }
         MethodPtr & method = method_itr->second;  // value
         log.info2( "Executing method %s", method_name.c_str());
-        JsonDataPtr result = (*(method))(this->apt, this->sql, arguments);
-        this->sql->get_connection()->close();
+        JsonDataPtr result = (*(method))(this, args);
         return result;
     } else {
         return JsonDataPtr();
     }
+}
+
+MySqlGuestPtr MySqlMessageHandler::sql_admin() const {
+    // Creates a connection from local host with values coming from my.cnf.
+    MySqlConnectionPtr connection(new MySqlConnection("localhost"));
+    MySqlGuestPtr ptr(new MySqlGuest(connection));
+    return ptr;
+}
+
+MySqlPreparerPtr MySqlMessageHandler::sql_preparer() const {
+    MySqlPreparerPtr ptr(new MySqlPreparer(config.apt));
+    return ptr;
+}
+
+MySqlNovaUpdaterPtr MySqlMessageHandler::sql_updater() const {
+    // Ensure a fresh connection.
+    config.nova_db->close();
+    config.nova_db->init();
+    // Begin using the nova database.
+    string using_stmt = str(format("use %s") % config.nova_db_name);
+    config.nova_db->query(using_stmt.c_str());
+    MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
+        config.nova_db, config.guest_ethernet_device.c_str()));
+    return ptr;
 }
 
 } } } // end namespace

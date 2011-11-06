@@ -20,17 +20,15 @@ AptMessageHandler::AptMessageHandler(AptGuest * apt_guest)
 : apt_guest(apt_guest) {
 }
 
-JsonDataPtr AptMessageHandler::handle_message(JsonObjectPtr input) {
-    string method_name;
-    input->get_string("method", method_name);
-    JsonObjectPtr args = input->get_object("args");
+JsonDataPtr AptMessageHandler::handle_message(const std::string & method_name,
+                                              JsonObjectPtr args) {
     if (method_name == "install") {
         apt_guest->install(args->get_string("package_name"),
-                     args->get_int("time_out"));
+                           args->get_int("time_out"));
         return JsonData::from_null();
     } else if (method_name == "remove") {
         apt_guest->remove(args->get_string("package_name"),
-                    args->get_int("time_out"));
+                                args->get_int("time_out"));
         return JsonData::from_null();
     } else if (method_name == "version") {
         const char * package_name = args->get_string("package_name");

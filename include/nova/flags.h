@@ -98,6 +98,8 @@ class FlagValues {
 
         const char * nova_sql_user() const;
 
+        unsigned long periodic_interval() const;
+
         size_t rabbit_client_memory() const;
 
         const char * rabbit_host() const;

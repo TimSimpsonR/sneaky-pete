@@ -4,7 +4,10 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /bin/ln,              \
                       /usr/sbin/service,    \
                       /usr/bin/dpkg,        \
-                      /usr/bin/apt-get
+                      /usr/bin/apt-get      \
+                      /usr/sbin/mysqld      \
+                      /usr/bin/mysqladmin   \
+                      /bin/ps
 
 nova ALL=(root) NOPASSWD: SETENV: NOVACMDS
 

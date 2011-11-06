@@ -6,6 +6,7 @@
 //#include <netinet/in.h>
 //#include <sys/socket.h>
 //#include <stropts.h>
+#include "nova/Log.h"
 #include <string.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
@@ -25,8 +26,9 @@ string get_host_name() {
     return string(buf);
 }
 
+
 string get_ipv4_address(const char * device_name) {
-    char buf[128];
+    char buf[INET_ADDRSTRLEN];
     strncpy(buf, "hi", 2);
     string rtn;
 
@@ -36,9 +38,13 @@ string get_ipv4_address(const char * device_name) {
         throw GuestException(GuestException::COULD_NOT_GET_INTERFACES);
     }
     for(ifaddrs * itr = interfaces; itr != NULL; itr = itr->ifa_next) {
-        if (strcmp(device_name, itr->ifa_name) == 0) {
-            sockaddr * address = itr->ifa_addr;
-            if (inet_ntop(AF_INET, address, buf, 128) == 0) {
+        if (itr->ifa_addr != 0
+            && itr->ifa_addr->sa_family == AF_INET /* == ipv4 */
+            && strcmp(device_name, itr->ifa_name) == 0) {
+            sockaddr_in * in_address = (struct sockaddr_in *)itr->ifa_addr;
+            void * address = &(in_address->sin_addr);
+            if (inet_ntop(AF_INET, address, buf, INET_ADDRSTRLEN) == 0) {
+                freeifaddrs(interfaces);
                 throw GuestException(GuestException::COULD_NOT_CONVERT_ADDRESS);
             }
             rtn = buf;

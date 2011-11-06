@@ -3,7 +3,9 @@
 
 #include "nova/rpc/amqp_ptr.h"
 #include <nova/json.h>
+#include "nova/guest/guest.h"
 #include "nova/Log.h"
+#include <boost/optional.hpp>
 #include <string>
 
 
@@ -17,18 +19,20 @@ namespace nova { namespace rpc {
         ~Receiver();
 
         /** Finishes a message. */
-        void finish_message(nova::JsonObjectPtr arguments,
-                            nova::JsonObjectPtr output);
+        void finish_message(const nova::guest::GuestOutput & output);
 
-        /** Grabs the next message. Caller is responsible for calling ack. */
-        nova::JsonObjectPtr next_message();
+        /** Grabs the next message. */
+        nova::guest::GuestInput next_message();
 
     private:
         AmqpConnectionPtr & connection;
         int last_delivery_tag;
+        boost::optional<std::string> last_msg_id;
         Log log;
         AmqpChannelPtr queue;
         const std::string topic;
+
+        nova::JsonObjectPtr _next_message();
 
     };
 

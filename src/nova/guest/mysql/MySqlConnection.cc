@@ -20,7 +20,6 @@ using namespace std;
 namespace nova { namespace guest { namespace mysql {
 
 namespace {
-    static char escape_string_buffer[1024];
     Log log;
 
     inline MYSQL * mysql_con(void * con) {
@@ -489,9 +488,11 @@ std::string MySqlConnection::escape_string(const char * original) {
     if (len > 1024) {
         throw MySqlException(MySqlException::ESCAPE_STRING_BUFFER_TOO_SMALL);
     }
-    mysql_real_escape_string(mysql_con(con), escape_string_buffer,
-                             original, len);
-    return string(escape_string_buffer);
+    char * buffer = new char[len * 2 + 1];
+    mysql_real_escape_string(mysql_con(get_con()), buffer, original, len);
+    string rtn = buffer;
+    delete[] buffer;
+    return rtn;
 }
 
 void MySqlConnection::flush_privileges() {

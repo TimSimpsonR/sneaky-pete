@@ -52,12 +52,15 @@ void MySqlGuest::create_database(MySqlDatabaseListPtr databases) {
 }
 
 void MySqlGuest::create_user(MySqlUserPtr user, const char * host) {
+    if (!user->get_password()) {
+        throw MySqlException(MySqlException::NO_PASSWORD_FOR_CREATE_USER);
+    }
     string text = str(format(
         "GRANT USAGE ON *.* TO '%s'@\"%s\" IDENTIFIED BY '%s'")
         //"CREATE USER `%s`@`%s` IDENTIFIED BY '%s'")
         % con->escape_string(user->get_name().c_str())
         % con->escape_string(host)
-        % con->escape_string(user->get_password().c_str()));
+        % con->escape_string(user->get_password().get().c_str()));
     con->query(text.c_str());
 
     BOOST_FOREACH(MySqlDatabasePtr db, *user->get_databases()) {
@@ -94,8 +97,12 @@ MySqlUserPtr MySqlGuest::enable_root() {
     MySqlUserPtr root_user(new MySqlUser());
     root_user->set_name("root");
     root_user->set_password(generate_password());
-    create_user(root_user);
-    set_password("root", root_user->get_password().c_str());
+    try {
+        create_user(root_user);
+    } catch(const MySqlException & mse) {
+        // Ignore, user is already created. We just have to reset the password.
+    }
+    set_password("root", root_user->get_password().get().c_str());
     con->grant_all_privileges("root", "%");
     con->flush_privileges();
     return root_user;

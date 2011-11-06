@@ -17,6 +17,7 @@ namespace nova { namespace guest {
                 COULD_NOT_GET_DEVICE,
                 COULD_NOT_GET_INTERFACES,
                 ERROR_GRABBING_HOST_NAME,
+                MALFORMED_INPUT,
                 NO_SUCH_METHOD
             };
 

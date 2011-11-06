@@ -123,43 +123,34 @@ int main(int argc, char* argv[]) {
 
         while(!quit) {
             log.info("Waiting for next message...");
-            JsonObjectPtr input = receiver.next_message();
-            JsonObjectPtr output;
+            GuestInput input = receiver.next_message();
+            GuestOutput output;
 
-            string method;
-            input->get_string("method", method);
+            log.info2("method=%s", input.method_name.c_str());
+            log.info2("args=%s", input.args->to_string());
 
             #ifndef _DEBUG
             try {
-                log.info2("method=%s", method.c_str());
-                if (method == "exit") {
+
+                if (input.method_name == "exit") {
                     quit = true;
                 }
             #endif
-
                 JsonDataPtr result;
                 for (int i = 0; i < handler_count && !result; i ++) {
-                    JsonObjectPtr args = input->get_object("args");
-                    result = handlers[i]->handle_message(method, args);
+                    output.result = handlers[i]->handle_message(input);
                 }
-                if (!result) {
+                if (!output.result) {
                     throw GuestException(GuestException::NO_SUCH_METHOD);
                 }
-                std::stringstream msg;
-                msg << "{'result':" << result->to_string() << ","
-                       " 'failure':null }";
-                output.reset(new JsonObject(msg.str().c_str()));
+                output.failure = boost::none;
             #ifndef _DEBUG
             } catch(const std::exception & e) {
-                log.info2("receiver exception is %s", e.what());
-                std::stringstream msg;
-                msg << "{'failure':{'exc_type':'std::exception',"
-                       "'value':'" << e.what() << "', "
-                       "'traceback':'unavailable' } }";
-                output.reset(new JsonObject(msg.str().c_str()));
+                output.result.reset();
+                output.failures = e.what();
             }
             #endif
-            receiver.finish_message(input, output);
+            receiver.finish_message(output);
         }
 #ifndef _DEBUG
     } catch (const std::exception & e) {

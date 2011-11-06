@@ -2,11 +2,15 @@
 #include "nova/rpc/amqp.h"
 
 #include <boost/format.hpp>
+#include "nova/guest/GuestException.h"
 #include "nova/Log.h"
 #include <string>
 #include <sstream>
 
 using boost::format;
+using nova::guest::GuestInput;
+using nova::guest::GuestException;
+using nova::guest::GuestOutput;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
 using nova::Log;
@@ -14,10 +18,14 @@ using std::string;
 
 namespace nova { namespace rpc {
 
+namespace {
+    const char * EMPTY_MESSAGE = "{ \"failure\": null, \"result\":null }";
+}
 
 Receiver::Receiver(AmqpConnectionPtr connection, const char * topic)
 :   connection(connection),
     last_delivery_tag(-1),
+    last_msg_id(boost::none),
     log(),
     queue(),
     topic(topic)
@@ -52,40 +60,52 @@ Receiver::Receiver(AmqpConnectionPtr connection, const char * topic)
 Receiver::~Receiver() {
 }
 
-void Receiver::finish_message(JsonObjectPtr input, JsonObjectPtr output) {
+void Receiver::finish_message(const GuestOutput & output) {
     queue->ack_message(last_delivery_tag);
 
-    // Send reply.
-    string msg_id_str;
-    try {
-        msg_id_str = input->get_string("_msg_id");
-    } catch(const JsonException & je) {
-        // If _msg_id wasn't found, ignore it.
-        log.info("JsonException sending response.");
+    if (!last_msg_id) {
+        // No reply necessary.
+        log.info("Acknowledged message but will not send reply because "
+                 "no _msg_id was given.");
         return;
     }
-    string exchange_name_str = str(format("__agent_response_%s") % msg_id_str);
 
-    //const char * const queue_name = msg_id_str.c_str();
-    const char * const exchange_name = msg_id_str.c_str();
-    const char * const routing_key = msg_id_str.c_str(); //"";
+    // Send reply.
+    string exchange_name_str = str(format("__agent_response_%s")
+                                   % last_msg_id.get());
+
+    //const char * const queue_name = last_msg_id.c_str();
+    const char * const exchange_name = last_msg_id.get().c_str();
+    const char * const routing_key = last_msg_id.get().c_str(); //"";
 
     // queue_name, exchange_name, and routing_key are all the same.
     AmqpChannelPtr rtn_ex_channel = connection->new_channel();
-    //rtn_ex_channel->declare_exchange(exchange_name, "direct");
 
-    //AmqpChannelPtr rtn_queue_channel = connection->new_channel();
-    //rtn_queue_channel->declare_queue(queue_name);
-    //rtn_queue_channel->bind_queue_to_exchange(queue_name, exchange_name,
-    //                                          routing_key);
-    //rtn_ex_channel->bind_queue_to_exchange(queue_name, exchange_name,
-    //                                          routing_key);
+    string msg;
+    if (!output.failure) {
+        msg = str(format("{ \"failure\":null, \"result\":%s }")
+                  % output.result->to_string());
+        //msg = "{ 'failure': null }";
+        //msg = "{\"failure\":null}";
+        JsonObject obj(msg.c_str());
+        msg = obj.to_string();
+    } else {
+        msg = str(format("{\"failure\":{\"exc_type\":\"std::exception\", "
+                         "\"value\":%s, "
+                         "\"traceback\":\"unavailable\" } }")
+                  % JsonData::json_string(output.failure.get().c_str()));
+    }
+
     Log log;
-    log.info2("Outputting the following: %s", output->to_string());
-    rtn_ex_channel->publish(exchange_name, routing_key, output->to_string());
+    log.info2("Replying with the following: %s", msg.c_str());
+    rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
+
+    // This is like telling Nova "roger."
+    log.info2("Replying with empty message: %s", EMPTY_MESSAGE);
+    rtn_ex_channel->publish(exchange_name, routing_key, EMPTY_MESSAGE);
 }
 
-JsonObjectPtr Receiver::next_message() {
+JsonObjectPtr Receiver::_next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
         msg = queue->get_message(topic.c_str());
@@ -101,10 +121,38 @@ JsonObjectPtr Receiver::next_message() {
         << ", content_type " << msg->content_type
         << ", message " << msg->message;
     log.info(log_msg.str());
-    JsonObjectPtr new_obj(new JsonObject(msg->message.c_str()));
+    JsonObjectPtr json_obj(new JsonObject(msg->message.c_str()));
 
     last_delivery_tag = msg->delivery_tag;
-    return new_obj;
+    return json_obj;
+}
+
+GuestInput Receiver::next_message() {
+    while(true) {
+        JsonObjectPtr raw;
+        try {
+            raw = _next_message();
+        } catch(const JsonException & je) {
+            log.error2("Message was not JSON! %s", je.what());
+            throw GuestException(GuestException::MALFORMED_INPUT);
+        }
+        try {
+            last_msg_id = raw->get_string("_msg_id");
+        } catch(const JsonException & je) {
+            last_msg_id = boost::none;
+        }
+        try {
+
+            GuestInput input;
+            input.method_name = raw->get_string("method");
+            input.args = raw->get_object_or_empty("args");
+            return input;
+        } catch(const JsonException & je) {
+            log.error("Json message was malformed.");
+            log.error(raw->to_string());
+            throw GuestException(GuestException::MALFORMED_INPUT);
+        }
+    }
 }
 
 } }  // end namespace

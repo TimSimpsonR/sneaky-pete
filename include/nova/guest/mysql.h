@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <map>
 #include <memory>
+#include <boost/optional.hpp>
 #include <string>
 #include <syslog.h>
 #include <unistd.h>
@@ -41,6 +42,7 @@ namespace mysql {
                 GUEST_INSTANCE_ID_NOT_FOUND,
                 MY_CNF_FILE_NOT_FOUND,
                 NEXT_FETCH_FAILED,
+                NO_PASSWORD_FOR_CREATE_USER,
                 PARAMETER_INDEX_OUT_OF_BOUNDS,
                 PREPARE_BIND_FAILED,
                 PREPARE_FAILED,
@@ -70,6 +72,10 @@ namespace mysql {
 
         public:
             MySqlDatabase();
+
+            static const char * default_character_set();
+
+            static const char * default_collation();
 
             inline const std::string & get_character_set() const {
                 return character_set;
@@ -108,7 +114,7 @@ namespace mysql {
             return name;
         }
 
-        inline const std::string & get_password() const {
+        const boost::optional<std::string> get_password() const {
             return password;
         }
 
@@ -118,11 +124,11 @@ namespace mysql {
 
         void set_name(const std::string & value);
 
-        void set_password(const std::string & value);
+        void set_password(const boost::optional<std::string> & value);
 
     private:
         std::string name;
-        std::string password;
+        boost::optional<std::string> password;
         MySqlDatabaseListPtr databases;
     };
 

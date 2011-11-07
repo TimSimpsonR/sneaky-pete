@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
             #ifndef _DEBUG
             } catch(const std::exception & e) {
                 output.result.reset();
-                output.failures = e.what();
+                output.failure = e.what();
             }
             #endif
             receiver.finish_message(output);

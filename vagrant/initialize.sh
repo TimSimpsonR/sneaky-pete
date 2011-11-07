@@ -1,4 +1,4 @@
-cd ~/
+BUILD_DIR=/home/vagrant
 
 # Add rabbit debian repo
 echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee -a /etc/apt/sources.list
@@ -19,10 +19,10 @@ pkg_install mercurial \
  libboost-thread-dev libconfuse-dev \
  libmysqlclient-dev # rabbitmq-server #<-- Reddwarf CI script will install this
 
-mkdir ~/build
+mkdir $BUILD_DIR/build
 
 # Installing Rabbit
-cd ~/build
+cd $BUILD_DIR/build
 hg clone http://hg.rabbitmq.com/rabbitmq-codegen/
 hg clone http://hg.rabbitmq.com/rabbitmq-c/
 
@@ -34,7 +34,7 @@ sudo make install
 
 
 # Install json stuff
-cd ~/build
+cd $BUILD_DIR/build
 git clone https://github.com/jehiah/json-c.git
 cd json-c
 sh autogen.sh
@@ -47,14 +47,5 @@ sudo cp /usr/local/lib/libjson* /usr/lib/
 sudo cp /usr/local/lib/librabbit* /usr/lib/
 
 # Needed for static compile magic.
-cd ~/
+cd $BUILD_DIR
 ln -s `g++ -print-file-name=libstdc++.a`
-
-# To disable the Python guest from installing, run this:
-# sudo -E reprepro -Vb /var/www/debian remove squeeze nova-guest
-
-# Then go to the debian directory and run:
-# sudo DEB_BUILD_OPTIONS=nocheck,nodocs dpkg-buildpackage -rfakeroot -b -uc -us
-
-# Install it to the Reddwarf VM's repo with:
-# sudo -E reprepro --ignore=wrongdistribution -Vb /var/www/debian includedeb squeeze /nova-guest_2012.21.12_all.deb

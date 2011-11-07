@@ -50,7 +50,7 @@ case "$1" in
     test "$ENABLED" = "true" || exit 0
     log_daemon_msg "Stopping nova guest" "nova-guest"
     # the pidfile is not being set properly, so we remove it here so itll killall (#--pidfile ${PIDFILE} removed)
-    start-stop-daemon --stop --oknodo -u ${pid} #--pidfile ${PIDFILE}
+    start-stop-daemon --stop --oknodo -u ${uid} #--pidfile ${PIDFILE}
     log_end_msg $?
     ;;
   # Could we implement a reload if the daemon traps the -HUP signal? This would be done with:

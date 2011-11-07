@@ -263,12 +263,6 @@ unit u_nova_guest_apt_apt
         u_nova_utils_io
         u_nova_process
         u_nova_utils_regex
-    :   tests/nova/guest/apt_tests.cc
-    :   #<define>_VERBOSE_NOVA_GUEST_APT
-    :   # Boost fails this test because a process returns a non-zero exit code.
-        # Its a bug thats been fixed in recent versions.
-        #http://stackoverflow.com/questions/5325202/boostunit-test-case-fails-because-a-child-process-exits-with-nonzero
-        BOOST_TEST_CATCH_SYSTEM_ERRORS=no
     ;
 
 unit u_nova_guest_apt_AptMessageHandler
@@ -406,6 +400,20 @@ explicit memory_tests ;
 ###############################################################################
 #      Integration Tests
 ###############################################################################
+
+# Doesn't require anything but is brittle.
+unit-test apt_tests
+    :   u_nova_guest_apt_apt
+        tests/nova/guest/apt_tests.cc
+    :   <define>_VERBOSE_NOVA_GUEST_APT
+        # Boost fails this test because a process returns a non-zero exit code.
+        # Its a bug thats been fixed in recent versions.
+        #http://stackoverflow.com/questions/5325202/boostunit-test-case-fails-because-a-child-process-exits-with-nonzero
+        <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+    ;
+explicit apt_tests ;
+
 
 # Requires RabbitMQ server to be installed and running on localhost.
 unit-test send_and_receive

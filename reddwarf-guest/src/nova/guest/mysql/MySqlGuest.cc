@@ -23,6 +23,7 @@ namespace {
     Log log;
 
 }
+
 /**---------------------------------------------------------------------------
  *- MySqlGuest
  *---------------------------------------------------------------------------*/
@@ -39,9 +40,10 @@ void MySqlGuest::create_database(MySqlDatabaseListPtr databases) {
     BOOST_FOREACH(MySqlDatabasePtr & db, *databases) {
         string text = str(format(
             "CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET = `%s` "
-            "COLLATE = `%s`") % con->escape_string(db->get_name().c_str())
-                               % con->escape_string(db->get_character_set().c_str())
-                               % con->escape_string(db->get_collation().c_str()));
+            "COLLATE = `%s`")
+            % con->escape_string(db->get_name().c_str())
+            % con->escape_string(db->get_character_set().c_str())
+            % con->escape_string(db->get_collation().c_str()));
         con->query(text.c_str());
         //stmt->setString(1, db->get_name());
         //stmt->setString(2, db->get_character_set());
@@ -158,16 +160,11 @@ bool MySqlGuest::is_root_enabled() {
 }
 
 void MySqlGuest::set_password(const char * username, const char * password) {
-    //TODO: Use prepared statement.
-    //PreparedStatementPtr stmt = con->prepare_statement(
-    //    "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User=?");
-    //stmt->set_string(1, password);
-    //stmt->set_string(2, username);
-    //stmt->execute();
-    //stmt->close();
-    string text = str(format("UPDATE mysql.user SET Password=PASSWORD(\"%s\") "
-                             "WHERE User=\"%s\"") % password % username);
-    con->query(text.c_str());
+    MySqlPreparedStatementPtr stmt = con->prepare_statement(
+       "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User=?");
+    stmt->set_string(0, password);
+    stmt->set_string(1, username);
+    stmt->execute();
     con->flush_privileges();
 }
 

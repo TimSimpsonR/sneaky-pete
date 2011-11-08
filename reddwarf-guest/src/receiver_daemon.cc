@@ -146,6 +146,9 @@ int main(int argc, char* argv[]) {
                 output.failure = boost::none;
             #ifndef _DEBUG
             } catch(const std::exception & e) {
+                log.error2("Error running method %s : %s",
+                           input.method_name.c_str(), e.what());
+                log.error(e.what());
                 output.result.reset();
                 output.failure = e.what();
             }

@@ -2,6 +2,7 @@
 #include "nova/guest/apt.h"
 #include "nova/ConfigFile.h"
 #include "nova/flags.h"
+#include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
 #include <boost/lexical_cast.hpp>
@@ -18,6 +19,7 @@
 
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptMessageHandler;
+using boost::format;
 using boost::optional;
 using namespace nova;
 using namespace nova::flags;
@@ -41,14 +43,22 @@ static bool quit;
 class PeriodicTasker {
 
 private:
+    string guest_ethernet_device;
     Log log;
     JsonObject message;
+    MySqlConnectionPtr nova_db;
+    string nova_db_name;
     Sender sender;
 
 public:
-    PeriodicTasker(AmqpConnectionPtr connection, const char * topic)
-      : log(),
+    PeriodicTasker(AmqpConnectionPtr connection, const char * topic,
+                   MySqlConnectionPtr nova_db, string nova_db_name,
+                   string guest_ethernet_device)
+      : guest_ethernet_device(guest_ethernet_device),
+        log(),
         message(PERIODIC_MESSAGE),
+        nova_db(nova_db),
+        nova_db_name(nova_db_name),
         sender(connection, topic)
     {
     }
@@ -60,9 +70,24 @@ public:
             boost::posix_time::seconds time(periodic_interval);
             boost::this_thread::sleep(time);
 
-            log.info("Sending message to run periodic tasks...");
-            sender.send(message);
+            log.info("Running periodic tasks...");
+            MySqlNovaUpdaterPtr updater = sql_updater();
+            MySqlNovaUpdater::Status status = updater->get_local_db_status();
+            updater->update_status(status);
         }
+    }
+
+    MySqlNovaUpdaterPtr sql_updater() const {
+        // Ensure a fresh connection.
+        nova_db->close();
+        nova_db->init();
+        // Begin using the nova database.
+        string using_stmt = str(format("use %s")
+            % nova_db->escape_string(nova_db_name.c_str()));
+        nova_db->query(using_stmt.c_str());
+        MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
+            nova_db, guest_ethernet_device.c_str()));
+        return ptr;
     }
 };
 
@@ -97,8 +122,10 @@ int main(int argc, char* argv[]) {
         MySqlMessageHandlerConfig mysql_config;
         mysql_config.apt = &apt_worker;
         mysql_config.guest_ethernet_device = flags.guest_ethernet_device();
-        mysql_config.nova_db = nova_db;
+        mysql_config.nova_db_host = flags.nova_sql_host();
         mysql_config.nova_db_name = flags.nova_sql_database();
+        mysql_config.nova_db_password = flags.nova_sql_password();
+        mysql_config.nova_db_user = flags.nova_sql_user();
         handlers[1].reset(new MySqlMessageHandler(mysql_config));
 
 
@@ -114,7 +141,9 @@ int main(int argc, char* argv[]) {
         Receiver receiver(connection, topic.c_str());
 
         /* Create tasker. */
-        PeriodicTasker tasker(connection, topic.c_str());
+       PeriodicTasker tasker(connection, topic.c_str(),
+                             nova_db, flags.nova_sql_database(),
+                             flags.guest_ethernet_device());
 
         quit = false;
 

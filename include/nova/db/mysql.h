@@ -1,39 +1,21 @@
-#ifndef __NOVA_GUEST_SQL_GUEST_H
-#define __NOVA_GUEST_SQL_GUEST_H
+#ifndef __NOVA_DB_MYSQL_H
+#define __NOVA_DB_MYSQL_H
 
-#include "guest.h"
 
-#include <cstdlib>
-#include <cstdio>
-#include <map>
 #include <memory>
 #include <boost/optional.hpp>
-#include <string>
-#include <syslog.h>
-#include <unistd.h>
-#include <vector>
-
-#include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
+#include <string>
 #include <vector>
 
 
-namespace nova { namespace guest {
-
-namespace apt {
-    class AptGuest;
-};
-
-namespace mysql {
-
-    std::string generate_password();
+namespace nova { namespace db { namespace mysql {
 
     class MySqlException : public std::exception {
 
         public:
             enum Code {
                 BIND_RESULT_SET_FAILED,
-                CANT_WRITE_TMP_MYCNF,
                 COULD_NOT_CONNECT,
                 ESCAPE_STRING_BUFFER_TOO_SMALL,
                 FIELD_INDEX_OUT_OF_BOUNDS,
@@ -66,76 +48,6 @@ namespace mysql {
 
             const Code code;
     };
-
-
-    class MySqlDatabase {
-
-        public:
-            MySqlDatabase();
-
-            static const char * default_character_set();
-
-            static const char * default_collation();
-
-            inline const std::string & get_character_set() const {
-                return character_set;
-            }
-
-            inline const std::string & get_collation() const {
-                return collation;
-            }
-
-            inline const std::string & get_name() const {
-                return name;
-            }
-
-            void set_character_set(const std::string & value);
-
-            void set_collation(const std::string & value);
-
-            void set_name(const std::string & value);
-
-        private:
-            std::string character_set;
-            std::string collation;
-            std::string name;
-    };
-
-    typedef boost::shared_ptr<MySqlDatabase> MySqlDatabasePtr;
-    typedef std::vector<MySqlDatabasePtr> MySqlDatabaseList;
-    typedef boost::shared_ptr<MySqlDatabaseList> MySqlDatabaseListPtr;
-
-
-    class MySqlUser {
-    public:
-        MySqlUser();
-
-        inline const std::string & get_name() const {
-            return name;
-        }
-
-        const boost::optional<std::string> get_password() const {
-            return password;
-        }
-
-        inline MySqlDatabaseListPtr get_databases() {
-            return databases;
-        }
-
-        void set_name(const std::string & value);
-
-        void set_password(const boost::optional<std::string> & value);
-
-    private:
-        std::string name;
-        boost::optional<std::string> password;
-        MySqlDatabaseListPtr databases;
-    };
-
-
-    typedef boost::shared_ptr<MySqlUser> MySqlUserPtr;
-    typedef std::vector<MySqlUserPtr> MySqlUserList;
-    typedef boost::shared_ptr<MySqlUserList> MySqlUserListPtr;
 
     class MySqlResultSet;
 
@@ -220,48 +132,6 @@ namespace mysql {
             virtual int get_parameter_count() const = 0;
             virtual void set_string(int index, const char * value) = 0;
     };
-
-    //TODO(tim.simpson): This name doesn't really fit well enough.
-    // Think of a new one, like "MySqlAdmin" or something.
-    class MySqlGuest {
-
-        public:
-            MySqlGuest(MySqlConnectionPtr con);
-
-            ~MySqlGuest();
-
-            void create_database(MySqlDatabaseListPtr databases);
-
-            void create_user(MySqlUserPtr, const char * host="%");
-
-            void create_users(MySqlUserListPtr);
-
-            void delete_database(const std::string & database_name);
-
-            void delete_user(const std::string & username);
-
-            MySqlUserPtr enable_root();
-
-            inline MySqlConnectionPtr get_connection() {
-                return con;
-            }
-
-            MySqlDatabaseListPtr list_databases();
-
-            MySqlUserListPtr list_users();
-
-            bool is_root_enabled();
-
-            void set_password(const char * username, const char * password);
-
-        private:
-            MySqlGuest(const MySqlGuest & other);
-
-            MySqlConnectionPtr con;
-
-    };
-
-    typedef boost::shared_ptr<MySqlGuest> MySqlGuestPtr;
 
 } } }  // end namespace
 

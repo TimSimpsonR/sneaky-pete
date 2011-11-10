@@ -1,12 +1,8 @@
 #ifndef __NOVA_GUEST_MYSQL_MYSQLPREPARER_H
 #define __NOVA_GUEST_MYSQL_MYSQLPREPARER_H
 
-#include <cppconn/driver.h>
-#include <cppconn/exception.h>
-#include <cppconn/resultset.h>
-#include <cppconn/statement.h>
-#include <cppconn/prepared_statement.h>
-#include "nova/guest/mysql.h"
+#include "nova/guest/apt.h"
+#include "nova/guest/mysql/MySqlAdmin.h"
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -42,7 +38,7 @@ class MySqlPreparer {
 
     private:
         nova::guest::apt::AptGuest * apt;
-        MySqlGuestPtr sql;
+        MySqlAdminPtr sql;
 };
 
 typedef boost::shared_ptr<MySqlPreparer> MySqlPreparerPtr;

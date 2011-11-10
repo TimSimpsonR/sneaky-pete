@@ -5,6 +5,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/assign/list_of.hpp>
 #include "nova/Log.h"
+#include "nova/guest/mysql/MySqlGuestException.h"
 #include <boost/optional.hpp>
 #include "nova/process.h"
 #include "nova/utils/regex.h"
@@ -13,7 +14,12 @@
 
 using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
-namespace io = nova::utils::io;
+using nova::db::mysql::MySqlConnection;
+using nova::db::mysql::MySqlConnectionPtr;
+using nova::guest::mysql::MySqlGuestException;
+using nova::db::mysql::MySqlPreparedStatementPtr;
+using nova::db::mysql::MySqlResultSetPtr;
+using nova::guest::utils::IsoTime;
 using boost::optional;
 using nova::Process;
 using nova::ProcessException;
@@ -21,6 +27,8 @@ using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using std::string;
 using std::stringstream;
+
+namespace io = nova::utils::io;
 namespace utils = nova::guest::utils;
 
 namespace nova { namespace guest { namespace mysql {
@@ -59,7 +67,7 @@ int MySqlNovaUpdater::get_guest_instance_id() {
     stmt->set_string(0, address.c_str());
     MySqlResultSetPtr result = stmt->execute(1);
     if (!result->next()) {
-        throw MySqlException(MySqlException::GUEST_INSTANCE_ID_NOT_FOUND);
+        throw MySqlGuestException(MySqlGuestException::GUEST_INSTANCE_ID_NOT_FOUND);
     }
     optional<string> id = result->get_string(0);
     log.debug("instance from db=%s", id.get().c_str());
@@ -118,6 +126,7 @@ const char * MySqlNovaUpdater::status_name(MySqlNovaUpdater::Status status) {
             return "unknown_case";
     }
 }
+
 
 void MySqlNovaUpdater::update_status(MySqlNovaUpdater::Status status) {
     string instance_id = str(format("%d") % get_guest_instance_id());

@@ -18,6 +18,12 @@ using std::string;
 
 namespace nova { namespace guest { namespace utils {
 
+namespace {
+
+    nova::Log log;
+
+}
+
 string get_host_name() {
     char buf[256];
     if (gethostname(buf, 256) < 0) {
@@ -56,5 +62,23 @@ string get_ipv4_address(const char * device_name) {
     return rtn;
 }
 
+IsoTime::IsoTime() {
+    time_t t = time(NULL);
+    // The returned pointer is statically allocated and shared, so
+    // don't free it.
+    tm * tmp = localtime(&t);
+    if (tmp == NULL) {
+        log.error("Could not get localtime!");
+        throw GuestException(GuestException::GENERAL);
+    }
+    if (strftime(str, sizeof(str), "%Y-%m-%d", tmp) == 0) {
+        log.error("strftime returned 0");
+        throw GuestException(GuestException::GENERAL);
+    }
+}
+
+const char * IsoTime::c_str() const {
+    return str;
+}
 
 }}} // end nova::guest::utils

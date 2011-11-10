@@ -1,14 +1,10 @@
 #define BOOST_TEST_MODULE My_SQL_Tests
 #include <boost/test/unit_test.hpp>
 
-#include "nova/guest/mysql.h"
+#include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/ConfigFile.h"
 
 
-using nova::ConfigFile;
-using nova::JsonObject;
-using nova::JsonObjectPtr;
-using namespace nova::guest;
 using namespace nova::guest::mysql;
 using namespace std;
 

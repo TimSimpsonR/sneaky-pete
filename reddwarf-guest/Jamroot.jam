@@ -232,6 +232,12 @@ unit u_nova_Log
     : tests/log_tests.cc
     ;
 
+unit u_nova_db_mysql
+    : src/nova/db/mysql.cc
+    : lib_z  # <-- needed by lib_mysqlclient
+      lib_mysqlclient
+    ;
+
 unit u_nova_guest_utils
     : src/nova/guest/utils.cc
     : u_nova_guest_GuestException
@@ -296,39 +302,34 @@ unit u_nova_rpc_Receiver
     ;
 
 
-unit u_nova_guest_mysql_misc
-    :   src/nova/guest/mysql/misc.cc
+unit u_nova_guest_mysql_MySqlGuestException
+    :   src/nova/guest/mysql/MySqlGuestException.cc
+    ;
+
+unit u_nova_guest_mysql_MySqlDatabase
+    :   src/nova/guest/mysql/MySqlDatabase.cc
+    ;
+
+unit u_nova_guest_mysql_MySqlUser
+    :   src/nova/guest/mysql/MySqlUser.cc
+    ;
+
+unit u_nova_guest_mysql_MySqlAdmin
+    :   src/nova/guest/mysql/MySqlAdmin.cc
     :   lib_uuid
-    :   tests/nova/guest/mysql/mysql_unit_tests.cc
-    ;
-
-unit u_nova_guest_mysql_MySqlConnection
-    :   src/nova/guest/mysql/MySqlConnection.cc
-    :   lib_z  # <-- needed by lib_mysqlclient
-        lib_mysqlclient
-        u_nova_Log
-        u_nova_guest_mysql_misc
-    ;
-
-
-alias nova_guest_mysql_deps
-    :   u_nova_guest_mysql_MySqlConnection
-        # u_nova_configfile
         u_nova_utils_io
-        u_nova_guest_mysql_misc
         u_nova_Log
-        # u_nova_process
+        u_nova_db_mysql
         u_nova_utils_regex
-    ;
-
-unit u_nova_guest_mysql_MySqlGuest
-    :   src/nova/guest/mysql/MySqlGuest.cc
-    :   nova_guest_mysql_deps
+        u_nova_guest_mysql_MySqlDatabase
+        u_nova_guest_mysql_MySqlGuestException
+        u_nova_guest_mysql_MySqlUser
+    :   tests/nova/guest/mysql/MySqlAdminTests.cc
     ;
 
 unit u_nova_guest_mysql_MySqlNovaUpdater
     :   src/nova/guest/mysql/MySqlNovaUpdater.cc
-    :   nova_guest_mysql_deps
+    :   u_nova_db_mysql
         u_nova_utils_io
         u_nova_process
         u_nova_guest_utils
@@ -336,12 +337,10 @@ unit u_nova_guest_mysql_MySqlNovaUpdater
 
 unit u_nova_guest_mysql_MySqlPreparer
     :   src/nova/guest/mysql/MySqlPreparer.cc
-    :   nova_guest_mysql_deps
+    :   u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_configfile
-        u_nova_guest_mysql_misc
-        __unit_obj_u_nova_guest_mysql_MySqlGuest
         u_nova_guest_mysql_MySqlNovaUpdater
     ;
 
@@ -350,15 +349,11 @@ unit u_nova_guest_mysql_MySqlMessageHandler
     :   u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_json
-        nova_guest_mysql_deps
-        u_nova_guest_mysql_misc
-        u_nova_guest_mysql_MySqlGuest
+        u_nova_db_mysql
+        u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_mysql_MySqlNovaUpdater
         u_nova_guest_mysql_MySqlPreparer
-    :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
-    :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
     ;
-#explicit u_nova_guest_mysql_MySqlMessageHandler ;
 
 
 alias guest_lib
@@ -370,9 +365,6 @@ alias guest_lib
         u_nova_guest_utils
         u_nova_json
         u_nova_Log
-        u_nova_guest_mysql_misc
-        u_nova_guest_mysql_MySqlConnection
-        u_nova_guest_mysql_MySqlGuest
         u_nova_guest_mysql_MySqlMessageHandler
         u_nova_rpc_Receiver
         u_nova_utils_regex

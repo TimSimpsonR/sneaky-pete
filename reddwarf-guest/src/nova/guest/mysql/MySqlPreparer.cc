@@ -6,19 +6,23 @@
 //#include <boost/assign/std/list.hpp>
 #include <boost/assign/list_of.hpp>
 #include "nova/Log.h"
+#include "nova/db/mysql.h"
+#include "nova/guest/mysql/MySqlGuestException.h"
 #include "nova/process.h"
+#include "nova/guest/utils.h"
 
 using nova::guest::apt::AptGuest;
 using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
 using namespace nova::guest;
+using nova::guest::utils::IsoTime;
+using nova::db::mysql::MySqlConnection;
+using nova::db::mysql::MySqlConnectionPtr;
+using nova::guest::mysql::MySqlGuestException;
 using namespace nova;
 using namespace nova::utils;
 using nova::Log;
-using sql::PreparedStatement;
 using nova::Process;
-using sql::ResultSet;
-using sql::SQLException;
 using namespace std;
 
 namespace nova { namespace guest { namespace mysql {
@@ -35,33 +39,6 @@ namespace {
     const char * TMP_MYCNF = "/tmp/my.cnf.tmp";
     const char * DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.default";
 
-    class IsoTime {
-    private:
-        char str[11];
-
-    public:
-        IsoTime() {
-            time_t t = time(NULL);
-            // The returned pointer is statically allocated and shared, so
-            // don't free it.
-            tm * tmp = localtime(&t);
-            if (tmp == NULL) {
-                log.error("Could not get localtime!");
-                throw MySqlException(MySqlException::GENERAL);
-            }
-            if (strftime(str, sizeof(str), "%Y-%m-%d", tmp) == 0) {
-                log.error("strftime returned 0");
-                throw MySqlException(MySqlException::GENERAL);
-            }
-        }
-
-        const char * c_str() const {
-            return str;
-        }
-    };
-    const char * blah() {
-        return "hnfgh";
-    }
     /** If there is a file at template_path, back up the current file to a new
      *  file ending with today's date, and then copy the template file over
      *  it. */
@@ -89,7 +66,7 @@ namespace {
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
             log.error2("Couldn't open temp file: %s.", temp_file_path);
-            throw MySqlException(MySqlException::CANT_WRITE_TMP_MYCNF);
+            throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
         }
         string line;
         while(!mycnf_file.eof()) {
@@ -109,7 +86,7 @@ MySqlPreparer::MySqlPreparer(AptGuest * apt)
 : apt(apt), sql()
 {
     MySqlConnectionPtr con(new MySqlConnection("localhost", "root", ""));
-    sql.reset(new MySqlGuest(con));
+    sql.reset(new MySqlAdmin(con));
 }
 
 void MySqlPreparer::create_admin_user(const std::string & password) {

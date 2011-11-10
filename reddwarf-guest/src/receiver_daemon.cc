@@ -6,7 +6,7 @@
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
 #include <boost/lexical_cast.hpp>
-#include "nova/guest/mysql.h"
+#include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include <boost/optional.hpp>
 #include "nova/rpc/receiver.h"
@@ -24,6 +24,7 @@ using boost::optional;
 using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
+using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using namespace nova::rpc;
 using std::string;

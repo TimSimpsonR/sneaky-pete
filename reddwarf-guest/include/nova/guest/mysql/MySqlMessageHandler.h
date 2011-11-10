@@ -2,9 +2,11 @@
 #define __NOVA_GUEST_MYSQL_MYSQLMESSAGEHANDLER_H
 
 #include "nova/guest/guest.h"
-#include "nova/guest/mysql.h"
+#include <map>
+#include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlNovaUpdater.h"
 #include "nova/guest/mysql/MySqlPreparer.h"
+#include <string>
 
 
 namespace nova { namespace guest { namespace mysql {
@@ -32,7 +34,7 @@ namespace nova { namespace guest { namespace mysql {
 
             typedef std::map<std::string, MethodPtr> MethodMap;
 
-            MySqlGuestPtr sql_admin() const;
+            MySqlAdminPtr sql_admin() const;
 
             MySqlPreparerPtr sql_preparer() const;
 

@@ -174,13 +174,6 @@ namespace {
         return JsonData::from_boolean(enabled);
     }
 
-    JSON_METHOD(periodic_tasks) {
-        MySqlNovaUpdaterPtr updater = guest->sql_updater();
-        MySqlNovaUpdater::Status status = updater->get_local_db_status();
-        updater->update_status(status);
-        return JsonData::from_null();
-    }
-
     JSON_METHOD(prepare) {
         log.info("Prepare was called.");
         log.info("Updating status to BUILDING...");
@@ -219,7 +212,6 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlMessageHandlerConfig config)
         REGISTER(is_root_enabled),
         REGISTER(list_databases),
         REGISTER(list_users),
-        REGISTER(periodic_tasks),
         REGISTER(prepare),
         {0, 0}
     };
@@ -257,14 +249,14 @@ MySqlPreparerPtr MySqlMessageHandler::sql_preparer() const {
 }
 
 MySqlNovaUpdaterPtr MySqlMessageHandler::sql_updater() const {
-    // Ensure a fresh connection.
-    config.nova_db->close();
-    config.nova_db->init();
-    // Begin using the nova database.
+    MySqlConnectionPtr nova_db(new MySqlConnection(
+        config.nova_db_host.c_str(),
+        config.nova_db_user.c_str(),
+        config.nova_db_password.c_str()));
     string using_stmt = str(format("use %s") % config.nova_db_name);
-    config.nova_db->query(using_stmt.c_str());
+    nova_db->query(using_stmt.c_str());
     MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
-        config.nova_db, config.guest_ethernet_device.c_str()));
+        nova_db, config.guest_ethernet_device.c_str()));
     return ptr;
 }
 

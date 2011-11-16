@@ -3,7 +3,7 @@
 #include "nova/guest/guest.h"
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
-#include "nova/guest/mysql.h"
+#include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include "nova/guest/mysql/MySqlNovaUpdater.h"
 #include "nova/guest/mysql/MySqlPreparer.h"
@@ -17,6 +17,7 @@ using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using namespace nova::db::mysql;
 using namespace std;
 
 
@@ -83,7 +84,7 @@ namespace {
     }
 
     JSON_METHOD(create_database) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         log.info2("guest create_database"); //", guest->create_database().c_str());
         MySqlDatabaseListPtr databases(new MySqlDatabaseList());
         JsonArrayPtr array = args->get_array("databases");
@@ -93,7 +94,7 @@ namespace {
     }
 
     JSON_METHOD(create_user) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         MySqlUserListPtr users(new MySqlUserList());
         JsonArrayPtr array = args->get_array("users");
         for (int i = 0; i < array->get_length(); i ++) {
@@ -104,7 +105,7 @@ namespace {
     }
 
     JSON_METHOD(list_users) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         std::stringstream user_xml;
         MySqlUserListPtr users = sql->list_users();
         user_xml << "[";
@@ -122,14 +123,14 @@ namespace {
     }
 
     JSON_METHOD(delete_user) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         MySqlUserPtr user = user_from_obj(args->get_object("user"));
         sql->delete_user(user->get_name());
         return JsonData::from_null();
     }
 
     JSON_METHOD(list_databases) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         std::stringstream database_xml;
         MySqlDatabaseListPtr databases = sql->list_databases();
         database_xml << "[";
@@ -153,14 +154,14 @@ namespace {
     }
 
     JSON_METHOD(delete_database) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         MySqlDatabasePtr db = db_from_obj(args->get_object("database"));
         sql->delete_database(db->get_name());
         return JsonData::from_null();
     }
 
     JSON_METHOD(enable_root) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         MySqlUserPtr user = sql->enable_root();
         stringstream out;
         user_to_stream(out, user);
@@ -169,7 +170,7 @@ namespace {
     }
 
     JSON_METHOD(is_root_enabled) {
-        MySqlGuestPtr sql = guest->sql_admin();
+        MySqlAdminPtr sql = guest->sql_admin();
         bool enabled = sql->is_root_enabled();
         return JsonData::from_boolean(enabled);
     }
@@ -236,10 +237,10 @@ JsonDataPtr MySqlMessageHandler::handle_message(const GuestInput & input) {
     }
 }
 
-MySqlGuestPtr MySqlMessageHandler::sql_admin() const {
+MySqlAdminPtr MySqlMessageHandler::sql_admin() const {
     // Creates a connection from local host with values coming from my.cnf.
     MySqlConnectionPtr connection(new MySqlConnection("localhost"));
-    MySqlGuestPtr ptr(new MySqlGuest(connection));
+    MySqlAdminPtr ptr(new MySqlAdmin(connection));
     return ptr;
 }
 
@@ -253,8 +254,7 @@ MySqlNovaUpdaterPtr MySqlMessageHandler::sql_updater() const {
         config.nova_db_host.c_str(),
         config.nova_db_user.c_str(),
         config.nova_db_password.c_str()));
-    string using_stmt = str(format("use %s") % config.nova_db_name);
-    nova_db->query(using_stmt.c_str());
+    nova_db->use_database(config.nova_db_name.c_str());
     MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
         nova_db, config.guest_ethernet_device.c_str()));
     return ptr;

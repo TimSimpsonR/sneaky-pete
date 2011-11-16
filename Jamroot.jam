@@ -232,9 +232,22 @@ unit u_nova_Log
     : tests/log_tests.cc
     ;
 
+unit u_nova_db_mysql
+    : src/nova/db/mysql.cc
+    : lib_z  # <-- needed by lib_mysqlclient
+      lib_mysqlclient
+      u_nova_Log
+    ;
+
 unit u_nova_guest_utils
     : src/nova/guest/utils.cc
     : u_nova_guest_GuestException
+    ;
+
+unit u_nova_db_api
+    :   src/nova/db/api.cc
+    :   u_nova_db_mysql
+        u_nova_guest_utils
     ;
 
 exe parrot_e
@@ -296,39 +309,34 @@ unit u_nova_rpc_Receiver
     ;
 
 
-unit u_nova_guest_mysql_misc
-    :   src/nova/guest/mysql/misc.cc
+unit u_nova_guest_mysql_MySqlGuestException
+    :   src/nova/guest/mysql/MySqlGuestException.cc
+    ;
+
+unit u_nova_guest_mysql_MySqlDatabase
+    :   src/nova/guest/mysql/MySqlDatabase.cc
+    ;
+
+unit u_nova_guest_mysql_MySqlUser
+    :   src/nova/guest/mysql/MySqlUser.cc
+    ;
+
+unit u_nova_guest_mysql_MySqlAdmin
+    :   src/nova/guest/mysql/MySqlAdmin.cc
     :   lib_uuid
-    :   tests/nova/guest/mysql/mysql_unit_tests.cc
-    ;
-
-unit u_nova_guest_mysql_MySqlConnection
-    :   src/nova/guest/mysql/MySqlConnection.cc
-    :   lib_z  # <-- needed by lib_mysqlclient
-        lib_mysqlclient
-        u_nova_Log
-        u_nova_guest_mysql_misc
-    ;
-
-
-alias nova_guest_mysql_deps
-    :   u_nova_guest_mysql_MySqlConnection
-        # u_nova_configfile
         u_nova_utils_io
-        u_nova_guest_mysql_misc
         u_nova_Log
-        # u_nova_process
+        u_nova_db_mysql
         u_nova_utils_regex
-    ;
-
-unit u_nova_guest_mysql_MySqlGuest
-    :   src/nova/guest/mysql/MySqlGuest.cc
-    :   nova_guest_mysql_deps
+        u_nova_guest_mysql_MySqlDatabase
+        u_nova_guest_mysql_MySqlGuestException
+        u_nova_guest_mysql_MySqlUser
+    :   tests/nova/guest/mysql/MySqlAdminTests.cc
     ;
 
 unit u_nova_guest_mysql_MySqlNovaUpdater
     :   src/nova/guest/mysql/MySqlNovaUpdater.cc
-    :   nova_guest_mysql_deps
+    :   u_nova_db_mysql
         u_nova_utils_io
         u_nova_process
         u_nova_guest_utils
@@ -336,12 +344,10 @@ unit u_nova_guest_mysql_MySqlNovaUpdater
 
 unit u_nova_guest_mysql_MySqlPreparer
     :   src/nova/guest/mysql/MySqlPreparer.cc
-    :   nova_guest_mysql_deps
+    :   u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_configfile
-        u_nova_guest_mysql_misc
-        __unit_obj_u_nova_guest_mysql_MySqlGuest
         u_nova_guest_mysql_MySqlNovaUpdater
     ;
 
@@ -350,19 +356,16 @@ unit u_nova_guest_mysql_MySqlMessageHandler
     :   u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_json
-        nova_guest_mysql_deps
-        u_nova_guest_mysql_misc
-        u_nova_guest_mysql_MySqlGuest
+        u_nova_db_mysql
+        u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_mysql_MySqlNovaUpdater
         u_nova_guest_mysql_MySqlPreparer
-    :   tests/nova/guest/mysql/MySqlMessageHandlerTests.cc
-    :   <define>__NOVA_GUEST_SQL_GUEST_DO_NOT_DEFINE_MYSQLGUEST
     ;
-#explicit u_nova_guest_mysql_MySqlMessageHandler ;
 
 
 alias guest_lib
-    :   u_nova_configfile
+    :   u_nova_db_api
+        u_nova_configfile
         u_nova_flags
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
@@ -370,9 +373,6 @@ alias guest_lib
         u_nova_guest_utils
         u_nova_json
         u_nova_Log
-        u_nova_guest_mysql_misc
-        u_nova_guest_mysql_MySqlConnection
-        u_nova_guest_mysql_MySqlGuest
         u_nova_guest_mysql_MySqlMessageHandler
         u_nova_rpc_Receiver
         u_nova_utils_regex
@@ -380,61 +380,53 @@ alias guest_lib
     ;
 
 
+
+
 ###############################################################################
 #      Functional Tests
 ###############################################################################
 
-
-run     dependencies
-        guest_lib
-        test_dependencies
-        tests/memory_tests.cc
-    :   # Command line arguments.
-    :   # input files (?)
-    :   <define>BOOST_TEST_DYN_LINK
-    :   memory_tests  # <-- The target name is placed here, for some reason. :(
-    ;
-
-explicit memory_tests ;
-
-###############################################################################
-#      Integration Tests
-###############################################################################
-
-# Doesn't require anything but is brittle.
+# Doesn't require anything other than apt-get on the machine, but is brittle.
 unit-test apt_tests
     :   u_nova_guest_apt_apt
+        u_nova_flags
         tests/nova/guest/apt_tests.cc
+        test_dependencies
     :   <define>_VERBOSE_NOVA_GUEST_APT
         # Boost fails this test because a process returns a non-zero exit code.
         # Its a bug thats been fixed in recent versions.
         #http://stackoverflow.com/questions/5325202/boostunit-test-case-fails-because-a-child-process-exits-with-nonzero
         <define>BOOST_TEST_DYN_LINK
-        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+        #" valgrind --leak-check=full"
     ;
 explicit apt_tests ;
 
 
 # Requires RabbitMQ server to be installed and running on localhost.
 unit-test send_and_receive
-    :   u_nova_rpc_Receiver
+    :   u_nova_flags
+        u_nova_guest_GuestException
+        u_nova_rpc_Receiver
         u_nova_rpc_Sender
         u_nova_json
         tests/send_and_receive.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
-        #<testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
 explicit send_and_receive ;
 
 
 # Requires MySQL to be installed with valid values in my.cnf.
+# Run by setting an environment variable named "TEST_ARGS" to whatever nova
+# flag settings you need (such as "--flagfile=blah.conf").
 unit-test int_tests_mysql
     :   u_nova_Log
         #u_nova_guest_apt_apt
         #u_nova_guest_apt_AptException
         u_nova_flags
-        u_nova_guest_mysql_MySqlConnection
+        u_nova_db_mysql
         tests/nova/guest/mysql/mysql_integration_simple_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
@@ -443,7 +435,21 @@ unit-test int_tests_mysql
 explicit int_tests_mysql ;
 
 
+unit-test api_tests
+    :   u_nova_flags
+        u_nova_db_api
+        test_dependencies
+        tests/nova/db/api_tests.cc
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+    ;
+explicit api_tests ;
+
+
 # Requires that mysql be utterly destroyed and reinstalled on the machine.
+# TODO(tim.simpson) Reddwarf integration testing always tests this so I may
+# remove it, since its so difficult to run and may just turn into an out-of-date
+# pitfall for someone trying to run this code.
 unit-test int_tests
     :   u_nova_flags
         u_nova_Log
@@ -456,6 +462,20 @@ unit-test int_tests
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
 explicit int_tests ;
+
+
+# TODO(tim.simpson): Remove this. The results don't seem that usable anymore.
+run     dependencies
+        guest_lib
+        test_dependencies
+        tests/memory_tests.cc
+    :   # Command line arguments.
+    :   # input files (?)
+    :   <define>BOOST_TEST_DYN_LINK
+    :   memory_tests  # <-- The target name is placed here, for some reason. :(
+    ;
+
+explicit memory_tests ;
 
 
 ###############################################################################

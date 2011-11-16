@@ -6,10 +6,19 @@
 #include <iostream>
 #include <memory>
 //#include <mysql/mysql.h>
-#include "nova/guest/mysql.h"
+#include "nova/guest/mysql/MySqlAdmin.h"
+#include "nova/guest/mysql/MySqlGuestException.h"
 #include <sstream>
+#include <uuid/uuid.h>
+
 
 using boost::format;
+using nova::db::mysql::MySqlConnection;
+using nova::db::mysql::MySqlConnectionPtr;
+using nova::db::mysql::MySqlException;
+using nova::db::mysql::MySqlResultSet;
+using nova::db::mysql::MySqlResultSetPtr;
+using nova::db::mysql::MySqlPreparedStatementPtr;
 using boost::none;
 using boost::optional;
 using nova::Log;
@@ -18,25 +27,29 @@ using namespace std;
 
 namespace nova { namespace guest { namespace mysql {
 
-namespace {
 
-    Log log;
-
+string generate_password() {
+    uuid_t id;
+    uuid_generate(id);
+    char *buf = new char[37];
+    uuid_unparse(id, buf);
+    uuid_clear(id);
+    return string(buf);
 }
 
 /**---------------------------------------------------------------------------
- *- MySqlGuest
+ *- MySqlAdmin
  *---------------------------------------------------------------------------*/
 
-MySqlGuest::MySqlGuest(MySqlConnectionPtr con)
+MySqlAdmin::MySqlAdmin(MySqlConnectionPtr con)
 : con(con)
 {
 }
 
-MySqlGuest::~MySqlGuest() {
+MySqlAdmin::~MySqlAdmin() {
 }
 
-void MySqlGuest::create_database(MySqlDatabaseListPtr databases) {
+void MySqlAdmin::create_database(MySqlDatabaseListPtr databases) {
     BOOST_FOREACH(MySqlDatabasePtr & db, *databases) {
         string text = str(format(
             "CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET = `%s` "
@@ -53,9 +66,9 @@ void MySqlGuest::create_database(MySqlDatabaseListPtr databases) {
     }
 }
 
-void MySqlGuest::create_user(MySqlUserPtr user, const char * host) {
+void MySqlAdmin::create_user(MySqlUserPtr user, const char * host) {
     if (!user->get_password()) {
-        throw MySqlException(MySqlException::NO_PASSWORD_FOR_CREATE_USER);
+        throw MySqlGuestException(MySqlGuestException::NO_PASSWORD_FOR_CREATE_USER);
     }
     string text = str(format(
         "GRANT USAGE ON *.* TO '%s'@\"%s\" IDENTIFIED BY '%s'")
@@ -75,27 +88,27 @@ void MySqlGuest::create_user(MySqlUserPtr user, const char * host) {
     }
 }
 
-void MySqlGuest::create_users(MySqlUserListPtr users) {
+void MySqlAdmin::create_users(MySqlUserListPtr users) {
     BOOST_FOREACH(MySqlUserPtr & user, *users) {
         create_user(user);
     }
 }
 
-void MySqlGuest::delete_database(const string & database_name) {
+void MySqlAdmin::delete_database(const string & database_name) {
     string text = str(format("DROP DATABASE IF EXISTS `%s`")
                        % con->escape_string(database_name.c_str()));
     con->query(text.c_str());
     con->flush_privileges();
 }
 
-void MySqlGuest::delete_user(const string & username) {
+void MySqlAdmin::delete_user(const string & username) {
     string text = str(format("DROP USER `%s`")
                        % con->escape_string(username.c_str()));
     con->query(text.c_str());
     con->flush_privileges();
 }
 
-MySqlUserPtr MySqlGuest::enable_root() {
+MySqlUserPtr MySqlAdmin::enable_root() {
     MySqlUserPtr root_user(new MySqlUser());
     root_user->set_name("root");
     root_user->set_password(generate_password());
@@ -110,7 +123,7 @@ MySqlUserPtr MySqlGuest::enable_root() {
     return root_user;
 }
 
-MySqlDatabaseListPtr MySqlGuest::list_databases() {
+MySqlDatabaseListPtr MySqlAdmin::list_databases() {
     MySqlDatabaseListPtr databases(new MySqlDatabaseList());
     MySqlResultSetPtr res = con->query(
     "            SELECT"
@@ -136,7 +149,7 @@ MySqlDatabaseListPtr MySqlGuest::list_databases() {
     return databases;
 }
 
-MySqlUserListPtr MySqlGuest::list_users() {
+MySqlUserListPtr MySqlAdmin::list_users() {
     MySqlUserListPtr users(new MySqlUserList());
     MySqlResultSetPtr res = con->query(
         "select User from mysql.user where host != 'localhost'");
@@ -149,7 +162,7 @@ MySqlUserListPtr MySqlGuest::list_users() {
     return users;
 }
 
-bool MySqlGuest::is_root_enabled() {
+bool MySqlAdmin::is_root_enabled() {
     MySqlResultSetPtr res = con->query(
         "SELECT User FROM mysql.user where User = 'root' "
         "and host != 'localhost'");
@@ -159,7 +172,7 @@ bool MySqlGuest::is_root_enabled() {
     return row_count != 0;
 }
 
-void MySqlGuest::set_password(const char * username, const char * password) {
+void MySqlAdmin::set_password(const char * username, const char * password) {
     MySqlPreparedStatementPtr stmt = con->prepare_statement(
        "UPDATE mysql.user SET Password=PASSWORD(?) WHERE User=?");
     stmt->set_string(0, password);

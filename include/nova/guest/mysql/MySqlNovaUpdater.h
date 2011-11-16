@@ -1,13 +1,20 @@
 #ifndef __NOVA_GUEST_MYSQL_MYSQLNOVAUPDATER_H
 #define __NOVA_GUEST_MYSQL_MYSQLNOVAUPDATER_H
 
-#include "nova/guest/guest.h"
-#include "nova/guest/mysql.h"
+#include "nova/db/mysql.h"
+#include <boost/optional.hpp>
+#include <string>
 
 
 namespace nova { namespace guest { namespace mysql {
 
-    /* Talks back to Nova, gives it updates. */
+    /* Deals with the issue of identity of this guest instance *as a resource*
+     * for DBaaS (vs as a Nova node) and communicating the status of this
+     * resource to Nova.  Its responsibilities include:
+     *    * Determining the guest ID by figuring out the host IP
+     *    * Finding and reporting the status of the instance of MySQL installed
+     *      on this box.
+     */
     class MySqlNovaUpdater {
 
         public:
@@ -21,7 +28,7 @@ namespace nova { namespace guest { namespace mysql {
                 BUILDING = 0x09
             };
 
-            MySqlNovaUpdater(MySqlConnectionPtr nova_db_connection,
+            MySqlNovaUpdater(nova::db::mysql::MySqlConnectionPtr nova_db,
                              const char * guest_ethernet_device);
 
             int get_guest_instance_id();
@@ -37,7 +44,7 @@ namespace nova { namespace guest { namespace mysql {
 
             boost::optional<std::string> find_mysql_pid_file() const;
 
-            MySqlConnectionPtr nova_db;
+            nova::db::mysql::MySqlConnectionPtr nova_db;
     };
 
     typedef boost::shared_ptr<MySqlNovaUpdater> MySqlNovaUpdaterPtr;

@@ -14,6 +14,7 @@ class FlagException : public std::exception {
             enum Code {
                 DUPLICATE_FLAG_VALUE,
                 FILE_NOT_FOUND,
+                INVALID_FORMAT,
                 KEY_NOT_FOUND,
                 NO_EQUAL_SIGN,
                 NO_STARTING_DASHES,
@@ -65,6 +66,8 @@ class FlagMap {
 
         const char * get(const char * const name, bool throw_on_missing);
 
+
+
         int get_as_int(const char * const name);
 
         int get_as_int(const char * const name, int default_value);
@@ -88,7 +91,13 @@ class FlagValues {
 
         bool apt_use_sudo() const;
 
+        const char * db_backend() const;
+
         const char * guest_ethernet_device() const;
+
+        boost::optional<const char *> host() const;
+
+        const char * node_availability_zone() const;
 
         const char * nova_sql_database() const;
 
@@ -108,7 +117,11 @@ class FlagValues {
 
         const int rabbit_port() const;
 
+        unsigned long rabbit_reconnect_wait_time() const;
+
         const char * rabbit_userid() const;
+
+        unsigned long report_interval() const;
 
     private:
 

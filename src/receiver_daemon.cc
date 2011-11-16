@@ -229,13 +229,14 @@ int main(int argc, char* argv[]) {
                 receiver.reset(0);
             }
 
+            GuestOutput output;
+
             #ifndef _DEBUG
             try {
                 if (input.method_name == "exit") {
                     quit = true;
                 }
             #endif
-                GuestOutput output;
                 JsonDataPtr result;
                 for (int i = 0; i < handler_count && !result; i ++) {
                     output.result = handlers[i]->handle_message(input);

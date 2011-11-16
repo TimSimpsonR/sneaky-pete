@@ -22,6 +22,21 @@ namespace {
 
     nova::Log log;
 
+    void set_time(char * buffer, size_t buffer_size, const char * format) {
+        time_t t = time(NULL);
+        // The returned pointer is statically allocated and shared, so
+        // don't free it.
+        tm * tmp = localtime(&t);
+        if (tmp == NULL) {
+            log.error("Could not get localtime!");
+            throw GuestException(GuestException::GENERAL);
+        }
+        if (strftime(buffer, buffer_size, format, tmp) == 0) {
+            log.error("strftime returned 0");
+            throw GuestException(GuestException::GENERAL);
+        }
+    }
+
 }
 
 string get_host_name() {
@@ -62,39 +77,17 @@ string get_ipv4_address(const char * device_name) {
     return rtn;
 }
 
+
 IsoTime::IsoTime() {
-    time_t t = time(NULL);
-    // The returned pointer is statically allocated and shared, so
-    // don't free it.
-    tm * tmp = localtime(&t);
-    if (tmp == NULL) {
-        log.error("Could not get localtime!");
-        throw GuestException(GuestException::GENERAL);
-    }
-    if (strftime(str, sizeof(str), "%Y-%m-%d", tmp) == 0) {
-        log.error("strftime returned 0");
-        throw GuestException(GuestException::GENERAL);
-    }
+    set_time(str, sizeof(str), "%Y-%m-%d");
 }
 
 const char * IsoTime::c_str() const {
     return str;
 }
 
-//TODO(tim.simpson): Eliminate duplication.
 IsoDateTime::IsoDateTime() {
-    time_t t = time(NULL);
-    // The returned pointer is statically allocated and shared, so
-    // don't free it.
-    tm * tmp = localtime(&t);
-    if (tmp == NULL) {
-        log.error("Could not get localtime!");
-        throw GuestException(GuestException::GENERAL);
-    }
-    if (strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", tmp) == 0) {
-        log.error("strftime returned 0");
-        throw GuestException(GuestException::GENERAL);
-    }
+    set_time(str, sizeof(str), "%Y-%m-%d %H:%M:%S");
 }
 
 const char * IsoDateTime::c_str() const {

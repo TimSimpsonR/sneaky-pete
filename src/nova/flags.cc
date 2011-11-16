@@ -39,6 +39,8 @@ const char * FlagException::code_to_string(FlagException::Code code) throw() {
             return "An attempt was made to add two flags with the same value.";
         case FILE_NOT_FOUND:
             return "File not found.";
+        case INVALID_FORMAT:
+            return "Invalid format for flag file value.";
         case KEY_NOT_FOUND:
             return "A flag value with the given key was not found.";
         case NO_EQUAL_SIGN:
@@ -194,6 +196,18 @@ void FlagMap::get_sql_connection(string & host, string & user,
     database = matches->get(4);
 }
 
+template<typename T>
+T get_flag_value(FlagMap & map, const char * name, T default_value) {
+    const char * value = map.get(name, false);
+    if (value == 0) {
+        return default_value;
+    }
+    try {
+        return boost::lexical_cast<T>(value);
+    } catch(const boost::bad_lexical_cast & blc) {
+        throw FlagException(FlagException::INVALID_FORMAT, value);
+    }
+}
 
 /**---------------------------------------------------------------------------
  *- FlagValues
@@ -211,8 +225,24 @@ bool FlagValues::apt_use_sudo() const {
     return strncmp(value, "true", 4) == 0;
 }
 
+const char * FlagValues::db_backend() const {
+    return map->get("db_backend", "sqlalchemy");
+}
+
 const char * FlagValues::guest_ethernet_device() const {
     return map->get("guest_ethernet_device", "eth0");
+}
+
+optional<const char *> FlagValues::host() const {
+    const char * value = map->get("host", false);
+    if (value == 0) {
+        return boost::none;
+    }
+    return optional<const char *>(value);
+}
+
+const char * FlagValues::node_availability_zone() const {
+    return map->get("node_availability_zone", "nova");
 }
 
 const char * FlagValues::nova_sql_database() const {
@@ -232,13 +262,11 @@ const char * FlagValues::nova_sql_user() const {
 }
 
 unsigned long FlagValues::periodic_interval() const {
-    const char * value = map->get("periodic_interval", "60");
-    return boost::lexical_cast<unsigned long>(value);
+    return get_flag_value(*map, "periodic_interval", (unsigned long) 60);
 }
 
 size_t FlagValues::rabbit_client_memory() const {
-    const char * value = map->get("rabbit_client_memory", "2048");
-    return boost::lexical_cast<size_t>(value);
+    return get_flag_value(*map, "rabbit_client_memory", (size_t) 2048);
 }
 
 const char * FlagValues::rabbit_host() const {
@@ -253,8 +281,17 @@ const int FlagValues::rabbit_port() const {
     return map->get_as_int("rabbit_port", 5672);
 }
 
+unsigned long FlagValues::rabbit_reconnect_wait_time() const {
+    return get_flag_value(*map, "rabbit_reconnect_wait_time",
+                                 (unsigned long) 30);
+}
+
 const char * FlagValues::rabbit_userid() const {
     return map->get("rabbit_userid", "guest");
+}
+
+unsigned long FlagValues::report_interval() const {
+    return get_flag_value(*map, "report_interval", (unsigned long) 10);
 }
 
 

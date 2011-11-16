@@ -3,6 +3,7 @@
 #include <boost/format.hpp>
 #include <fstream>
 #include <iostream>
+#include <boost/lexical_cast.hpp>
 #include <mysql/mysql.h>
 #include <regex.h>  //TODO(tim.simpson): Use the Regex classes here.
 #include <string.h>
@@ -174,6 +175,10 @@ const char *  MySqlException::code_to_string(Code code) {
             return "Binding result set failed.";
         case COULD_NOT_CONNECT:
             return "Could not connect to database.";
+        case COULD_NOT_CONVERT_TO_BOOL:
+            return "Could not convert result set field to boolean.";
+        case COULD_NOT_CONVERT_TO_INT:
+            return "Could not convert result set field to integer.";
         case ESCAPE_STRING_BUFFER_TOO_SMALL:
             return "Escape string buffer was too small.";
         case FIELD_INDEX_OUT_OF_BOUNDS:
@@ -210,6 +215,8 @@ const char *  MySqlException::code_to_string(Code code) {
             return "A result set was not freed. Close it before closing statement.";
         case RESULT_SET_NOT_STARTED:
             return "Attempt to grab result without calling the next method.";
+        case UNEXPECTED_NULL_FIELD:
+            return "A result set field wasn't expected to be null but was.";
         default:
             return "MySqlGuest failure.";
     }
@@ -226,6 +233,49 @@ const char * MySqlException::what() const throw() {
 
 MySqlResultSet::~MySqlResultSet() {
 
+}
+
+optional<bool> MySqlResultSet::get_bool(int index) const {
+    optional<string> value = get_string(index);
+    if (!value) {
+        return boost::none;
+    }
+    try {
+        bool b_value = boost::lexical_cast<bool>(value.get());
+        return optional<bool>(b_value);
+    } catch(const boost::bad_lexical_cast & blc) {
+        log.error2("Could not convert the result field at index %d with value "
+                   "%s to a bool.", index, value.get().c_str());
+        throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_BOOL);
+    }
+}
+
+optional<int> MySqlResultSet::get_int(int index) const {
+    optional<string> value = get_string(index);
+    if (!value) {
+        return boost::none;
+    }
+    try {
+        int i_value = boost::lexical_cast<int>(value.get());
+        return optional<int>(i_value);
+    } catch(const boost::bad_lexical_cast & blc) {
+        log.error2("Could not convert the result field at index %d with value "
+                   "\"%s\" to an int.", index, value.get().c_str());
+        throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_INT);
+    }
+}
+
+int MySqlResultSet::get_int_non_null(int index) const {
+    optional<string> value = get_string(index);
+    if (!value) {
+        throw MySqlException(MySqlException::UNEXPECTED_NULL_FIELD);
+    }
+    try {
+        int i_value = boost::lexical_cast<int>(value.get());
+        return i_value;
+    } catch(const boost::bad_lexical_cast & blc) {
+        throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_INT);
+    }
 }
 
 
@@ -427,6 +477,14 @@ MySqlPreparedStatement::~MySqlPreparedStatement() {
 
 }
 
+void MySqlPreparedStatement::set_bool(int index, bool value) {
+    set_string(index, value ? "true" : "false");
+}
+
+void MySqlPreparedStatement::set_int(int index, int value) {
+    string string_value = str(format("%d") % value);
+    set_string(index, string_value.c_str());
+}
 
 /**---------------------------------------------------------------------------
  *- MySqlPreparedStatementImpl
@@ -524,13 +582,13 @@ private:
  *- MySqlConnection
 *---------------------------------------------------------------------------*/
 
-MySqlConnection::MySqlConnection(const std::string & uri,
-                                 const std::string & user,
-                                 const std::string & password)
+MySqlConnection::MySqlConnection(const char * uri,
+                                 const char * user,
+                                 const char * password)
 : con(0), password(password), uri(uri), use_mycnf(false), user(user) {
 }
 
-MySqlConnection::MySqlConnection(const std::string & uri)
+MySqlConnection::MySqlConnection(const char * uri)
 : con(0), password(""), uri(uri), use_mycnf(true), user("") {
 }
 
@@ -543,6 +601,12 @@ void MySqlConnection::close() {
         mysql_close(mysql_con(con));
         con = 0;
     }
+}
+
+void MySqlConnection::ensure() {
+    // Ensure a fresh connection.
+    close();
+    init();
 }
 
 std::string MySqlConnection::escape_string(const char * original) {
@@ -633,6 +697,11 @@ MySqlResultSetPtr MySqlConnection::query(const char * text) {
     return rtn;
 }
 
+void MySqlConnection::use_database(const char * db_name) {
+    string using_stmt = str(format("use %s") % escape_string(db_name));
+    query(using_stmt.c_str());
+}
+
 void MySqlConnection::start_up() {
     mysql_library_init(0, NULL, NULL);
 }
@@ -640,12 +709,5 @@ void MySqlConnection::start_up() {
 void MySqlConnection::shut_down() {
     mysql_library_end();
 }
-// void MySqlConnection::use_database(const char * database) {
-//     MySqlPreparedStatementPtr stmt = prepare_statement("use ?");
-//     stmt->set_string(1, database);
-//     stmt->execute();
-//     stmt->close();
-// }
-
 
 } } } // nova::guest::mysql

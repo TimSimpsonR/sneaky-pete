@@ -1,34 +1,163 @@
 Welcome sneakers. This is a guest. This is only a guest.
 
-PS when running make, be sure to declare the LIB_HOME, LIB_HOME=/usr/local/lib
-
-
 Setting up Your Environment
----------------------------
+===========================
 
-The easiest way is to use Vagrant to create a VM. Once you're inside the VM,
-running the script /src/vagrant/initialize.sh should install all tools and
-dependencies.
+You can build Sneaky Pete on your real machine, or on its own VM using the
+included Vagrantfile, but the recommended (and currently used) method is to
+build it inside the Reddwarf Vagrant VM.
+
+How to use Vagrant and how to build Reddwarf is beyond the scope of this file,
+so if you're curious check these links for more info:
+
+Vagrant:
+http://vagrantup.com/
+
+Reddwarf:
+https://github.com/rackspace/reddwarf
+https://github.com/rackspace/reddwarf/tree/reddwarf/master/integration
+
+
+How to Automatically Build and Package with Reddwarf
+====================================================
+When setting up the Reddwarf VM, make sure you set an environment variable with
+the name REDDWARF_AGENT to the directory to the directory containing this file,
+and the Reddwarf CI scripts should automatically build and package this agent.
 
 
 How to Build
-------------
+============
+This sections explains what the Reddwarf CI scripts do.
 
-This can currently be built with both Make and Boost Build (mostly because I
-know Boost Build better than make. ~Tim).
+This project is built using Boost Build v2, a build tool used to build the
+Boost libraries. The command for this program is "bjam".
 
-To run with Make, simply type "make" in the home directory.
+The script "vagrant/initialize.sh" will install Boost Build and other
+dependencies needed by the build process.
 
-To run with Boost Build, type "Boost Build."
+Boost Build is driven by the file "Jamroot.jam" in the root directory. To invoke
+Boost Build, type "bjam" at the command line.
+
+To build the Sneaky Pete, cd into this directory and type the following:
+
+bjam -d+2 link=static release nova-guest
+
+"-d+2" is optional and tells Boost Build to print out every command it executes.
+Boost Build will take awhile to start up, so if you keep getting compiler
+errors in a file a good technique is to copy the command it executes and run
+that instead until you can build the necessary target without errors.
+
+"link=static" will, as implied, build the project with static linking.
+Otherwise, all dependencies will be dynamically linked. Some targets however
+can not be built statically (see the Jamroot.jam file for details) and ignore
+this request (the tests are an example).
+
+"release" causes bjam to build in the release configuration. By default it will
+use the debug version (you can specify this with "debug").
 
 
-Understanding the Unit Tests
-----------------------------
+Understanding the Build File
+============================
 
+The Unit Rule
+-------------
+The file uses a custom unit rule. Each time this rule is invoked, it creates a
+named logical target, specifies the source files to be included in the
+resulting object file, the other object and library files the given source will
+need to work when linked together, the unit test source code (if any) and the
+object and library files the unit test might need.
+
+To build a particular unit, give bjam the logical name on the command line. For
+example:
+
+bjam -d+2 u_nova_json
+
+will build the object file for the json code and also build and run its unit
+tests.
+
+All of these unit tests run when the entire program is built.
+
+Valgrind
+--------
 The unit tests currently use Boost Test executed with Valgrind to detect
 memory leaks. These tests do not currently cause the build to fail if there is
-a leak (Working on that. ~Tim).
+a leak which is unfortunate. Valgrind also produces a large number of false
+positives. Therefore its up to the maintainers right now to watch these results
+carefully when updating the code.
 
-The important thing is that "definetely lost," "indirectly lost", and
+The important thing is that "definitely lost," "indirectly lost", and
 "possibly lost" all be 0 bytes. Sometimes "still reachable" may be more than
 zero due to some libraries containing pointers to freed memory on program exit.
+
+
+Functional Tests
+----------------
+In addition to the unit tests, there are functional tests which do not run
+automatically as they require certain dependencies to be installed.
+
+For example, the MySQL code needs to run against a real mysql database and
+create tables. Forcing this to be present just to build the code could be
+an impediment in some situations.
+
+To run the functional tests, specify the target name when calling bjam. For
+example:
+
+bjam -d+2 send_and_receive
+
+Will build the tests for AMQP functionality.
+
+All of these functional tests are executed by the Reddwarf package scripts
+mentioned above.
+
+
+Debugging in the Reddwarf Vagrant VM
+------------------------------------
+To debug in the Reddwarf test environment, you must uninstall any
+existing instance of the guest package by executing the following statement:
+
+sudo -E reprepro -Vb /var/www/debian remove squeeze nova-guest
+
+At this point, any time you create an instance it will eventually time out
+because the agent will never install.
+
+However, during the time out phase you can manually install a statically linked
+debug version of Sneaky Pete into the instance and run it. Here's how:
+
+1. Wait for an instance to be created. You can all of the reddwarf integration
+tests by running "/vagrant/reddwarf-ci tests" (remember that this is in the
+Reddwarf VM environment) or just create a container by executing
+"/vagrant/reddwarf-ci tests --group=dbaas.guest.initialize".
+
+2. When the OpenVZ container is created, copy this entire directory (the one
+with the README file you're reading right now) into it by executing the script
+"copy-to-guest.sh" which is in this directory with the ID of the container as
+an argument. For example if the container appears as container 1 when you
+execute "sudo vzlist", then:
+
+/agent/copy-to-guest.sh 1
+
+3. Enter the container with "sudo vzctl enter 1".
+
+4. Install gdb with:
+
+sudo apt-get install gdb
+
+5. Inside the /agent directory, execute the statically-linked debug version of
+Sneaky-Pete with the following command (this file was copied here in step 2):
+
+gdb /agent/bin/gcc-4.4.5/debug/link-static/nova-guest
+
+6. Once gdb is started, run it with the flag files via
+
+run --flagfile=/agent/debian/guest.conf
+
+When Reddwarf creates an instance, it sends a message out on AMQP to prepare
+the guest. This message sits in the queue until the guest "wakes up" and
+receives it. As soon as the agent is started, it will begin to process the
+"prepare" command, which if you're new to the code is probably the most
+difficult one to follow.
+
+If you'd like to avoid this, you can instead start a working instance and then
+enter into the OpenVZ container and kill the existing guest agent and run your
+own version of the agent in its place by executing commands 2 and 5. You can
+then manually test that the instance works.

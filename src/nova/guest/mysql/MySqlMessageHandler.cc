@@ -254,8 +254,7 @@ MySqlNovaUpdaterPtr MySqlMessageHandler::sql_updater() const {
         config.nova_db_host.c_str(),
         config.nova_db_user.c_str(),
         config.nova_db_password.c_str()));
-    string using_stmt = str(format("use %s") % config.nova_db_name);
-    nova_db->query(using_stmt.c_str());
+    nova_db->use_database(config.nova_db_name.c_str());
     MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
         nova_db, config.guest_ethernet_device.c_str()));
     return ptr;

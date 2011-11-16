@@ -21,8 +21,7 @@ int main(int argc, char* argv[]) {
     MySqlConnectionPtr sql_connection(new MySqlConnection(
         flags.nova_sql_host(), flags.nova_sql_user(),
         flags.nova_sql_password()));
-    string using_stmt = str(format("use %s") % flags.nova_sql_database());
-    sql_connection->query(using_stmt.c_str());
+    sql_connection->use_database(flags.nova_sql_database());
 
     cout << "Host Name = " << utils::get_host_name() << endl;
 

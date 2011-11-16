@@ -17,6 +17,8 @@ namespace nova { namespace db { namespace mysql {
             enum Code {
                 BIND_RESULT_SET_FAILED,
                 COULD_NOT_CONNECT,
+                COULD_NOT_CONVERT_TO_BOOL,
+                COULD_NOT_CONVERT_TO_INT,
                 ESCAPE_STRING_BUFFER_TOO_SMALL,
                 FIELD_INDEX_OUT_OF_BOUNDS,
                 GENERAL,
@@ -36,6 +38,7 @@ namespace nova { namespace db { namespace mysql {
                 RESULT_SET_FINISHED,
                 RESULT_SET_LEAK,
                 RESULT_SET_NOT_STARTED,
+                UNEXPECTED_NULL_FIELD
             };
 
             MySqlException(Code code) throw();
@@ -63,15 +66,18 @@ namespace nova { namespace db { namespace mysql {
 
     class MySqlConnection {
         public:
-            MySqlConnection(const std::string & uri, const std::string & user,
-                            const std::string & password);
+            MySqlConnection(const char * uri, const char * user,
+                            const char * password);
 
             /* The user name and password are loaded from the my.cnf file. */
-            MySqlConnection(const std::string & uri);
+            MySqlConnection(const char * uri);
 
             ~MySqlConnection();
 
             void close();
+
+            /* Opens and closes connection. */
+            void ensure();
 
             std::string escape_string(const char * original);
 
@@ -86,7 +92,7 @@ namespace nova { namespace db { namespace mysql {
 
             MySqlResultSetPtr query(const char * text);
 
-            //void use_database(const char * database);
+            void use_database(const char * db_name);
 
             // MySQL allocates some global memory it keeps up with as it runs.
             static void start_up();
@@ -119,6 +125,12 @@ namespace nova { namespace db { namespace mysql {
 
             virtual int get_row_count() const = 0;
 
+            boost::optional<bool> get_bool(int index) const;
+
+            boost::optional<int> get_int(int index) const;
+
+            int get_int_non_null(int index) const;
+
             virtual boost::optional<std::string> get_string(int index) const = 0;
 
             virtual bool next() = 0;
@@ -130,6 +142,8 @@ namespace nova { namespace db { namespace mysql {
             virtual void close() = 0;
             virtual MySqlResultSetPtr execute(int result_count = 0) = 0;
             virtual int get_parameter_count() const = 0;
+            virtual void set_bool(int index, bool value);
+            virtual void set_int(int index, int value);
             virtual void set_string(int index, const char * value) = 0;
     };
 

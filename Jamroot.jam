@@ -482,10 +482,11 @@ explicit memory_tests ;
 #      Binaries
 ###############################################################################
 
-exe start_up
+exe nova_guest_utils_demo
     :   u_nova_guest_utils
         u_nova_flags
-        tests/nova/guest/start_up.cc
+        u_nova_Log
+        tests/nova/guest/utils_demo.cc
     ;
 
 exe MySqlNovaUpdater_demo

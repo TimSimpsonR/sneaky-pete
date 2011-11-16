@@ -3,18 +3,23 @@
 
 #include "nova/rpc/amqp.h"
 #include <boost/date_time.hpp>
+#include "nova/flags.h"
 #include <boost/thread.hpp>
 #include "nova/rpc/receiver.h"
 #include "nova/rpc/sender.h"
-#include "nova/guest/mysql.h"
+#include "nova/db/mysql.h"
 #include <string>
 #include <stdlib.h>
 
 #define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); log.debug("At line %d...", __LINE__);
-using nova::Log;
+using nova::flags::FlagMap;
+using nova::flags::FlagMapPtr;
+using nova::flags::FlagValues;
+using nova::JsonData;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
 using namespace nova::guest;
+using nova::Log;
 using namespace nova::rpc;
 using boost::posix_time::milliseconds;
 using boost::posix_time::time_duration;
@@ -22,12 +27,18 @@ using boost::thread;
 
 
 namespace {
-    const char * HOST = "10.0.4.15";
-    const int PORT = 5672;
-    const char * USER_NAME = "guest";
-    const char * PASSWORD = "guest";
-    const char * TOPIC = "test-topic";
-    const size_t CLIENT_MEMORY = 1024 * 4;
+    const char * TOPIC = "guest";
+
+    FlagMapPtr get_flags() {
+        FlagMapPtr ptr(new FlagMap());
+        char * test_args = getenv("TEST_ARGS");
+        BOOST_REQUIRE_MESSAGE(test_args != 0, "TEST_ARGS environment var not defined.");
+        if (test_args != 0) {
+            ptr->add_from_arg(test_args);
+        }
+        return ptr;
+    }
+
 }
 
 static std::string rabbitmq_host;
@@ -47,8 +58,11 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
 {
     Log log;
     CHECK_POINT();
+    FlagValues flags(get_flags());
+    CHECK_POINT();
     AmqpConnectionPtr connection = AmqpConnection::create(
-        HOST, PORT, USER_NAME, PASSWORD, CLIENT_MEMORY);
+        flags.rabbit_host(), flags.rabbit_port(), flags.rabbit_userid(),
+        flags.rabbit_password(), flags.rabbit_client_memory());
     CHECK_POINT();
     Receiver receiver(connection, TOPIC);
     CHECK_POINT();
@@ -63,28 +77,23 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
     "    'method':'list_users'"
     "}";
     CHECK_POINT();
-    JsonObject send_object(MESSAGE_ONE);
+    JsonObject input(MESSAGE_ONE);
     CHECK_POINT();
-    sender.send(send_object);
+    sender.send(input);
     CHECK_POINT();
     log.info("TEST - send obj");
     {
-        JsonObjectPtr obj = receiver.next_message();
-        CHECK_POINT();
-        BOOST_CHECK_MESSAGE(!!obj, "Must receive an object.");
+        GuestInput input = receiver.next_message();
 
-        std::string method;
-        obj->get_string("method", method);
-        CHECK_POINT();
-        BOOST_CHECK_EQUAL(method, "list_users");
+        BOOST_CHECK_EQUAL(input.args->to_string(), "{ }");
+        BOOST_CHECK_EQUAL("list_users", input.method_name);
 
-        const char RESPONSE [] =
-        "{"
-        "    'status':'ok'"
-        "}";
-        JsonObjectPtr rtn_obj(new JsonObject(RESPONSE));
+        GuestOutput output;
+        output.failure = boost::none;
+        output.result = JsonData::from_string("ok");
+
         CHECK_POINT();
-        receiver.finish_message(obj, rtn_obj);
+        receiver.finish_message(output);
         CHECK_POINT();
     }
 }

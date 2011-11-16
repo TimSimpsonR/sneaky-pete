@@ -8,7 +8,7 @@
 #include <boost/optional.hpp>
 #include "nova/Log.h"
 #include <memory>
-#include "nova/guest/mysql.h"
+#include "nova/db/mysql.h"
 #include <stdlib.h>
 
 //#include "nova/"
@@ -33,7 +33,7 @@
 using namespace nova::flags;
 using boost::format;
 using nova::Log;
-using namespace nova::guest::mysql;
+using namespace nova::db::mysql;
 using boost::optional;
 using std::string;
 using std::stringstream;
@@ -61,24 +61,17 @@ BOOST_AUTO_TEST_CASE(integration_tests)
 {
     MySqlConnection::start_up();
 
-    FlagMapPtr flags = get_flags();
-    BOOST_REQUIRE_EQUAL(flags->get("sql_connection"),
-                                   "mysql://nova:novapass@10.0.4.15/nova");
-    //flags->add_from_arg("--sql_connection=mysql://nova:novapass@10.0.4.15/nova");
-
+    FlagValues flags(get_flags());
     string host, user, password, database;
-    flags->get_sql_connection(host, user, password, database);
     //BOOST_REQUIRE_EQUAL(user, "nova");
     //BOOST_REQUIRE_EQUAL(password, "novapass");
     //BOOST_REQUIRE_EQUAL(host, "10.0.4.15");
     //BOOST_REQUIRE_EQUAL(!!database, true);
     //BOOST_REQUIRE_EQUAL(database.get(), "nova");
 
-    MySqlConnection connection(host, user, password);
-    if (database) {
-        string text = str(format("use %s") % database.get());
-        connection.query(text.c_str());
-    }
+    MySqlConnection connection(flags.nova_sql_host(), flags.nova_sql_user(),
+        flags.nova_sql_password());
+    connection.use_database(flags.nova_sql_database());
 
     CHECK_EXCEPTION({ connection.query("use not_real"); }, QUERY_FAILED);
 

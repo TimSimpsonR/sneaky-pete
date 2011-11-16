@@ -81,4 +81,25 @@ const char * IsoTime::c_str() const {
     return str;
 }
 
+//TODO(tim.simpson): Eliminate duplication.
+IsoDateTime::IsoDateTime() {
+    time_t t = time(NULL);
+    // The returned pointer is statically allocated and shared, so
+    // don't free it.
+    tm * tmp = localtime(&t);
+    if (tmp == NULL) {
+        log.error("Could not get localtime!");
+        throw GuestException(GuestException::GENERAL);
+    }
+    if (strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", tmp) == 0) {
+        log.error("strftime returned 0");
+        throw GuestException(GuestException::GENERAL);
+    }
+}
+
+const char * IsoDateTime::c_str() const {
+    return str;
+}
+
+
 }}} // end nova::guest::utils

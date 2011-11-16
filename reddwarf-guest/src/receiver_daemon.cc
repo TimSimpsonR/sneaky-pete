@@ -1,4 +1,5 @@
 #include "nova/rpc/amqp.h"
+#include "nova/db/api.h"
 #include "nova/guest/apt.h"
 #include "nova/ConfigFile.h"
 #include "nova/flags.h"
@@ -6,19 +7,21 @@
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
 #include <boost/lexical_cast.hpp>
+#include <memory>
 #include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include <boost/optional.hpp>
 #include "nova/rpc/receiver.h"
-#include "nova/rpc/sender.h"
 #include <json/json.h>
 #include "nova/Log.h"
 #include <sstream>
 #include <boost/thread.hpp>
 #include "nova/guest/utils.h"
 
+using nova::db::ApiPtr;
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptMessageHandler;
+using std::auto_ptr;
 using boost::format;
 using boost::optional;
 using namespace nova;
@@ -26,7 +29,9 @@ using namespace nova::flags;
 using namespace nova::guest;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
+using nova::db::NewService;
 using namespace nova::rpc;
+using nova::db::ServicePtr;
 using std::string;
 
 
@@ -41,6 +46,7 @@ static bool quit;
 /* This runs in a different thread and just sends messages to the queue,
  * which cause the periodic_tasks to run. This keeps us from having to ensure
  * everything else is thread-safe. */
+//TODO(tim.simpson): Rename this to nova::service::Service.
 class PeriodicTasker {
 
 private:
@@ -49,49 +55,94 @@ private:
     JsonObject message;
     MySqlConnectionPtr nova_db;
     string nova_db_name;
-    Sender sender;
+    NewService service_key;
 
 public:
-    PeriodicTasker(AmqpConnectionPtr connection, const char * topic,
-                   MySqlConnectionPtr nova_db, string nova_db_name,
-                   string guest_ethernet_device)
+    PeriodicTasker(MySqlConnectionPtr nova_db, string nova_db_name,
+                   string guest_ethernet_device, NewService service_key)
       : guest_ethernet_device(guest_ethernet_device),
         log(),
         message(PERIODIC_MESSAGE),
         nova_db(nova_db),
         nova_db_name(nova_db_name),
-        sender(connection, topic)
+        service_key(service_key)
     {
     }
 
-    void loop(unsigned long periodic_interval) {
-        while(!quit) {
-            log.info2("Waiting for %lu seconds to run periodic tasks...",
-                      periodic_interval);
-            boost::posix_time::seconds time(periodic_interval);
-            boost::this_thread::sleep(time);
+    void ensure_db() {
+        nova_db->ensure();
+        nova_db->use_database(nova_db_name.c_str());
+    }
 
-            log.info("Running periodic tasks...");
-            MySqlNovaUpdaterPtr updater = sql_updater();
-            MySqlNovaUpdater::Status status = updater->get_local_db_status();
-            updater->update_status(status);
+    void loop(unsigned long periodic_interval, unsigned long report_interval) {
+        unsigned long next_periodic_task = 0;
+        unsigned long next_reporting = 0;
+        while(!quit) {
+            unsigned long wait_time = next_periodic_task < next_reporting ?
+                next_periodic_task : next_reporting;
+            log.info2("Waiting for %lu seconds...", wait_time);
+            boost::posix_time::seconds time(wait_time);
+            boost::this_thread::sleep(time);
+            next_periodic_task -= wait_time;
+            next_reporting -= wait_time;
+
+            if (next_periodic_task <= 0) {
+                next_periodic_task += periodic_interval;
+                periodic_tasks();
+            }
+            if (next_reporting <= 0) {
+                next_reporting += report_interval;
+                report_state();
+            }
         }
     }
 
+    void periodic_tasks() {
+        log.info("Running periodic tasks...");
+        #ifndef _DEBUG
+        try {
+        #endif
+            ensure_db();
+            MySqlNovaUpdaterPtr updater = sql_updater();
+            MySqlNovaUpdater::Status status = updater->get_local_db_status();
+            updater->update_status(status);
+        #ifndef _DEBUG
+        } catch(const std::exception & e) {
+            log.error2("Error periodic_tasks! : %s", e.what());
+        }
+        #endif
+    }
+
+    void report_state() {
+        #ifndef _DEBUG
+        try {
+        #endif
+            ensure_db();
+            ApiPtr api = nova::db::create_api(nova_db, nova_db_name);
+            ServicePtr service = api->service_create(service_key);
+            service->report_count ++;
+            api->service_update(*service);
+        #ifndef _DEBUG
+        } catch(const std::exception & e) {
+            log.error2("Error report_state! : %s", e.what());
+        }
+        #endif
+    }
+
     MySqlNovaUpdaterPtr sql_updater() const {
-        // Ensure a fresh connection.
-        nova_db->close();
-        nova_db->init();
-        // Begin using the nova database.
-        string using_stmt = str(format("use %s")
-            % nova_db->escape_string(nova_db_name.c_str()));
-        nova_db->query(using_stmt.c_str());
         MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
             nova_db, guest_ethernet_device.c_str()));
         return ptr;
     }
 };
 
+
+AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
+    return AmqpConnection::create(flags.rabbit_host(), flags.rabbit_port(),
+        flags.rabbit_userid(), flags.rabbit_password(),
+        flags.rabbit_client_memory());
+
+}
 
 int main(int argc, char* argv[]) {
     quit = false;
@@ -129,43 +180,62 @@ int main(int argc, char* argv[]) {
         mysql_config.nova_db_user = flags.nova_sql_user();
         handlers[1].reset(new MySqlMessageHandler(mysql_config));
 
+        /* Set host value. */
+        string actual_host = nova::guest::utils::get_host_name();
+        string host = flags.host().get_value_or(actual_host.c_str());
+
+        /* Create tasker. */
+        NewService service_key;
+        service_key.availability_zone = flags.node_availability_zone();
+        service_key.binary = "nova-guest";
+        service_key.host = host;
+        service_key.topic = "guest";  // Real nova takes binary after "nova-".
+        PeriodicTasker tasker(nova_db, flags.nova_sql_database(),
+                              flags.guest_ethernet_device(), service_key);
+
 
         /* Create AMQP connection. */
         string topic = "guest.";
         topic += nova::guest::utils::get_host_name();
 
-        AmqpConnectionPtr connection = AmqpConnection::create(
-            flags.rabbit_host(), flags.rabbit_port(), flags.rabbit_userid(),
-            flags.rabbit_password(), flags.rabbit_client_memory());
-
-        /* Create receiver. */
-        Receiver receiver(connection, topic.c_str());
-
-        /* Create tasker. */
-       PeriodicTasker tasker(connection, topic.c_str(),
-                             nova_db, flags.nova_sql_database(),
-                             flags.guest_ethernet_device());
 
         quit = false;
 
+        /* Start periodic task / report thread. */
         boost::thread workerThread(&PeriodicTasker::loop, &tasker,
-                                   flags.periodic_interval());
+                                   flags.periodic_interval(),
+                                   flags.report_interval());
 
+        /* Create receiver. */
+        auto_ptr<Receiver> receiver(new Receiver(make_amqp_connection(flags),
+                                                 topic.c_str()));
         while(!quit) {
-            log.info("Waiting for next message...");
-            GuestInput input = receiver.next_message();
-            GuestOutput output;
+            GuestInput input;
+            try {
+                if (receiver.get() == 0) {
+                    log.info("Waiting to create fresh AMQP connection...");
+                    boost::posix_time::seconds time(flags.rabbit_reconnect_wait_time());
+                    boost::this_thread::sleep(time);
+                    receiver.reset(new Receiver(make_amqp_connection(flags),
+                                                topic.c_str()));
+                }
+                log.info("Waiting for next message...");
+                input = receiver->next_message();
 
-            log.info2("method=%s", input.method_name.c_str());
-            log.info2("args=%s", input.args->to_string());
+                log.info2("method=%s", input.method_name.c_str());
+                log.info2("args=%s", input.args->to_string());
+            } catch(const AmqpException & amqpe) {
+                log.error2("Error with AMQP connection! : %s", amqpe.what());
+                receiver.reset(0);
+            }
 
             #ifndef _DEBUG
             try {
-
                 if (input.method_name == "exit") {
                     quit = true;
                 }
             #endif
+                GuestOutput output;
                 JsonDataPtr result;
                 for (int i = 0; i < handler_count && !result; i ++) {
                     output.result = handlers[i]->handle_message(input);
@@ -175,6 +245,10 @@ int main(int argc, char* argv[]) {
                 }
                 output.failure = boost::none;
             #ifndef _DEBUG
+            } catch(const AmqpException & amqpe) {
+                log.error2("Error with AMQP connection while running method "
+                           "%s!: %s", input.method_name.c_str(), amqpe.what());
+                receiver.reset(0);
             } catch(const std::exception & e) {
                 log.error2("Error running method %s : %s",
                            input.method_name.c_str(), e.what());
@@ -183,7 +257,7 @@ int main(int argc, char* argv[]) {
                 output.failure = e.what();
             }
             #endif
-            receiver.finish_message(output);
+            receiver->finish_message(output);
         }
 #ifndef _DEBUG
     } catch (const std::exception & e) {

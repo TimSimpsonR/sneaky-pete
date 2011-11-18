@@ -108,7 +108,7 @@ public:
             updater->update_status(status);
         #ifndef _DEBUG
         } catch(const std::exception & e) {
-            log.error2("Error periodic_tasks! : %s", e.what());
+            log.error2("Error in periodic_tasks()! : %s", e.what());
         }
         #endif
     }
@@ -124,7 +124,7 @@ public:
             api->service_update(*service);
         #ifndef _DEBUG
         } catch(const std::exception & e) {
-            log.error2("Error report_state! : %s", e.what());
+            log.error2("Error in report_state()! : %s", e.what());
         }
         #endif
     }
@@ -207,35 +207,20 @@ int main(int argc, char* argv[]) {
                                    flags.report_interval());
 
         /* Create receiver. */
-        auto_ptr<Receiver> receiver(new Receiver(make_amqp_connection(flags),
-                                                 topic.c_str()));
-        while(!quit) {
-            GuestInput input;
-            try {
-                if (receiver.get() == 0) {
-                    log.info("Waiting to create fresh AMQP connection...");
-                    boost::posix_time::seconds time(flags.rabbit_reconnect_wait_time());
-                    boost::this_thread::sleep(time);
-                    receiver.reset(new Receiver(make_amqp_connection(flags),
-                                                topic.c_str()));
-                }
-                log.info("Waiting for next message...");
-                input = receiver->next_message();
+        ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
+            flags.rabbit_userid(), flags.rabbit_password(),
+            flags.rabbit_client_memory(), topic.c_str(),
+            flags.rabbit_reconnect_wait_time());
 
-                log.info2("method=%s", input.method_name.c_str());
-                log.info2("args=%s", input.args->to_string());
-            } catch(const AmqpException & amqpe) {
-                log.error2("Error with AMQP connection! : %s", amqpe.what());
-                receiver.reset(0);
-            }
+        while(!quit) {
+            GuestInput input = receiver.next_message();
+            log.info2("method=%s", input.method_name.c_str());
+            log.info2("args=%s", input.args->to_string());
 
             GuestOutput output;
 
             #ifndef _DEBUG
             try {
-                if (input.method_name == "exit") {
-                    quit = true;
-                }
             #endif
                 JsonDataPtr result;
                 for (int i = 0; i < handler_count && !result; i ++) {
@@ -246,10 +231,6 @@ int main(int argc, char* argv[]) {
                 }
                 output.failure = boost::none;
             #ifndef _DEBUG
-            } catch(const AmqpException & amqpe) {
-                log.error2("Error with AMQP connection while running method "
-                           "%s!: %s", input.method_name.c_str(), amqpe.what());
-                receiver.reset(0);
             } catch(const std::exception & e) {
                 log.error2("Error running method %s : %s",
                            input.method_name.c_str(), e.what());
@@ -258,7 +239,7 @@ int main(int argc, char* argv[]) {
                 output.failure = e.what();
             }
             #endif
-            receiver->finish_message(output);
+            receiver.finish_message(output);
         }
 #ifndef _DEBUG
     } catch (const std::exception & e) {

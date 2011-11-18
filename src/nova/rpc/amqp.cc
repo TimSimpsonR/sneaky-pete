@@ -86,16 +86,23 @@ AmqpConnection::AmqpConnection(const char * host_name, const int port,
 {
     // Create connection.
     connection = amqp_new_connection();
-    sockfd = amqp_open_socket(host_name, port);
-    if (sockfd < 0) {
-        throw AmqpException(AmqpException::CONNECTION_FAILED);
-    }
-    amqp_set_sockfd(connection, sockfd);
+    try {
+        sockfd = amqp_open_socket(host_name, port);
+        if (sockfd < 0) {
+            throw AmqpException(AmqpException::CONNECTION_FAILED);
+        }
+        amqp_set_sockfd(connection, sockfd);
 
-    // Login
-    amqp_check(amqp_login(connection, "/", 0, client_memory, 0,
-                     AMQP_SASL_METHOD_PLAIN, user_name, password),
-               AmqpException::LOGIN_FAILED);
+        // Login
+        amqp_check(amqp_login(connection, "/", 0, client_memory, 0,
+                              AMQP_SASL_METHOD_PLAIN, user_name, password),
+                   AmqpException::LOGIN_FAILED);
+    } catch(const AmqpException & amqpe) {
+        if (amqp_destroy_connection(connection) < 0) {
+            log.error("FATAL ERROR: COULD NOT DESTROY OPEN AMQP CONNECTION!");
+        }
+        throw;
+    }
 
 }
 

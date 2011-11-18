@@ -5,6 +5,7 @@
 #include <nova/json.h>
 #include "nova/guest/guest.h"
 #include "nova/Log.h"
+#include <memory>
 #include <boost/optional.hpp>
 #include <string>
 
@@ -33,6 +34,51 @@ namespace nova { namespace rpc {
         const std::string topic;
 
         nova::JsonObjectPtr _next_message();
+
+    };
+
+    /** Like the standard receiver, but kills and waits to restablish
+     *  the connection anytime there's a problem. */
+    class ResilentReceiver {
+
+    public:
+        ResilentReceiver(const char * host, int port, const char * userid,
+            const char * password, size_t client_memory, const char * topic,
+            unsigned long reconnect_wait_time);
+
+        ~ResilentReceiver();
+
+        /** Finishes a message. */
+        void finish_message(const nova::guest::GuestOutput & output);
+
+        /** Grabs the next message. */
+        nova::guest::GuestInput next_message();
+
+        void reset();
+
+    private:
+
+        size_t client_memory;
+
+        void close();
+
+        std::string host;
+
+        Log log;
+
+        void open(bool wait_first);
+
+        std::string password;
+
+        int port;
+
+        std::auto_ptr<Receiver> receiver;
+
+        std::string topic;
+
+        std::string userid;
+
+        unsigned long reconnect_wait_time;
 
     };
 

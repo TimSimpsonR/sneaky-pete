@@ -266,7 +266,7 @@ unsigned long FlagValues::periodic_interval() const {
 }
 
 size_t FlagValues::rabbit_client_memory() const {
-    return get_flag_value(*map, "rabbit_client_memory", (size_t) 2048);
+    return get_flag_value(*map, "rabbit_client_memory", (size_t) 4096);
 }
 
 const char * FlagValues::rabbit_host() const {

@@ -15,7 +15,8 @@ namespace nova { namespace rpc {
     class Receiver {
 
     public:
-        Receiver(AmqpConnectionPtr connection, const char * topic);
+        Receiver(AmqpConnectionPtr connection, const char * topic,
+                 const char * exchange_name);
 
         ~Receiver();
 
@@ -26,7 +27,7 @@ namespace nova { namespace rpc {
         nova::guest::GuestInput next_message();
 
     private:
-        AmqpConnectionPtr & connection;
+        AmqpConnectionPtr connection;
         int last_delivery_tag;
         boost::optional<std::string> last_msg_id;
         Log log;
@@ -44,7 +45,7 @@ namespace nova { namespace rpc {
     public:
         ResilentReceiver(const char * host, int port, const char * userid,
             const char * password, size_t client_memory, const char * topic,
-            unsigned long reconnect_wait_time);
+            const char * exchange_name, unsigned long reconnect_wait_time);
 
         ~ResilentReceiver();
 
@@ -61,6 +62,8 @@ namespace nova { namespace rpc {
         size_t client_memory;
 
         void close();
+
+        std::string exchange_name;
 
         std::string host;
 

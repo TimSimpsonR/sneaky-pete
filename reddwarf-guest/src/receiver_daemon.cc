@@ -18,6 +18,19 @@
 #include <boost/thread.hpp>
 #include "nova/guest/utils.h"
 
+
+/* In release mode, all errors should be caught so the guest will not die.
+ * If you want to see the bugs in the debug mode, you can fiddle with it here.
+ */
+/////////#ifndef _DEBUG
+#define START_THREAD_TASK() try {
+#define END_THREAD_TASK(name)  \
+     } catch(const std::exception & e) { \
+        log.error2("Error in " name "! : %s", e.what()); \
+     }
+#define CATCH_RPC_METHOD_ERRORS
+////////#endif
+
 using nova::db::ApiPtr;
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptMessageHandler;
@@ -55,6 +68,7 @@ private:
     JsonObject message;
     MySqlConnectionPtr nova_db;
     string nova_db_name;
+    bool periodically_update_sql_status;
     NewService service_key;
 
 public:
@@ -65,6 +79,7 @@ public:
         message(PERIODIC_MESSAGE),
         nova_db(nova_db),
         nova_db_name(nova_db_name),
+        periodically_update_sql_status(true),
         service_key(service_key)
     {
     }
@@ -99,34 +114,30 @@ public:
 
     void periodic_tasks() {
         log.info("Running periodic tasks...");
-        #ifndef _DEBUG
-        try {
-        #endif
-            ensure_db();
-            MySqlNovaUpdaterPtr updater = sql_updater();
-            MySqlNovaUpdater::Status status = updater->get_local_db_status();
-            updater->update_status(status);
-        #ifndef _DEBUG
-        } catch(const std::exception & e) {
-            log.error2("Error in periodic_tasks()! : %s", e.what());
+        if (periodically_update_sql_status) {
+            START_THREAD_TASK();
+                ensure_db();
+                MySqlNovaUpdaterPtr updater = sql_updater();
+                MySqlNovaUpdater::Status status = updater->get_local_db_status();
+                updater->update_status(status);
+            END_THREAD_TASK("periodic_tasks()");
+        } else {
+            log.info(".. actually, not doing that because prepare is running.");
         }
-        #endif
     }
 
     void report_state() {
-        #ifndef _DEBUG
-        try {
-        #endif
+        START_THREAD_TASK();
             ensure_db();
             ApiPtr api = nova::db::create_api(nova_db, nova_db_name);
             ServicePtr service = api->service_create(service_key);
             service->report_count ++;
             api->service_update(*service);
-        #ifndef _DEBUG
-        } catch(const std::exception & e) {
-            log.error2("Error in report_state()! : %s", e.what());
-        }
-        #endif
+        END_THREAD_TASK("report_state()");
+    }
+
+    void set_periodically_update_sql_status(bool value) {
+        this->periodically_update_sql_status = value;
     }
 
     MySqlNovaUpdaterPtr sql_updater() const {
@@ -210,7 +221,7 @@ int main(int argc, char* argv[]) {
         ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
             flags.rabbit_userid(), flags.rabbit_password(),
             flags.rabbit_client_memory(), topic.c_str(),
-            flags.rabbit_reconnect_wait_time());
+            flags.control_exchange(),  flags.rabbit_reconnect_wait_time());
 
         while(!quit) {
             GuestInput input = receiver.next_message();
@@ -219,18 +230,20 @@ int main(int argc, char* argv[]) {
 
             GuestOutput output;
 
-            #ifndef _DEBUG
+            if (input.method_name == "prepare") {
+                tasker.set_periodically_update_sql_status(false);
+            }
+            #ifdef CATCH_RPC_METHOD_ERRORS
             try {
             #endif
-                JsonDataPtr result;
-                for (int i = 0; i < handler_count && !result; i ++) {
+                for (int i = 0; i < handler_count && !output.result; i ++) {
                     output.result = handlers[i]->handle_message(input);
                 }
                 if (!output.result) {
                     throw GuestException(GuestException::NO_SUCH_METHOD);
                 }
                 output.failure = boost::none;
-            #ifndef _DEBUG
+            #ifdef CATCH_RPC_METHOD_ERRORS
             } catch(const std::exception & e) {
                 log.error2("Error running method %s : %s",
                            input.method_name.c_str(), e.what());
@@ -239,6 +252,9 @@ int main(int argc, char* argv[]) {
                 output.failure = e.what();
             }
             #endif
+            if (input.method_name == "prepare") {
+                tasker.set_periodically_update_sql_status(true);
+            }
             receiver.finish_message(output);
         }
 #ifndef _DEBUG

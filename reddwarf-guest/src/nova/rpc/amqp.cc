@@ -1,8 +1,16 @@
 #include "nova/rpc/amqp.h"
 #include <algorithm>
 #include <boost/foreach.hpp>
+//#include "nova/utils/io.h"
 #include <limits>
 #include <sstream>
+#include <string.h>
+
+// For SIGPIPE ignoring
+#include <errno.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 
 namespace nova { namespace rpc {
@@ -91,6 +99,9 @@ AmqpConnection::AmqpConnection(const char * host_name, const int port,
         if (sockfd < 0) {
             throw AmqpException(AmqpException::CONNECTION_FAILED);
         }
+        //int set = 1;
+        //setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+
         amqp_set_sockfd(connection, sockfd);
 
         // Login
@@ -150,12 +161,12 @@ void AmqpConnection::attempt_declare_exchange(const char * exchange_name,
     AmqpChannelPtr channel = new_channel();
     log.info2("Attempting to declare exchange %s.", exchange_name);
     try {
-        channel->declare_exchange(exchange_name, "direct", true);
+        channel->declare_exchange(exchange_name, type, true);
         log.info("Exchange already declared.");
     } catch(const AmqpException & ae) {
         if (ae.code == AmqpException::EXCHANGE_DECLARE_FAIL) {
             log.info("Could not passive declare exchange. Trying non-passive.");
-            new_channel()->declare_exchange(exchange_name, "direct", false);
+            new_channel()->declare_exchange(exchange_name, type, false);
         } else {
             log.error("AmqpException was thrown trying to declare exchange.");
             throw ae;
@@ -224,7 +235,15 @@ void AmqpConnection::remove_channel(AmqpChannel * channel) {
          itr != channels.end(); itr ++) {
         if (*itr == channel) {
             channels.erase(itr);
-            channel->close();
+            // A try / catch is necessary here because this method is called by
+            // the smart pointer release function, which could be used very
+            // naturually in a destructor of some class.
+            try {
+                channel->close();
+            } catch(const AmqpException & ae) {
+                log.error("AmqpException during channel close, removing anyway.");
+                log.error(ae.what());
+            }
             delete channel;
             break;
         }
@@ -296,12 +315,60 @@ void AmqpChannel::check(const amqp_rpc_reply_t reply,
     }
 }
 
+// void handler(int blah) {
+//     Log log;
+//     for (int i = 0; i < 25; i ++) {
+//         log.error2("Handling Sig Pipe.");
+//     }
+// }
+
+// void handler2(int signal_number, siginfo_t * info, void * context) {
+//     Log log;
+//     log.error("handler 2 was called.");
+// }
+
 void AmqpChannel::close() {
     if (is_open) {
         parent->log.debug("Closing channel #%d", channel_number);
         amqp_connection_state_t conn = parent->get_connection();
-        check(amqp_channel_close(conn, channel_number, AMQP_REPLY_SUCCESS),
-              AmqpException::CLOSE_CHANNEL_FAILED);
+
+        //TODO(tim.simpson): I can't seem to block the SIGPIPE signal no matter
+        // what I do. If I don't, this method crashes the program anytime
+        // rabbit goes down. Right now I'm working around it by changing the
+        // librabbit-c source but it needs to be fixed for real.
+        // Unfortunately (and inexplicably) none of the code below (or other
+        // variations which I haven't checked-in) will do the trick:
+
+        ///* Start ignoring SIGPIPE */
+        //signal(SIGPIPE, SIG_IGN);
+        // struct sigaction action;
+        // memset(&action, 0, sizeof(action));
+        // action.sa_handler = handler; //SIG_IGN;
+        // action.sa_flags = SA_SIGINFO;
+        // action.sa_sigaction = handler2;
+        // //act.sa_mask = 0;
+        // //act.sa_flags = 0;
+        // //sa_restorer = 0
+
+        // parent->log.info("Turning off SIGPIPE.");
+        // if ((sigemptyset(&action.sa_mask) != 0)
+        //     || (sigaction(SIGPIPE, &action, NULL) != 0)) {
+        //     parent->log.error2("Could not avoid SIGPIPE: %s", strerror(errno));
+        // }
+
+        const amqp_rpc_reply_t reply =
+            amqp_channel_close(conn, channel_number, AMQP_REPLY_SUCCESS);
+
+        /* End ignoring of SIGPIPEs */
+        //signal(SIGPIPE, handler);
+        //spa.end();
+        //action.sa_handler = SIG_DFL;
+        // parent->log.info("Turning SIGPIPE back on.");
+        // if (sigaction(SIGPIPE, &action, NULL) != 0) {
+        //     parent->log.error2("Error turning SIGPIPE on: %s", strerror(errno));
+        // }
+
+        check(reply, AmqpException::CLOSE_CHANNEL_FAILED);
         is_open = false;
     }
 }
@@ -331,13 +398,25 @@ void AmqpChannel::bind_queue_to_exchange(const char * queue_name,
 void AmqpChannel::declare_exchange(const char * exchange_name,
                                    const char * type, bool passive) {
     amqp_connection_state_t conn = parent->get_connection();
-    amqp_exchange_declare(conn, channel_number,
-                          amqp_cstring_bytes(exchange_name),
-                          amqp_cstring_bytes(type),
-                          passive ? 1 : 0,
-                          0, /* durable */
-                          AMQP_EMPTY_TABLE);
-    check(amqp_get_rpc_reply(conn), AmqpException::EXCHANGE_DECLARE_FAIL);
+    amqp_exchange_declare_t args;
+    args.exchange = amqp_cstring_bytes(exchange_name);
+    args.type = amqp_cstring_bytes(type);
+    args.passive = passive ? 1 : 0;
+    args.durable = 0;
+    args.auto_delete = 0;
+    args.internal = 0;
+    args.nowait = 0;
+    args.arguments = AMQP_EMPTY_TABLE;
+    amqp_method_number_t number = AMQP_EXCHANGE_DECLARE_OK_METHOD;
+    amqp_rpc_reply_t reply = amqp_simple_rpc(conn, channel_number,
+                                            AMQP_EXCHANGE_DECLARE_METHOD,
+                                            &number,
+                                            &args);
+    check(reply, AmqpException::EXCHANGE_DECLARE_FAIL);
+    if (reply.reply.id != AMQP_EXCHANGE_DECLARE_OK_METHOD) {
+        parent->mark_channel_as_bad(this);
+        throw AmqpException(AmqpException::EXCHANGE_DECLARE_FAIL);
+    }
 }
 
 void AmqpChannel::declare_queue(const char * queue_name, bool passive) {

@@ -203,9 +203,9 @@ void ResilentReceiver::finish_message(const GuestOutput & output) {
 }
 
 GuestInput ResilentReceiver::next_message() {
-    log.info("Waiting for next message...");
     while(true) {
         try {
+            log.info("Waiting for next message...");
             return receiver->next_message();
         } catch(const AmqpException & amqpe) {
             log.error2("Error with AMQP connection! : %s", amqpe.what());

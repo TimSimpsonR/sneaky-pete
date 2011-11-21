@@ -225,6 +225,10 @@ bool FlagValues::apt_use_sudo() const {
     return strncmp(value, "true", 4) == 0;
 }
 
+const char * FlagValues::control_exchange() const {
+    return map->get("control_exchange", "nova");
+}
+
 const char * FlagValues::db_backend() const {
     return map->get("db_backend", "sqlalchemy");
 }

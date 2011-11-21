@@ -29,6 +29,12 @@ hg clone http://hg.rabbitmq.com/rabbitmq-c/
 cd rabbitmq-c
 autoreconf -i
 ./configure
+# Alter librabbitmq/amqp_connection.c, line 416 / 417 to include the flag
+# MSG_NOSIGNAL. I'm having trouble ginoring the SIGPIPE signal in Sneaky-Pete
+# so this is just a temporary kludge.
+# res = send(state->sockfd, out_frame,
+#            out_frame_len + HEADER_SIZE + FOOTER_SIZE, MSG_NOSIGNAL);
+sed -i.bac 's/FOOTER_SIZE, 0);/FOOTER_SIZE, MSG_NOSIGNAL);/g' /home/vagrant/build/rabbitmq-c/librabbitmq/amqp_connection.c
 make
 sudo make install
 

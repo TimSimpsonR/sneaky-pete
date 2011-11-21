@@ -225,6 +225,10 @@ bool FlagValues::apt_use_sudo() const {
     return strncmp(value, "true", 4) == 0;
 }
 
+const char * FlagValues::control_exchange() const {
+    return map->get("control_exchange", "nova");
+}
+
 const char * FlagValues::db_backend() const {
     return map->get("db_backend", "sqlalchemy");
 }
@@ -266,7 +270,7 @@ unsigned long FlagValues::periodic_interval() const {
 }
 
 size_t FlagValues::rabbit_client_memory() const {
-    return get_flag_value(*map, "rabbit_client_memory", (size_t) 2048);
+    return get_flag_value(*map, "rabbit_client_memory", (size_t) 4096);
 }
 
 const char * FlagValues::rabbit_host() const {

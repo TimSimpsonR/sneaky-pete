@@ -2,6 +2,7 @@
 #include "nova/rpc/amqp.h"
 
 #include <boost/format.hpp>
+#include <boost/thread.hpp>
 #include "nova/guest/GuestException.h"
 #include "nova/Log.h"
 #include <string>
@@ -22,7 +23,13 @@ namespace {
     const char * EMPTY_MESSAGE = "{ \"failure\": null, \"result\":null }";
 }
 
-Receiver::Receiver(AmqpConnectionPtr connection, const char * topic)
+
+/**---------------------------------------------------------------------------
+ *- Receiver
+ *---------------------------------------------------------------------------*/
+
+Receiver::Receiver(AmqpConnectionPtr connection, const char * topic,
+                   const char * exchange_name)
 :   connection(connection),
     last_delivery_tag(-1),
     last_msg_id(boost::none),
@@ -46,12 +53,11 @@ Receiver::Receiver(AmqpConnectionPtr connection, const char * topic)
 
     // TODO : Make three extra queues to listen to. :c
     const char * queue_name = topic;
-    const char * exchange_name = "nova";
 
     //MB queue->declare_queue(queue_name);
 
     connection->attempt_declare_queue(queue_name);
-    connection->attempt_declare_exchange(exchange_name, "direct");
+    connection->attempt_declare_exchange(exchange_name, "topic");
 
     //queue->declare_exchange(topic, "direct");  //TODO(tim.simpson): Remove?
     queue->bind_queue_to_exchange(queue_name, exchange_name, queue_name);
@@ -77,10 +83,8 @@ void Receiver::finish_message(const GuestOutput & output) {
     //const char * const queue_name = last_msg_id.c_str();
     const char * const exchange_name = last_msg_id.get().c_str();
     const char * const routing_key = last_msg_id.get().c_str(); //"";
-
     // queue_name, exchange_name, and routing_key are all the same.
     AmqpChannelPtr rtn_ex_channel = connection->new_channel();
-
     string msg;
     if (!output.failure) {
         msg = str(format("{ \"failure\":null, \"result\":%s }")
@@ -95,7 +99,6 @@ void Receiver::finish_message(const GuestOutput & output) {
                          "\"traceback\":\"unavailable\" } }")
                   % JsonData::json_string(output.failure.get().c_str()));
     }
-
     Log log;
     log.info2("Replying with the following: %s", msg.c_str());
     rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
@@ -153,6 +156,88 @@ GuestInput Receiver::next_message() {
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
     }
+}
+
+
+/**---------------------------------------------------------------------------
+ *- ResilentReceiver
+ *---------------------------------------------------------------------------*/
+
+ResilentReceiver::ResilentReceiver(const char * host, int port,
+    const char * userid, const char * password, size_t client_memory,
+    const char * topic, const char * exchange_name,
+    unsigned long reconnect_wait_time)
+: client_memory(client_memory),
+  exchange_name(exchange_name),
+  host(host),
+  log(),
+  password(password),
+  port(port),
+  receiver(0),
+  topic(topic),
+  userid(userid),
+  reconnect_wait_time(reconnect_wait_time)
+{
+    open(false);
+}
+
+ResilentReceiver::~ResilentReceiver() {
+    close();
+}
+
+void ResilentReceiver::close() {
+    receiver.reset(0);
+}
+
+void ResilentReceiver::finish_message(const GuestOutput & output) {
+    while(true) {
+        try {
+            log.info("Finishing message.");
+            receiver->finish_message(output);
+            return;
+        } catch(const AmqpException & amqpe) {
+            log.error2("Error with AMQP connection! : %s", amqpe.what());
+            reset();
+        }
+    }
+}
+
+GuestInput ResilentReceiver::next_message() {
+    log.info("Waiting for next message...");
+    while(true) {
+        try {
+            return receiver->next_message();
+        } catch(const AmqpException & amqpe) {
+            log.error2("Error with AMQP connection! : %s", amqpe.what());
+            reset();
+        }
+    }
+}
+
+void ResilentReceiver::open(bool wait_first) {
+    while(receiver.get() == 0) {
+        try {
+            if (wait_first) {
+                log.info("Waiting to create fresh AMQP connection...");
+                boost::posix_time::seconds time(reconnect_wait_time);
+                boost::this_thread::sleep(time);
+            }
+            AmqpConnectionPtr connection =
+                AmqpConnection::create(host.c_str(), port, userid.c_str(),
+                    password.c_str(), client_memory);
+            receiver.reset(new Receiver(connection, topic.c_str(),
+                                        exchange_name.c_str()));
+            return;
+        } catch(const AmqpException & amqpe) {
+            log.error2("Error establishing AMQP connection: %s", amqpe.what());
+            wait_first = true;
+        }
+    }
+}
+
+void ResilentReceiver::reset() {
+    close();
+    open(true);
 }
 
 } }  // end namespace

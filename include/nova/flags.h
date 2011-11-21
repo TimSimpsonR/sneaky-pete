@@ -91,6 +91,8 @@ class FlagValues {
 
         bool apt_use_sudo() const;
 
+        const char * control_exchange() const;
+
         const char * db_backend() const;
 
         const char * guest_ethernet_device() const;

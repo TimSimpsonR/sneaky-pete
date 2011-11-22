@@ -49,3 +49,19 @@ BOOST_AUTO_TEST_CASE(accessing_missing_value)
                     KEY_NOT_FOUND);
 }
 
+BOOST_AUTO_TEST_CASE(adding_an_identical_value_twice_is_ok)
+{
+    FlagMapPtr flags(new FlagMap());
+    for (int i = 0; i < 3; i ++) {
+        flags->add_from_arg("--dinosaur=t-rex");
+        BOOST_CHECK_EQUAL(flags->get("dinosaur"), "t-rex");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(adding_the_same_key_with_a_different_value_is_not)
+{
+    FlagMapPtr flags(new FlagMap());
+    flags->add_from_arg("--dinosaur=t-rex");
+    CHECK_EXCEPTION({ flags->add_from_arg("--dinosaur=raptor"); },
+                    DUPLICATE_FLAG_VALUE);
+}

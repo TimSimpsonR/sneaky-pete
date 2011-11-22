@@ -132,7 +132,9 @@ void MySqlNovaUpdater::update_status(MySqlNovaUpdater::Status status) {
     string instance_id = str(format("%d") % get_guest_instance_id());
     const char * description = status_name(status);
     string state = str(format("%d") % ((int)status));
-
+    Log log;
+    log.info2("Updating MySQL app status to %d (%s).", ((int)status),
+              description);
     MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(
         "UPDATE guest_status SET state_description=?, state=? "
         "WHERE instance_id=?;");

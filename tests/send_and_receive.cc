@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
         flags.rabbit_host(), flags.rabbit_port(), flags.rabbit_userid(),
         flags.rabbit_password(), flags.rabbit_client_memory());
     CHECK_POINT();
-    Receiver receiver(connection, TOPIC);
+    Receiver receiver(connection, TOPIC, "nova");
     CHECK_POINT();
     log.info("TEST - Created receiver");
     CHECK_POINT();

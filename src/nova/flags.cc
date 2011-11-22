@@ -101,7 +101,7 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
             add_from_file(value.c_str());
         }
         map[name] = value;
-    } else {
+    } else if (map[name] != value) {
         throw FlagException(FlagException::DUPLICATE_FLAG_VALUE, line.c_str());
     }
 }

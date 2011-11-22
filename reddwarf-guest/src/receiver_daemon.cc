@@ -90,8 +90,8 @@ public:
     }
 
     void loop(unsigned long periodic_interval, unsigned long report_interval) {
-        unsigned long next_periodic_task = 0;
-        unsigned long next_reporting = 0;
+        unsigned long next_periodic_task = periodic_interval;
+        unsigned long next_reporting = report_interval;
         while(!quit) {
             unsigned long wait_time = next_periodic_task < next_reporting ?
                 next_periodic_task : next_reporting;
@@ -122,7 +122,7 @@ public:
                 updater->update_status(status);
             END_THREAD_TASK("periodic_tasks()");
         } else {
-            log.info(".. actually, not doing that because prepare is running.");
+            log.info("...actually, not doing that because prepare is running.");
         }
     }
 

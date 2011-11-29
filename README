@@ -123,9 +123,9 @@ because the agent will never install.
 However, during the time out phase you can manually install a statically linked
 debug version of Sneaky Pete into the instance and run it. Here's how:
 
-1. Wait for an instance to be created. You can all of the reddwarf integration
-tests by running "/vagrant/reddwarf-ci tests" (remember that this is in the
-Reddwarf VM environment) or just create a container by executing
+1. Wait for an instance to be created. You can run all of the Reddwarf
+integration tests by running "/vagrant/reddwarf-ci tests" (remember that this
+is in the Reddwarf VM environment) or just create a container by executing
 "/vagrant/reddwarf-ci tests --group=dbaas.guest.initialize".
 
 2. When the OpenVZ container is created, copy this entire directory (the one

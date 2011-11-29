@@ -19,6 +19,7 @@ using nova::db::mysql::MySqlConnectionPtr;
 using nova::guest::mysql::MySqlGuestException;
 using nova::db::mysql::MySqlPreparedStatementPtr;
 using nova::db::mysql::MySqlResultSetPtr;
+using nova::guest::utils::IsoDateTime;
 using nova::guest::utils::IsoTime;
 using boost::optional;
 using nova::Process;
@@ -136,11 +137,13 @@ void MySqlNovaUpdater::update_status(MySqlNovaUpdater::Status status) {
     log.info2("Updating MySQL app status to %d (%s).", ((int)status),
               description);
     MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(
-        "UPDATE guest_status SET state_description=?, state=? "
+        "UPDATE guest_status SET state_description=?, state=?, updated_at=? "
         "WHERE instance_id=?;");
+    IsoDateTime now;
     stmt->set_string(0, description);
     stmt->set_string(1, state.c_str());
-    stmt->set_string(2, instance_id.c_str());
+    stmt->set_string(2, now.c_str());
+    stmt->set_string(3, instance_id.c_str());
     MySqlResultSetPtr result = stmt->execute(0);
 }
 

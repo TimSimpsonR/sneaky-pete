@@ -653,8 +653,6 @@ void MySqlConnection::init() {
 
     if (use_mycnf) {
         get_username_and_password_from_config_file(user, password);
-        log.info2("Got the following from my.cnf: %s, %s",
-                  user.c_str(), password.c_str());
     }
 
     con = mysql_init(NULL);

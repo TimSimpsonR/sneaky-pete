@@ -100,7 +100,15 @@ void Receiver::finish_message(const GuestOutput & output) {
                   % JsonData::json_string(output.failure.get().c_str()));
     }
     Log log;
-    log.info2("Replying with the following: %s", msg.c_str());
+    if (msg.find("password") == string::npos) {
+            log.info2("Replying with the following: %s", msg.c_str());
+    } else {
+        log.info2("Replying to message...");
+        #ifdef _DEBUG
+            log.info2("(DEBUG) Replying with the following: %s", msg.c_str());
+        #endif
+    }
+
     rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
 
     // This is like telling Nova "roger."
@@ -121,8 +129,14 @@ JsonObjectPtr Receiver::_next_message() {
         << ", key " << msg->routing_key
         << ", tag " << msg->delivery_tag
         << ", ex " << msg->exchange
-        << ", content_type " << msg->content_type
-        << ", message " << msg->message;
+        << ", content_type " << msg->content_type;
+    if (msg->message.find("password") == string::npos) {
+        log_msg << ", message " << msg->message;
+    } else {
+        #ifdef _DEBUG
+            log_msg << ", (DEBUG) message " << msg->message;
+        #endif
+    }
     log.info(log_msg.str());
     JsonObjectPtr json_obj(new JsonObject(msg->message.c_str()));
 

@@ -226,7 +226,6 @@ int main(int argc, char* argv[]) {
         while(!quit) {
             GuestInput input = receiver.next_message();
             log.info2("method=%s", input.method_name.c_str());
-            log.info2("args=%s", input.args->to_string());
 
             GuestOutput output;
 

@@ -63,24 +63,22 @@ static bool quit;
 class PeriodicTasker {
 
 private:
-    string guest_ethernet_device;
     Log log;
     JsonObject message;
     MySqlConnectionPtr nova_db;
     string nova_db_name;
-    bool periodically_update_sql_status;
     NewService service_key;
+    MySqlNovaUpdaterPtr status_updater;
 
 public:
     PeriodicTasker(MySqlConnectionPtr nova_db, string nova_db_name,
-                   string guest_ethernet_device, NewService service_key)
-      : guest_ethernet_device(guest_ethernet_device),
-        log(),
+                   MySqlNovaUpdaterPtr status_updater, NewService service_key)
+      : log(),
         message(PERIODIC_MESSAGE),
         nova_db(nova_db),
         nova_db_name(nova_db_name),
-        periodically_update_sql_status(true),
-        service_key(service_key)
+        service_key(service_key),
+        status_updater(status_updater)
     {
     }
 
@@ -113,17 +111,10 @@ public:
     }
 
     void periodic_tasks() {
-        log.info("Running periodic tasks...");
-        if (periodically_update_sql_status) {
-            START_THREAD_TASK();
-                ensure_db();
-                MySqlNovaUpdaterPtr updater = sql_updater();
-                MySqlNovaUpdater::Status status = updater->get_local_db_status();
-                updater->update_status(status);
-            END_THREAD_TASK("periodic_tasks()");
-        } else {
-            log.info("...actually, not doing that because prepare is running.");
-        }
+        START_THREAD_TASK();
+            log.info("Running periodic tasks...");
+            status_updater->update();
+        END_THREAD_TASK("periodic_tasks()");
     }
 
     void report_state() {
@@ -134,16 +125,6 @@ public:
             service->report_count ++;
             api->service_update(*service);
         END_THREAD_TASK("report_state()");
-    }
-
-    void set_periodically_update_sql_status(bool value) {
-        this->periodically_update_sql_status = value;
-    }
-
-    MySqlNovaUpdaterPtr sql_updater() const {
-        MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
-            nova_db, guest_ethernet_device.c_str()));
-        return ptr;
     }
 };
 
@@ -158,6 +139,9 @@ AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
 int main(int argc, char* argv[]) {
     quit = false;
     Log log;
+
+    // Initialize MySQL libraries. This should be done before spawning threads.
+    MySqlConnection::start_up();
 
 #ifndef _DEBUG
 
@@ -181,14 +165,15 @@ int main(int argc, char* argv[]) {
         AptGuest apt_worker(flags.apt_use_sudo());
         handlers[0].reset(new AptMessageHandler(&apt_worker));
 
+        /* Create MySQL updater. */
+        MySqlNovaUpdaterPtr mysql_status_updater(new MySqlNovaUpdater(
+            nova_db, flags.nova_sql_database(),
+            flags.guest_ethernet_device()));
+
         /* Create MySQL Guest. */
         MySqlMessageHandlerConfig mysql_config;
         mysql_config.apt = &apt_worker;
-        mysql_config.guest_ethernet_device = flags.guest_ethernet_device();
-        mysql_config.nova_db_host = flags.nova_sql_host();
-        mysql_config.nova_db_name = flags.nova_sql_database();
-        mysql_config.nova_db_password = flags.nova_sql_password();
-        mysql_config.nova_db_user = flags.nova_sql_user();
+        mysql_config.sql_updater = mysql_status_updater;
         handlers[1].reset(new MySqlMessageHandler(mysql_config));
 
         /* Set host value. */
@@ -202,13 +187,11 @@ int main(int argc, char* argv[]) {
         service_key.host = host;
         service_key.topic = "guest";  // Real nova takes binary after "nova-".
         PeriodicTasker tasker(nova_db, flags.nova_sql_database(),
-                              flags.guest_ethernet_device(), service_key);
-
+                              mysql_status_updater, service_key);
 
         /* Create AMQP connection. */
         string topic = "guest.";
         topic += nova::guest::utils::get_host_name();
-
 
         quit = false;
 
@@ -229,9 +212,6 @@ int main(int argc, char* argv[]) {
 
             GuestOutput output;
 
-            if (input.method_name == "prepare") {
-                tasker.set_periodically_update_sql_status(false);
-            }
             #ifdef CATCH_RPC_METHOD_ERRORS
             try {
             #endif
@@ -251,9 +231,7 @@ int main(int argc, char* argv[]) {
                 output.failure = e.what();
             }
             #endif
-            if (input.method_name == "prepare") {
-                tasker.set_periodically_update_sql_status(true);
-            }
+
             receiver.finish_message(output);
         }
 #ifndef _DEBUG
@@ -261,5 +239,7 @@ int main(int argc, char* argv[]) {
         log.error2("Error: %s", e.what());
     }
 #endif
+
+    MySqlConnection::shut_down();
     return 0;
 }

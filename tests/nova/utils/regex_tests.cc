@@ -2,6 +2,7 @@
 #include <boost/test/unit_test.hpp>
 
 
+#include <iostream>
 #include "nova/utils/regex.h"
 
 using std::endl;
@@ -78,4 +79,16 @@ BOOST_AUTO_TEST_CASE(match_within_many_lines) {
     BOOST_REQUIRE_EQUAL(true, !!matches);
     BOOST_CHECK_EQUAL(matches->get(0), "Setting up figlet ");
     BOOST_CHECK_EQUAL(matches->get(1), "figlet");
+}
+
+BOOST_AUTO_TEST_CASE(sql_pid_file)
+{
+    Regex regex("--pid-file=([a-z0-9A-Z/]+\\.pid)"); //([\\w/]+\\.pid)");
+    RegexMatchesPtr matches = regex.match("user=mysql "
+        "--pid-file=/var/run/mysqld/mysqld.pid "
+        "--socket=/var/run/mysqld/mysqld.sock");
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    std::cout << "0=" << matches->get(0) << std::endl;
+    std::cout << "1=" << matches->get(1) << std::endl;
+
 }

@@ -336,7 +336,8 @@ unit u_nova_guest_mysql_MySqlAdmin
 
 unit u_nova_guest_mysql_MySqlNovaUpdater
     :   src/nova/guest/mysql/MySqlNovaUpdater.cc
-    :   u_nova_db_mysql
+    :   lib_boost_thread
+        u_nova_db_mysql
         u_nova_utils_io
         u_nova_process
         u_nova_guest_utils
@@ -433,6 +434,19 @@ unit-test int_tests_mysql
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
 explicit int_tests_mysql ;
+
+
+unit-test mysql_nova_updater_tests
+    :   lib_boost_thread
+        u_nova_flags
+        u_nova_guest_mysql_MySqlGuestException
+        u_nova_guest_mysql_MySqlNovaUpdater
+        test_dependencies
+        tests/nova/guest/mysql/MySqlNovaUpdater_tests.cc
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
+    ;
+explicit api_tests ;
 
 
 unit-test api_tests

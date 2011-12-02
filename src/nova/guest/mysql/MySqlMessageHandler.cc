@@ -178,15 +178,14 @@ namespace {
     JSON_METHOD(prepare) {
         log.info("Prepare was called.");
         log.info("Updating status to BUILDING...");
-        {
-            MySqlNovaUpdaterPtr updater = guest->sql_updater();
-            updater->update_status(MySqlNovaUpdater::BUILDING);
-        }
+        guest->sql_updater()->begin_mysql_install();
         log.info("Calling prepare...");
         {
             MySqlPreparerPtr preparer = guest->sql_preparer();
             preparer->prepare();
         }
+        guest->sql_updater()->mark_mysql_as_installed();
+
         // The argument signature is the same as create_database so just
         // forward the method.
         log.info("Creating initial databases following successful prepare");
@@ -250,14 +249,7 @@ MySqlPreparerPtr MySqlMessageHandler::sql_preparer() const {
 }
 
 MySqlNovaUpdaterPtr MySqlMessageHandler::sql_updater() const {
-    MySqlConnectionPtr nova_db(new MySqlConnection(
-        config.nova_db_host.c_str(),
-        config.nova_db_user.c_str(),
-        config.nova_db_password.c_str()));
-    nova_db->use_database(config.nova_db_name.c_str());
-    MySqlNovaUpdaterPtr ptr(new MySqlNovaUpdater(
-        nova_db, config.guest_ethernet_device.c_str()));
-    return ptr;
+    return config.sql_updater;
 }
 
 } } } // end namespace

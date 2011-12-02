@@ -23,7 +23,6 @@ namespace nova { namespace db { namespace mysql {
                 FIELD_INDEX_OUT_OF_BOUNDS,
                 GENERAL,
                 GET_QUERY_RESULT_FAILED,
-                GUEST_INSTANCE_ID_NOT_FOUND,
                 MY_CNF_FILE_NOT_FOUND,
                 NEXT_FETCH_FAILED,
                 NO_PASSWORD_FOR_CREATE_USER,

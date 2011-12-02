@@ -13,11 +13,7 @@ namespace nova { namespace guest { namespace mysql {
 
     struct MySqlMessageHandlerConfig {
         nova::guest::apt::AptGuest * apt;
-        std::string guest_ethernet_device;
-        std::string nova_db_name;
-        std::string nova_db_host;
-        std::string nova_db_user;
-        std::string nova_db_password;
+        nova::guest::mysql::MySqlNovaUpdaterPtr sql_updater;
     };
 
 

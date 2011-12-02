@@ -185,8 +185,6 @@ const char *  MySqlException::code_to_string(Code code) {
             return "Query result field index out of bounds.";
         case GET_QUERY_RESULT_FAILED:
             return "Failed to get the result of the query.";
-        case GUEST_INSTANCE_ID_NOT_FOUND:
-            return "Guest instance ID not found.";
         case MY_CNF_FILE_NOT_FOUND:
             return "my.cnf file not found.";
         case NEXT_FETCH_FAILED:

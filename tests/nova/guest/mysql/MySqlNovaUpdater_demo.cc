@@ -37,6 +37,6 @@ int main(int argc, char* argv[]) {
     updater.update_status(MySqlNovaUpdater::CRASHED);
 
     cout << "Current status of local db is "
-         << updater.status_name(updater.get_local_db_status()) << "." << endl;
+         << updater.status_name(updater.get_actual_db_status()) << "." << endl;
 
 }

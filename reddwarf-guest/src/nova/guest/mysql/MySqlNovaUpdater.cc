@@ -46,19 +46,17 @@ bool MySqlNovaUpdaterContext::is_file(const char * file_path) const {
     return io::is_file(file_path);
 }
 
-boost::optional<int> MySqlNovaUpdaterContext::preset_instance_id() const {
-    return boost::none;
-}
-
 MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionPtr nova_db_connection,
                                    const char * nova_db_name,
                                    const char * guest_ethernet_device,
+                                   boost::optional<int> preset_instance_id,
                                    MySqlNovaUpdaterContext * context)
 : context(context),
   guest_ethernet_device(guest_ethernet_device),
   nova_db(nova_db_connection),
   nova_db_name(nova_db_name),
   nova_db_mutex(),
+  preset_instance_id(preset_instance_id),
   status(boost::none)
 {
     ensure_db();
@@ -133,8 +131,8 @@ MySqlNovaUpdater::Status MySqlNovaUpdater::get_actual_db_status() const {
 }
 
 int MySqlNovaUpdater::get_guest_instance_id() {
-    if (context->preset_instance_id()) {
-        return context->preset_instance_id().get();
+    if (preset_instance_id) {
+        return preset_instance_id.get();
     }
     Log log;
     string address = utils::get_ipv4_address(guest_ethernet_device.c_str());

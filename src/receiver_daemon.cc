@@ -168,7 +168,8 @@ int main(int argc, char* argv[]) {
         /* Create MySQL updater. */
         MySqlNovaUpdaterPtr mysql_status_updater(new MySqlNovaUpdater(
             nova_db, flags.nova_sql_database(),
-            flags.guest_ethernet_device()));
+            flags.guest_ethernet_device(),
+            flags.preset_instance_id()));
 
         /* Create MySQL Guest. */
         MySqlMessageHandlerConfig mysql_config;

@@ -75,9 +75,6 @@ struct MySqlNovaUpdaterDefaultTestContext
         return false;
     }
 
-    virtual boost::optional<int> preset_instance_id() const {
-        return optional<int>(-255);
-    }
 };
 
 
@@ -93,6 +90,7 @@ struct MySqlNovaUpdaterTestsFixture {
             flags.nova_sql_user(), flags.nova_sql_password())),
         updater(nova_db, flags.nova_sql_database(),
                 flags.guest_ethernet_device(),
+                optional<int>(-255),
                 new MySqlNovaUpdaterDefaultTestContext())
     {
         id = updater.get_guest_instance_id();

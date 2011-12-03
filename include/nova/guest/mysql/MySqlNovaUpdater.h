@@ -18,7 +18,6 @@ namespace nova { namespace guest { namespace mysql {
         virtual void execute(std::stringstream & out,
                              const std::list<const char *> & cmds) const;
         virtual bool is_file(const char * file_path) const;
-        virtual boost::optional<int> preset_instance_id() const;
     };
 
     /* Updates the Nova infastructure database with the status of the
@@ -29,6 +28,7 @@ namespace nova { namespace guest { namespace mysql {
      */
     class MySqlNovaUpdater {
         friend class MySqlNovaUpdaterTestsFixture;
+
         public:
             /* NOTE: These *MUST* match the values found in
              * nova.compute.power_state! */
@@ -44,6 +44,8 @@ namespace nova { namespace guest { namespace mysql {
             MySqlNovaUpdater(nova::db::mysql::MySqlConnectionPtr nova_db,
                              const char * nova_db_name,
                              const char * guest_ethernet_device,
+                             boost::optional<int> preset_instance_id
+                                 = boost::none,
                              MySqlNovaUpdaterContext * context
                                  = new MySqlNovaUpdaterContext());
 
@@ -94,6 +96,8 @@ namespace nova { namespace guest { namespace mysql {
             std::string nova_db_name;
 
             boost::mutex nova_db_mutex;
+
+            boost::optional<int> preset_instance_id;
 
             boost::optional<Status> status;
     };

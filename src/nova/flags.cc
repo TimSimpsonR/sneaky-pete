@@ -197,16 +197,21 @@ void FlagMap::get_sql_connection(string & host, string & user,
 }
 
 template<typename T>
-T get_flag_value(FlagMap & map, const char * name, T default_value) {
+optional<T> get_flag_value(FlagMap & map, const char * name) {
     const char * value = map.get(name, false);
     if (value == 0) {
-        return default_value;
+        return boost::none;
     }
     try {
-        return boost::lexical_cast<T>(value);
+        return optional<T>( boost::lexical_cast<T>(value) );
     } catch(const boost::bad_lexical_cast & blc) {
         throw FlagException(FlagException::INVALID_FORMAT, value);
     }
+}
+
+template<typename T>
+T get_flag_value(FlagMap & map, const char * name, T default_value) {
+    return get_flag_value<T>(map, name).get_value_or(default_value);
 }
 
 /**---------------------------------------------------------------------------
@@ -267,6 +272,10 @@ const char * FlagValues::nova_sql_user() const {
 
 unsigned long FlagValues::periodic_interval() const {
     return get_flag_value(*map, "periodic_interval", (unsigned long) 60);
+}
+
+optional<int> FlagValues::preset_instance_id() const {
+    return get_flag_value<int>(*map, "preset_instance_id");
 }
 
 size_t FlagValues::rabbit_client_memory() const {

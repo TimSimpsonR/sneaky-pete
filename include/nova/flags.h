@@ -111,6 +111,8 @@ class FlagValues {
 
         unsigned long periodic_interval() const;
 
+        boost::optional<int> preset_instance_id() const;
+
         size_t rabbit_client_memory() const;
 
         const char * rabbit_host() const;

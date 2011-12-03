@@ -507,6 +507,7 @@ exe MySqlNovaUpdater_demo
     :   u_nova_guest_utils
         u_nova_flags
         u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlGuestException
         tests/nova/guest/mysql/MySqlNovaUpdater_demo.cc
     :   <linkflags>"-pthread "
     ;

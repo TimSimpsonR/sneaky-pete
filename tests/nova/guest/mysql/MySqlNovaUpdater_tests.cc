@@ -90,6 +90,7 @@ struct MySqlNovaUpdaterTestsFixture {
             flags.nova_sql_user(), flags.nova_sql_password())),
         updater(nova_db, flags.nova_sql_database(),
                 flags.guest_ethernet_device(),
+                flags.nova_sql_reconnect_wait_time(),
                 optional<int>(-255),
                 new MySqlNovaUpdaterDefaultTestContext())
     {

@@ -169,6 +169,7 @@ int main(int argc, char* argv[]) {
         MySqlNovaUpdaterPtr mysql_status_updater(new MySqlNovaUpdater(
             nova_db, flags.nova_sql_database(),
             flags.guest_ethernet_device(),
+            flags.nova_db_reconnect_wait_time(),
             flags.preset_instance_id()));
 
         /* Create MySQL Guest. */

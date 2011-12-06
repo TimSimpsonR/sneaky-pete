@@ -254,6 +254,12 @@ const char * FlagValues::node_availability_zone() const {
     return map->get("node_availability_zone", "nova");
 }
 
+
+unsigned long FlagValues::nova_db_reconnect_wait_time() const {
+    return get_flag_value(*map, "nova_db_reconnect_wait_time",
+                          (unsigned long) 30);
+}
+
 const char * FlagValues::nova_sql_database() const {
     return _nova_sql_database.c_str();
 }
@@ -264,6 +270,11 @@ const char * FlagValues::nova_sql_host() const {
 
 const char * FlagValues::nova_sql_password() const {
     return _nova_sql_password.c_str();
+}
+
+unsigned long FlagValues::nova_sql_reconnect_wait_time() const {
+    return get_flag_value(*map, "nova_sql_reconnect_wait_time",
+                          (unsigned long) 30);
 }
 
 const char * FlagValues::nova_sql_user() const {

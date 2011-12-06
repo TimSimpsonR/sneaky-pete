@@ -101,11 +101,15 @@ class FlagValues {
 
         const char * node_availability_zone() const;
 
+        unsigned long nova_db_reconnect_wait_time() const;
+
         const char * nova_sql_database() const;
 
         const char * nova_sql_host() const;
 
         const char * nova_sql_password() const;
+
+        unsigned long nova_sql_reconnect_wait_time() const;
 
         const char * nova_sql_user() const;
 

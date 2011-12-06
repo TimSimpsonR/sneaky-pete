@@ -6,10 +6,12 @@
 #include <boost/assign/list_of.hpp>
 #include <boost/thread/locks.hpp>
 #include "nova/Log.h"
+#include <nova/db/mysql.h>
 #include "nova/guest/mysql/MySqlGuestException.h"
 #include <boost/optional.hpp>
 #include "nova/process.h"
 #include "nova/utils/regex.h"
+#include <boost/thread.hpp>
 #include "nova/guest/utils.h"
 #include <string>
 
@@ -17,6 +19,7 @@ using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
 using nova::db::mysql::MySqlConnection;
 using nova::db::mysql::MySqlConnectionPtr;
+using nova::db::mysql::MySqlException;
 using nova::guest::mysql::MySqlGuestException;
 using nova::db::mysql::MySqlPreparedStatementPtr;
 using nova::db::mysql::MySqlResultSetPtr;
@@ -49,6 +52,7 @@ bool MySqlNovaUpdaterContext::is_file(const char * file_path) const {
 MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionPtr nova_db_connection,
                                    const char * nova_db_name,
                                    const char * guest_ethernet_device,
+                                   unsigned long nova_db_reconnect_wait_time,
                                    boost::optional<int> preset_instance_id,
                                    MySqlNovaUpdaterContext * context)
 : context(context),
@@ -56,11 +60,20 @@ MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionPtr nova_db_connection,
   nova_db(nova_db_connection),
   nova_db_name(nova_db_name),
   nova_db_mutex(),
+  nova_db_reconnect_wait_time(nova_db_reconnect_wait_time),
   preset_instance_id(preset_instance_id),
   status(boost::none)
 {
-    ensure_db();
-    status = get_status_from_nova_db();
+    struct F : MySqlNovaUpdaterFunctor {
+        MySqlNovaUpdater * updater;
+
+        virtual void operator()() {
+            updater->status = updater->get_status_from_nova_db();
+        }
+    };
+    F f;
+    f.updater = this;
+    repeatedly_attempt_mysql_method(f);
 }
 
 void MySqlNovaUpdater::begin_mysql_install() {
@@ -169,14 +182,47 @@ optional<MySqlNovaUpdater::Status> MySqlNovaUpdater::get_status_from_nova_db() {
 
 void MySqlNovaUpdater::mark_mysql_as_installed() {
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
-    ensure_db();
 
-    Status status = get_actual_db_status();
-    set_status(status);
+    struct F : MySqlNovaUpdaterFunctor {
+        Status status;
+        MySqlNovaUpdater * updater;
+
+        virtual void operator()() {
+            updater->set_status(status);
+        }
+    };
+    F f;
+    f.status = get_actual_db_status();
+    f.updater = this;
+    // f->updater = this;
+    // f->status = get_actual_db_status();
+    repeatedly_attempt_mysql_method(f);
 }
 
 bool MySqlNovaUpdater::mysql_is_installed() {
     return (status && status.get() != BUILDING && status.get() != FAILED);
+}
+
+void MySqlNovaUpdater::repeatedly_attempt_mysql_method(
+    MySqlNovaUpdaterFunctor & f)
+{
+    Log log;
+    bool success = false;
+    while(!success){
+        try {
+            this->ensure_db();
+            f();
+            success = true;
+        } catch(const MySqlException & mse) {
+            log.error2("Error communicating to Nova database: %s", mse.what());
+            log.error2("Waiting %lu seconds to try again...",
+                       nova_db_reconnect_wait_time);
+            success = false;
+            boost::posix_time::seconds time(nova_db_reconnect_wait_time);
+            boost::this_thread::sleep(time);
+            log.error("... trying again.");
+        }
+    }
 }
 
 void MySqlNovaUpdater::set_status(MySqlNovaUpdater::Status status) {

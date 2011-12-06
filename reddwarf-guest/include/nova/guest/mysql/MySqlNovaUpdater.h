@@ -29,6 +29,10 @@ namespace nova { namespace guest { namespace mysql {
     class MySqlNovaUpdater {
         friend class MySqlNovaUpdaterTestsFixture;
 
+        struct MySqlNovaUpdaterFunctor {
+            virtual void operator()() = 0;
+        };
+
         public:
             /* NOTE: These *MUST* match the values found in
              * nova.compute.power_state! */
@@ -44,6 +48,7 @@ namespace nova { namespace guest { namespace mysql {
             MySqlNovaUpdater(nova::db::mysql::MySqlConnectionPtr nova_db,
                              const char * nova_db_name,
                              const char * guest_ethernet_device,
+                             unsigned long nova_db_reconnect_wait_time,
                              boost::optional<int> preset_instance_id
                                  = boost::none,
                              MySqlNovaUpdaterContext * context
@@ -75,6 +80,10 @@ namespace nova { namespace guest { namespace mysql {
             /** Determines the ID of this instance in the Nova DB. */
             int get_guest_instance_id();
 
+            /** Executes the method. Retries if there is a MySQL error
+             *  (indefinitely). */
+            void repeatedly_attempt_mysql_method(MySqlNovaUpdaterFunctor & f);
+
             /** Changes the status of the MySQL app in the Nova DB. */
             void set_status(Status status);
 
@@ -96,6 +105,8 @@ namespace nova { namespace guest { namespace mysql {
             std::string nova_db_name;
 
             boost::mutex nova_db_mutex;
+
+            unsigned long nova_db_reconnect_wait_time;
 
             boost::optional<int> preset_instance_id;
 

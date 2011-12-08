@@ -29,7 +29,6 @@ class Timer {
 
     private:
         timer_t id;
-        Log log;
 };
 
 

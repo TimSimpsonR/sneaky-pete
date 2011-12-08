@@ -217,7 +217,7 @@ unit u_nova_configfile
 unit u_nova_utils_io
     :   src/nova/utils/io.cc
     :   lib_rt
-        u_nova_Log
+        u_nova_Log_limited  # The full version has a dependency on this module.
     ;
 
 unit u_nova_json
@@ -226,10 +226,17 @@ unit u_nova_json
     : tests/nova/json_tests.cc
     ;
 
-unit u_nova_Log
+obj u_nova_Log_limited
     : src/nova/Log.cc
-    :
+    ;
+
+unit u_nova_Log
+    : u_nova_Log_limited
+      src/nova/Log_rotate_files.cc
+    : u_nova_guest_utils
+      u_nova_utils_io
     : tests/log_tests.cc
+      u_nova_utils_regex
     ;
 
 unit u_nova_db_mysql

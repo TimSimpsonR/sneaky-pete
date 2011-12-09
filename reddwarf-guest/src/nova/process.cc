@@ -20,10 +20,10 @@
 
 // Be careful with this Macro, as it comments out the entire line.
 #ifdef _NOVA_PROCESS_VERBOSE
-#define LOG_DEBUG(a) log.info2(a)
-#define LOG_DEBUG2(a, b) log.info2(a, b)
-#define LOG_DEBUG3(a, b, c) log.info2(a, b, c)
-#define LOG_DEBUG8(a, b, c, d, e, f, g, h) log.info2(a, b, c, d, e, f, g, h)
+#define LOG_DEBUG(a) NOVA_LOG_DEBUG(a)
+#define LOG_DEBUG2(a, b) NOVA_LOG_DEBUG2(a, b)
+#define LOG_DEBUG3(a, b, c) NOVA_LOG_DEBUG2(a, b, c)
+#define LOG_DEBUG8(a, b, c, d, e, f, g, h) NOVA_LOG_DEBUG2(a, b, c, d, e, f, g, h)
 #else
 #define LOG_DEBUG(a) /* log.debug(a) */
 #define LOG_DEBUG2(a, b) /* log.debug(a, b) */
@@ -46,18 +46,18 @@ bool time_out_occurred;
 
 namespace {
 
-    inline void checkGE0(Log & log, const int return_code,
+    inline void checkGE0(const int return_code,
                          ProcessException::Code code = ProcessException::GENERAL) {
         if (return_code < 0) {
-            log.error2("System error : %s", strerror(errno));
+            NOVA_LOG_ERROR2("System error : %s", strerror(errno));
             throw ProcessException(code);
         }
     }
 
-    inline void checkEqual0(Log & log, const int return_code,
+    inline void checkEqual0(const int return_code,
                             ProcessException::Code code = ProcessException::GENERAL) {
         if (return_code != 0) {
-            log.error2("System error : %s", strerror(errno));
+            NOVA_LOG_ERROR2("System error : %s", strerror(errno));
             throw ProcessException(code);
         }
     }
@@ -96,25 +96,25 @@ const char * ProcessException::what() const throw() {
  *---------------------------------------------------------------------------*/
 
 Process::Process(const CommandList & cmds, bool wait_for_close)
-: argv(argv), eof_flag(false), log(), success(false),
+: argv(argv), eof_flag(false), success(false),
   wait_for_close(wait_for_close)
 {
      // Remember 0 is for reading, 1 is for writing.
-    checkGE0(log, pipe(std_out_fd) < 0);
-    checkGE0(log, pipe(std_in_fd) < 0);
+    checkGE0(pipe(std_out_fd) < 0);
+    checkGE0(pipe(std_in_fd) < 0);
 
     posix_spawn_file_actions_t file_actions;
-    checkEqual0(log, posix_spawn_file_actions_init(&file_actions));
+    checkEqual0(posix_spawn_file_actions_init(&file_actions));
     // Redirect process stdout / in to the pipes.
-    checkEqual0(log, posix_spawn_file_actions_adddup2(&file_actions,
+    checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
         std_in_fd[0], STDIN_FILENO));
-    checkEqual0(log, posix_spawn_file_actions_adddup2(&file_actions,
+    checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
         std_out_fd[1], STDOUT_FILENO));
-    checkEqual0(log, posix_spawn_file_actions_adddup2(&file_actions,
+    checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
         std_out_fd[1], STDERR_FILENO));
-    checkEqual0(log, posix_spawn_file_actions_addclose(&file_actions,
+    checkEqual0(posix_spawn_file_actions_addclose(&file_actions,
         std_in_fd[1]));
-    checkEqual0(log, posix_spawn_file_actions_addclose(&file_actions,
+    checkEqual0(posix_spawn_file_actions_addclose(&file_actions,
         std_out_fd[0]));
 
     if (cmds.size() < 1) {
@@ -140,8 +140,8 @@ Process::Process(const CommandList & cmds, bool wait_for_close)
     posix_spawn_file_actions_destroy(&file_actions);
 
     // Close file descriptors on parent side.
-    checkEqual0(log, close(std_in_fd[0]));
-    checkEqual0(log, close(std_out_fd[1]));
+    checkEqual0(close(std_in_fd[0]));
+    checkEqual0(close(std_out_fd[1]));
 
     if (status != 0) {
         throw ProcessException(ProcessException::SPAWN_FAILURE);
@@ -198,7 +198,7 @@ size_t Process::read_into(stringstream & std_out, const optional<double> seconds
         LOG_DEBUG("read_into: ready returned false, returning zero from read_into");
         return 0;
     }
-    size_t count = io::read_with_throw(log, std_out_fd[0], buf, 1047);
+    size_t count = io::read_with_throw(std_out_fd[0], buf, 1047);
     if (count == 0) {
         LOG_DEBUG("read returned 0, EOF");
         set_eof();
@@ -251,7 +251,6 @@ void Process::set_eof() {
         while(((child_pid = waitpid(pid, &status, options)) == -1)
               && (errno == EINTR));
         #ifdef _NOVA_PROCESS_VERBOSE
-            Log log;
             LOG_DEBUG8("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
                       "WIFEXITED=%d, WEXITSTATUS=%d, "
                       "WIFSIGNALED=%d, WIFSTOPPED=%d",
@@ -275,8 +274,8 @@ void Process::wait_for_eof(stringstream & out, double seconds) {
     Timer timer(seconds);
     while(read_into(out, optional<double>(seconds)));
     if (!eof()) {
-        log.error2("Something went wrong, EOF not reached! Time out=%f",
-                   seconds);
+        NOVA_LOG_ERROR2("Something went wrong, EOF not reached! Time out=%f",
+                        seconds);
         throw TimeOutException();
     }
 }
@@ -285,7 +284,7 @@ void Process::write(const char * msg) {
     const size_t maxlen = 2048;
     size_t length = (size_t) strnlen(msg, maxlen);
     if (length == maxlen) {
-        log.error2("String was not null terminated.");
+        NOVA_LOG_ERROR("String was not null terminated.");
         throw ProcessException(ProcessException::GENERAL);
     }
     this->write(msg, length);
@@ -296,10 +295,10 @@ void Process::write(const char * msg, size_t length) {
     LOG_DEBUG2("Writing msg with %d bytes.", length);
     ssize_t count = ::write(std_in_fd[1], msg, length);
     if (count < 0) {
-        log.error2("write failed. errno = %d", errno);
+        NOVA_LOG_ERROR2("write failed. errno = %d", errno);
         throw ProcessException(ProcessException::GENERAL);
     } else if (count != ((ssize_t)length)) {
-        log.error2("Did not write our message! errno = %d", errno);
+        NOVA_LOG_ERROR2("Did not write our message! errno = %d", errno);
         throw ProcessException(ProcessException::GENERAL);
     }
 }

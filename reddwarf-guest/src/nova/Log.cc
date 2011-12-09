@@ -85,6 +85,7 @@ LogFileOptions::LogFileOptions(string path, int max_old_files)
     path(path) {
 }
 
+
 /**---------------------------------------------------------------------------
  *- LogOptions
  *---------------------------------------------------------------------------*/
@@ -93,6 +94,12 @@ LogOptions::LogOptions(boost::optional<LogFileOptions> file, bool use_std_stream
                        bool use_syslog)
  : file(file), use_std_streams(use_std_streams), use_syslog(use_syslog) {
 }
+
+LogOptions LogOptions::simple() {
+    LogOptions log_options(boost::none, true, false);
+    return log_options;
+}
+
 
 /**---------------------------------------------------------------------------
  *- Log
@@ -117,13 +124,17 @@ void intrusive_ptr_release(Log * ref) {
 
 Log::Log(const LogOptions & options)
 : file(), mutex(), options(options), reference_count(0) {
-    if (options.file) {
-        file.open(options.file.get().path.c_str());
-    }
+    open_file();
 }
 
 Log::~Log() {
-    file.close();
+    close_file();
+}
+
+void Log::close_file() {
+    if (options.file) {
+        file.close();
+    }
 }
 
 void Log::initialize(const LogOptions & options) {
@@ -144,6 +155,12 @@ LogPtr Log::get_instance() {
     return _get_instance();
 }
 
+void Log::open_file() {
+    if (options.file) {
+        file.open(options.file.get().path.c_str());
+    }
+}
+
 void Log::_open_log(const LogOptions & options) {
     if (_get_instance() != 0) {
         _get_instance()->write(__FILE__, __LINE__, LEVEL_INFO,
@@ -159,10 +176,13 @@ void Log::rotate_files() {
     if (!old) {
         throw LogException(LogException::NOT_INITIALIZED);
     }
+    boost::lock_guard<boost::mutex> lock2(old->mutex);
     if (old->options.file) {
+        old->close_file();
         _rotate_files(old->options.file.get());
-        _open_log(old->options);
+        old->open_file();
     }
+
 }
 
 void Log::write(const char * file_name, int line_number, Log::Level level,

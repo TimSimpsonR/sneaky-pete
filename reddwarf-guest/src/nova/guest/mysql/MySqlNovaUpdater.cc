@@ -88,19 +88,19 @@ void MySqlNovaUpdater::ensure_db() {
 }
 
 optional<string> MySqlNovaUpdater::find_mysql_pid_file() const {
-    Log log;
     stringstream out;
     try {
         context->execute(out, list_of("/usr/bin/sudo")("/usr/sbin/mysqld")
                         ("--print-defaults"));
     } catch(const ProcessException & pe) {
-        log.error2("Error running mysqld --print-defaults! %s", pe.what());
+        NOVA_LOG_ERROR2("Error running mysqld --print-defaults! %s", pe.what());
         return boost::none;
     }
     Regex pattern("--pid-file=([a-z0-9A-Z/]+\\.pid)");
     RegexMatchesPtr matches = pattern.match(out.str().c_str());
     if (!matches || !matches->exists_at(1)) {
-        log.error("No match found in output of \"mysqld --print-defaults\".");
+        NOVA_LOG_ERROR("No match found in output of "
+                       "\"mysqld --print-defaults\".");
         return boost::none;
     }
     optional<string> rtn(matches->get(1));
@@ -147,7 +147,6 @@ int MySqlNovaUpdater::get_guest_instance_id() {
     if (preset_instance_id) {
         return preset_instance_id.get();
     }
-    Log log;
     string address = utils::get_ipv4_address(guest_ethernet_device.c_str());
 
     MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(
@@ -155,12 +154,12 @@ int MySqlNovaUpdater::get_guest_instance_id() {
     stmt->set_string(0, address.c_str());
     MySqlResultSetPtr result = stmt->execute(1);
     if (!result->next()) {
-        log.error2("Could not find guest instance for host given address %s.",
-                   address.c_str());
+        NOVA_LOG_ERROR2("Could not find guest instance for host given address "
+                        "%s.", address.c_str());
         throw MySqlGuestException(MySqlGuestException::GUEST_INSTANCE_ID_NOT_FOUND);
     }
     optional<string> id = result->get_string(0);
-    log.debug("instance from db=%s", id.get().c_str());
+    NOVA_LOG_DEBUG2("instance from db=%s", id.get().c_str());
     return boost::lexical_cast<int>(id.get().c_str());
 }
 
@@ -206,7 +205,6 @@ bool MySqlNovaUpdater::mysql_is_installed() {
 void MySqlNovaUpdater::repeatedly_attempt_mysql_method(
     MySqlNovaUpdaterFunctor & f)
 {
-    Log log;
     bool success = false;
     while(!success){
         try {
@@ -214,13 +212,13 @@ void MySqlNovaUpdater::repeatedly_attempt_mysql_method(
             f();
             success = true;
         } catch(const MySqlException & mse) {
-            log.error2("Error communicating to Nova database: %s", mse.what());
-            log.error2("Waiting %lu seconds to try again...",
-                       nova_db_reconnect_wait_time);
+            NOVA_LOG_ERROR2("Error communicating to Nova database: %s", mse.what());
+            NOVA_LOG_ERROR2("Waiting %lu seconds to try again...",
+                            nova_db_reconnect_wait_time);
             success = false;
             boost::posix_time::seconds time(nova_db_reconnect_wait_time);
             boost::this_thread::sleep(time);
-            log.error("... trying again.");
+            NOVA_LOG_ERROR("... trying again.");
         }
     }
 }
@@ -230,13 +228,12 @@ void MySqlNovaUpdater::set_status(MySqlNovaUpdater::Status status) {
 
     const char * description = status_name(status);
     Status state = status;
-    Log log;
-    log.info2("Updating MySQL app status to %d (%s).", ((int)status),
-              description);
+    NOVA_LOG_INFO2("Updating MySQL app status to %d (%s).", ((int)status),
+                   description);
     IsoDateTime now;
     MySqlPreparedStatementPtr stmt;
     if (get_status_from_nova_db() == boost::none) {
-        log.info("Inserting new Guest status row. Why wasn't this there?");
+        NOVA_LOG_INFO("Inserting new Guest status row. Why wasn't this there?");
         stmt = nova_db->prepare_statement(
             "INSERT INTO guest_status "
             "(created_at, updated_at, instance_id, state, state_description) "
@@ -284,13 +281,12 @@ void MySqlNovaUpdater::update() {
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
     ensure_db();
 
-    Log log;
     if (mysql_is_installed()) {
-        log.info("Determining status of MySQL app...");
+        NOVA_LOG_INFO("Determining status of MySQL app...");
         Status status = get_actual_db_status();
         set_status(status);
     } else {
-        log.info("MySQL is not installed, so not updating.");
+        NOVA_LOG_INFO("MySQL is not installed, so not updating.");
     }
 }
 

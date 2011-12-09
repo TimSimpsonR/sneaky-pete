@@ -89,7 +89,7 @@ void intrusive_ptr_release(AmqpConnection * ref) {
 AmqpConnection::AmqpConnection(const char * host_name, const int port,
                                const char * user_name, const char * password,
                                size_t client_memory)
-: bad_channels(), channels(), connection(0), log(), reference_count(0),
+: bad_channels(), channels(), connection(0), reference_count(0),
   sockfd(-1)
 {
     // Create connection.
@@ -110,7 +110,7 @@ AmqpConnection::AmqpConnection(const char * host_name, const int port,
                    AmqpException::LOGIN_FAILED);
     } catch(const AmqpException & amqpe) {
         if (amqp_destroy_connection(connection) < 0) {
-            log.error("FATAL ERROR: COULD NOT DESTROY OPEN AMQP CONNECTION!");
+            NOVA_LOG_ERROR("FATAL ERROR: COULD NOT DESTROY OPEN AMQP CONNECTION!");
         }
         throw;
     }
@@ -121,18 +121,18 @@ AmqpConnection::~AmqpConnection() {
     try {
         close();
     } catch(const AmqpException & ae) {
-        log.error("Destructor called close and caught AMQP error!");
-        log.error(ae.what());
+        NOVA_LOG_ERROR("Destructor called close and caught AMQP error!");
+        NOVA_LOG_ERROR(ae.what());
     } catch(const std::exception & ex) {
-        log.error("Destructor called close and caught error!");
-        log.error(ex.what());
+        NOVA_LOG_ERROR("Destructor called close and caught error!");
+        NOVA_LOG_ERROR(ex.what());
     }
 }
 
 void AmqpConnection::check_references(AmqpConnection * ref) {
-    ref->log.debug("Checking the references to AmqpConnection, which has "
-                   "a reference_count of %d and owns %d channels.",
-                   ref->reference_count, ref->channels.size());
+    NOVA_LOG_DEBUG2("Checking the references to AmqpConnection, which has "
+                    "a reference_count of %d and owns %d channels.",
+                    ref->reference_count, ref->channels.size());
     if (ref->reference_count <= 0 && ref->channels.size() <= 0) {
         delete ref;
     }
@@ -159,16 +159,16 @@ AmqpConnectionPtr AmqpConnection::create(const char * host_name, const int port,
 void AmqpConnection::attempt_declare_exchange(const char * exchange_name,
                                               const char * type) {
     AmqpChannelPtr channel = new_channel();
-    log.info2("Attempting to declare exchange %s.", exchange_name);
+    NOVA_LOG_INFO2("Attempting to declare exchange %s.", exchange_name);
     try {
         channel->declare_exchange(exchange_name, type, true);
-        log.info("Exchange already declared.");
+        NOVA_LOG_INFO("Exchange already declared.");
     } catch(const AmqpException & ae) {
         if (ae.code == AmqpException::EXCHANGE_DECLARE_FAIL) {
-            log.info("Could not passive declare exchange. Trying non-passive.");
+            NOVA_LOG_INFO("Could not passive declare exchange. Trying non-passive.");
             new_channel()->declare_exchange(exchange_name, type, false);
         } else {
-            log.error("AmqpException was thrown trying to declare exchange.");
+            NOVA_LOG_ERROR("AmqpException was thrown trying to declare exchange.");
             throw ae;
         }
     }
@@ -178,17 +178,17 @@ void AmqpConnection::attempt_declare_queue(const char * queue_name,
                                            bool exclusive,
                                            bool auto_delete) {
     AmqpChannelPtr channel = new_channel();
-    log.info2("Attempting to declare queue %s.", queue_name);
+    NOVA_LOG_INFO2("Attempting to declare queue %s.", queue_name);
     try {
         channel->declare_queue(queue_name, true);
-        log.info2("Queue already declared.");
+        NOVA_LOG_INFO("Queue already declared.");
     } catch(const AmqpException & ae) {
         if (ae.code == AmqpException::DECLARE_QUEUE_FAILURE) {
-            log.info2("Could not declare queue %s. Trying non-passive.",
-                      queue_name);
+            NOVA_LOG_INFO2("Could not declare queue %s. Trying non-passive.",
+                           queue_name);
             new_channel()->declare_queue(queue_name, false);
         } else {
-            log.error("AmqpException was thrown trying to declare queue.");
+            NOVA_LOG_ERROR("AmqpException was thrown trying to declare queue.");
             throw ae;
         }
     }
@@ -241,8 +241,8 @@ void AmqpConnection::remove_channel(AmqpChannel * channel) {
             try {
                 channel->close();
             } catch(const AmqpException & ae) {
-                log.error("AmqpException during channel close, removing anyway.");
-                log.error(ae.what());
+                NOVA_LOG_ERROR2("AmqpException during channel close, removing "
+                                "anyway. Exception message: ", ae.what());
             }
             delete channel;
             break;
@@ -276,9 +276,9 @@ void intrusive_ptr_add_ref(AmqpChannel * ref) {
 void intrusive_ptr_release(AmqpChannel * ref) {
     ref->reference_count --;
     if (ref->reference_count <= 0) {
-        ref->parent->log.debug("Releasing reference to channel # %d. "
-                               "Reference count is now %d.",
-                               ref->channel_number, ref->reference_count);
+        NOVA_LOG_DEBUG2("Releasing reference to channel # %d. "
+                        "Reference count is now %d.",
+                        ref->channel_number, ref->reference_count);
         ref->parent->remove_channel(ref);
     }
 }
@@ -288,7 +288,7 @@ AmqpChannel::AmqpChannel(AmqpConnection * parent, const int channel_number)
   reference_count(0)
 {
     amqp_connection_state_t conn = parent->get_connection();
-    parent->log.debug("Opening new channel with # %d.", channel_number);
+    NOVA_LOG_DEBUG2("Opening new channel with # %d.", channel_number);
     amqp_channel_open(conn, channel_number);
     amqp_check(amqp_get_rpc_reply(conn), AmqpException::OPEN_CHANNEL_FAILED);
     is_open = true;
@@ -298,8 +298,8 @@ AmqpChannel::~AmqpChannel() {
     try {
         close();
     } catch(const std::exception & ex) {
-        parent->log.error("Channel destructor called close and caught error!");
-        parent->log.error(ex.what());
+        NOVA_LOG_ERROR("Channel destructor called close and caught error!");
+        NOVA_LOG_ERROR(ex.what());
     }
 }
 
@@ -329,7 +329,7 @@ void AmqpChannel::check(const amqp_rpc_reply_t reply,
 
 void AmqpChannel::close() {
     if (is_open) {
-        parent->log.debug("Closing channel #%d", channel_number);
+        NOVA_LOG_DEBUG2("Closing channel #%d", channel_number);
         amqp_connection_state_t conn = parent->get_connection();
 
         //TODO(tim.simpson): I can't seem to block the SIGPIPE signal no matter

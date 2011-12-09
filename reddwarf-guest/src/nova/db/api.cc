@@ -8,7 +8,6 @@
 
 using nova::flags::FlagValues;
 using namespace nova::db::mysql;
-using nova::Log;
 using boost::optional;
 using nova::guest::utils::IsoDateTime;
 using std::string;
@@ -22,13 +21,11 @@ class ApiMySql : public Api {
 private:
     MySqlConnectionPtr con;
     string db_name;
-    Log log;
 
 public:
     ApiMySql(MySqlConnectionPtr con, string db_name)
     : con(con),
-      db_name(db_name),
-      log()
+      db_name(db_name)
     {
     }
 

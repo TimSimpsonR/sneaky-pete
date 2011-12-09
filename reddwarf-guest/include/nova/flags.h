@@ -99,6 +99,12 @@ class FlagValues {
 
         boost::optional<const char *> host() const;
 
+        boost::optional<int> log_file_max_old_files() const;
+
+        boost::optional<const char *> log_file_path() const;
+
+        bool log_use_std_streams() const;
+
         const char * node_availability_zone() const;
 
         unsigned long nova_db_reconnect_wait_time() const;
@@ -130,6 +136,8 @@ class FlagValues {
         const char * rabbit_userid() const;
 
         unsigned long report_interval() const;
+
+        bool use_syslog() const;
 
     private:
 

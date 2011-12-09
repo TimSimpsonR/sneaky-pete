@@ -209,6 +209,26 @@ optional<T> get_flag_value(FlagMap & map, const char * name) {
     }
 }
 
+template<>
+optional<const char *> get_flag_value<>(FlagMap & map, const char * name) {
+    const char * value = map.get(name, false);
+    if (value == 0) {
+        return boost::none;
+    }
+    return optional<const char *>(value);
+}
+
+template<>
+optional<bool> get_flag_value<>(FlagMap & map, const char * name) {
+    optional<const char *> value = get_flag_value<const char *>(map, name);
+    if (value) {
+        return optional<bool>(strncmp(value.get(), "true", 4) == 0);
+    } else {
+        return boost::none;
+    }
+}
+
+
 template<typename T>
 T get_flag_value(FlagMap & map, const char * name, T default_value) {
     return get_flag_value<T>(map, name).get_value_or(default_value);
@@ -243,11 +263,19 @@ const char * FlagValues::guest_ethernet_device() const {
 }
 
 optional<const char *> FlagValues::host() const {
-    const char * value = map->get("host", false);
-    if (value == 0) {
-        return boost::none;
-    }
-    return optional<const char *>(value);
+    return get_flag_value<const char *>(*map, "host");
+}
+
+optional<int> FlagValues::log_file_max_old_files() const {
+    return get_flag_value<int>(*map, "log_file_max_old_files");
+}
+
+optional<const char *> FlagValues::log_file_path() const {
+    return get_flag_value<const char *>(*map, "log_file_path");
+}
+
+bool FlagValues::log_use_std_streams() const {
+    return get_flag_value<const char *>(*map, "log_use_std_streams");
 }
 
 const char * FlagValues::node_availability_zone() const {
@@ -318,5 +346,8 @@ unsigned long FlagValues::report_interval() const {
     return get_flag_value(*map, "report_interval", (unsigned long) 10);
 }
 
+bool FlagValues::use_syslog() const {
+    return get_flag_value<bool>(*map, "use_syslog");
+}
 
 } } // end nova::flags

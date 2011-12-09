@@ -48,6 +48,7 @@ namespace nova {
         bool use_syslog;
         LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams,
                    bool use_syslog);
+        static LogOptions simple();
     };
 
     class Log;
@@ -104,11 +105,15 @@ namespace nova {
 
         private:
 
+            void close_file();
+
             static LogPtr & _get_instance();
 
             std::ofstream file;
 
             boost::mutex mutex;
+
+            void open_file();
 
             static void _open_log(const LogOptions & options);
 

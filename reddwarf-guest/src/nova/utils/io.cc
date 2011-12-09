@@ -1,6 +1,7 @@
 #include "nova/utils/io.h"
 
 #include <errno.h>
+#include "nova/Log.h"
 #include <signal.h>
 #include <sys/select.h>
 #include <stdio.h>

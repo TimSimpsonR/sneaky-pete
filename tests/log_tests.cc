@@ -67,8 +67,10 @@ struct LogTestsFixture {
         nova::Log::shutdown();
     }
 
-    void read_file(vector<string> & lines) {
-        std::ifstream file(log_file.c_str());
+    void read_file(vector<string> & lines, int index=0) {
+        string path = (index == 0) ? log_file
+                      : (str(format("%s.%d") % log_file % index));
+        std::ifstream file(path.c_str());
         while(!file.eof()) {
             string line;
             std::getline(file, line);
@@ -114,6 +116,43 @@ BOOST_AUTO_TEST_CASE(writing_some_lines) {
     }
 }
 
+BOOST_AUTO_TEST_CASE(writing_some_lines_and_rotating) {
+    NOVA_LOG_DEBUG("Hello from the tests. How're you doing?");
+    nova::Log::rotate_files();
+    NOVA_LOG_ERROR("Hi");
+    nova::Log::rotate_files();
+    NOVA_LOG_INFO("Bye");
+
+    /* Read the log file and confirm it works. */
+    {
+        vector<string> lines;
+        read_file(lines, 2);
+        Regex regex("[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                    "\\s{1}DEBUG Hello from the tests\\. How\'re you doing\\? "
+                    "for tests/log_tests.cc:[0-9]+");
+        RegexMatchesPtr matches = regex.match(lines[0].c_str());
+        BOOST_CHECK_EQUAL(!!matches, true);
+    }
+
+    {
+        vector<string> lines;
+        read_file(lines, 1);
+        Regex regex("[0-9]{4}-[0-9]{2}-[0-9]");
+        RegexMatchesPtr matches = regex.match(lines[0].c_str());
+        BOOST_CHECK_EQUAL(!!matches, true);
+    }
+
+    {
+        vector<string> lines;
+        read_file(lines);
+        Regex regex("[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                "\\s{1}INFO  Bye "
+                "for tests/log_tests.cc:[0-9]+");
+        RegexMatchesPtr matches = regex.match(lines[0].c_str());
+        BOOST_CHECK_EQUAL(!!matches, true);
+    }
+
+}
 
 struct Worker {
     int id;
@@ -133,7 +172,7 @@ struct Worker {
             NOVA_LOG_DEBUG2("id=%d stage=%c", id, stage);
             NOVA_LOG_ERROR2("id=%d stage=%c", id, stage);
             NOVA_LOG_INFO2("id=%d stage=%c", id, stage);
-            boost::posix_time::seconds time(0);
+            boost::posix_time::milliseconds time(100);
             boost::this_thread::sleep(time);
         }
     }
@@ -187,7 +226,7 @@ BOOST_AUTO_TEST_CASE(writing_lines_in_a_thread) {
     }
 
     BOOST_CHECK_EQUAL(2,2);
-    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    boost::this_thread::sleep(boost::posix_time::seconds(2));
 }
 
 BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
@@ -219,6 +258,7 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
             CHECK_POINT();
             std::cout << "next state for : " << worker.id << std::endl;
             worker.next_state();
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
             nova::Log::rotate_files();
         }
     }
@@ -238,7 +278,7 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
     }
 
     BOOST_CHECK_EQUAL(2,2);
-    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    boost::this_thread::sleep(boost::posix_time::seconds(1));
 }
 
 BOOST_AUTO_TEST_SUITE_END();

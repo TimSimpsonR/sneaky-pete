@@ -33,7 +33,6 @@ Receiver::Receiver(AmqpConnectionPtr connection, const char * topic,
 :   connection(connection),
     last_delivery_tag(-1),
     last_msg_id(boost::none),
-    log(),
     queue(),
     topic(topic)
 {
@@ -71,8 +70,8 @@ void Receiver::finish_message(const GuestOutput & output) {
 
     if (!last_msg_id) {
         // No reply necessary.
-        log.info("Acknowledged message but will not send reply because "
-                 "no _msg_id was given.");
+        NOVA_LOG_INFO("Acknowledged message but will not send reply because "
+                      "no _msg_id was given.");
         return;
     }
 
@@ -99,20 +98,20 @@ void Receiver::finish_message(const GuestOutput & output) {
                          "\"traceback\":\"unavailable\" } }")
                   % JsonData::json_string(output.failure.get().c_str()));
     }
-    Log log;
     if (msg.find("password") == string::npos) {
-            log.info2("Replying with the following: %s", msg.c_str());
+        NOVA_LOG_INFO2("Replying with the following: %s", msg.c_str());
     } else {
-        log.info2("Replying to message...");
+        NOVA_LOG_INFO("Replying to message...");
         #ifdef _DEBUG
-            log.info2("(DEBUG) Replying with the following: %s", msg.c_str());
+            NOVA_LOG_INFO2("(DEBUG) Replying with the following: %s",
+                           msg.c_str());
         #endif
     }
 
     rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
 
     // This is like telling Nova "roger."
-    log.info2("Replying with empty message: %s", EMPTY_MESSAGE);
+    NOVA_LOG_INFO2("Replying with empty message: %s", EMPTY_MESSAGE);
     rtn_ex_channel->publish(exchange_name, routing_key, EMPTY_MESSAGE);
 }
 
@@ -121,7 +120,7 @@ JsonObjectPtr Receiver::_next_message() {
     while(!msg) {
         msg = queue->get_message(topic.c_str());
         if (!msg) {
-            log.info("Received an empty message.");
+            NOVA_LOG_INFO("Received an empty message.");
         }
     }
     std::stringstream log_msg;
@@ -137,7 +136,7 @@ JsonObjectPtr Receiver::_next_message() {
             log_msg << ", (DEBUG) message " << msg->message;
         #endif
     }
-    log.info(log_msg.str());
+    NOVA_LOG_INFO(log_msg.str().c_str());
     JsonObjectPtr json_obj(new JsonObject(msg->message.c_str()));
 
     last_delivery_tag = msg->delivery_tag;
@@ -150,7 +149,7 @@ GuestInput Receiver::next_message() {
         try {
             raw = _next_message();
         } catch(const JsonException & je) {
-            log.error2("Message was not JSON! %s", je.what());
+            NOVA_LOG_ERROR2("Message was not JSON! %s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
         try {
@@ -165,8 +164,7 @@ GuestInput Receiver::next_message() {
             input.args = raw->get_object_or_empty("args");
             return input;
         } catch(const JsonException & je) {
-            log.error("Json message was malformed.");
-            log.error(raw->to_string());
+            NOVA_LOG_ERROR2("Json message was malformed:", raw->to_string());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
     }
@@ -184,7 +182,6 @@ ResilentReceiver::ResilentReceiver(const char * host, int port,
 : client_memory(client_memory),
   exchange_name(exchange_name),
   host(host),
-  log(),
   password(password),
   port(port),
   receiver(0),
@@ -206,11 +203,11 @@ void ResilentReceiver::close() {
 void ResilentReceiver::finish_message(const GuestOutput & output) {
     while(true) {
         try {
-            log.info("Finishing message.");
+            NOVA_LOG_INFO("Finishing message.");
             receiver->finish_message(output);
             return;
         } catch(const AmqpException & amqpe) {
-            log.error2("Error with AMQP connection! : %s", amqpe.what());
+            NOVA_LOG_ERROR2("Error with AMQP connection! : %s", amqpe.what());
             reset();
         }
     }
@@ -219,10 +216,10 @@ void ResilentReceiver::finish_message(const GuestOutput & output) {
 GuestInput ResilentReceiver::next_message() {
     while(true) {
         try {
-            log.info("Waiting for next message...");
+            NOVA_LOG_INFO("Waiting for next message...");
             return receiver->next_message();
         } catch(const AmqpException & amqpe) {
-            log.error2("Error with AMQP connection! : %s", amqpe.what());
+            NOVA_LOG_ERROR2("Error with AMQP connection! : %s", amqpe.what());
             reset();
         }
     }
@@ -232,7 +229,7 @@ void ResilentReceiver::open(bool wait_first) {
     while(receiver.get() == 0) {
         try {
             if (wait_first) {
-                log.info("Waiting to create fresh AMQP connection...");
+                NOVA_LOG_INFO("Waiting to create fresh AMQP connection...");
                 boost::posix_time::seconds time(reconnect_wait_time);
                 boost::this_thread::sleep(time);
             }
@@ -243,7 +240,8 @@ void ResilentReceiver::open(bool wait_first) {
                                         exchange_name.c_str()));
             return;
         } catch(const AmqpException & amqpe) {
-            log.error2("Error establishing AMQP connection: %s", amqpe.what());
+            NOVA_LOG_ERROR2("Error establishing AMQP connection: %s",
+                            amqpe.what());
             wait_first = true;
         }
     }

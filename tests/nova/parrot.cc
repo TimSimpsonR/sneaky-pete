@@ -12,8 +12,6 @@
 using namespace nova;
 using namespace std;
 
-Log log;
-
 static void speak(const char * msg) {
     cout << "(@'> <( " << msg << " AWK! )" << endl;;
 }

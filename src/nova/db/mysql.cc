@@ -19,8 +19,6 @@ namespace nova { namespace db { namespace mysql {
 
 namespace {
 
-    Log log;
-
     inline MYSQL * mysql_con(void * con) {
         return (MYSQL *) con;
     }
@@ -242,8 +240,8 @@ optional<bool> MySqlResultSet::get_bool(int index) const {
         bool b_value = boost::lexical_cast<bool>(value.get());
         return optional<bool>(b_value);
     } catch(const boost::bad_lexical_cast & blc) {
-        log.error2("Could not convert the result field at index %d with value "
-                   "%s to a bool.", index, value.get().c_str());
+        NOVA_LOG_ERROR2("Could not convert the result field at index %d with "
+                        "value %s to a bool.", index, value.get().c_str());
         throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_BOOL);
     }
 }
@@ -257,8 +255,8 @@ optional<int> MySqlResultSet::get_int(int index) const {
         int i_value = boost::lexical_cast<int>(value.get());
         return optional<int>(i_value);
     } catch(const boost::bad_lexical_cast & blc) {
-        log.error2("Could not convert the result field at index %d with value "
-                   "\"%s\" to an int.", index, value.get().c_str());
+        NOVA_LOG_ERROR2("Could not convert the result field at index %d with "
+                        "value \"%s\" to an int.", index, value.get().c_str());
         throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_INT);
     }
 }
@@ -298,8 +296,8 @@ public:
         }
 
         if (mysql_stmt_bind_result(stmt, bind) != 0) {
-            log.error2("Binding result set failed: %s\n",
-                      mysql_stmt_error(stmt));
+            NOVA_LOG_ERROR2("Binding result set failed: %s\n",
+                            mysql_stmt_error(stmt));
             throw MySqlException(MySqlException::BIND_RESULT_SET_FAILED);
         }
     }
@@ -350,8 +348,8 @@ public:
             started = true;
             return true;
         }
-        log.error2("Error calling next mysql_stmt_fetch. Code was %d: %s",
-                  result, mysql_stmt_error(stmt));
+        NOVA_LOG_ERROR2("Error calling next mysql_stmt_fetch. Code was %d: %s",
+                        result, mysql_stmt_error(stmt));
         throw MySqlException(MySqlException::NEXT_FETCH_FAILED);
     }
 
@@ -389,8 +387,8 @@ public:
                 started = true;
                 finished = true;
             } else {
-                log.error2("Error getting store result from query: %s",
-                           mysql_error(con));
+                NOVA_LOG_ERROR2("Error getting store result from query: %s",
+                                mysql_error(con));
                 throw MySqlException(MySqlException::GET_QUERY_RESULT_FAILED);
             }
         } else {
@@ -446,7 +444,7 @@ public:
                 close();
                 return false;
             } else {
-                log.error2("Fetch next row failed:%s", mysql_error(con));
+                NOVA_LOG_ERROR2("Fetch next row failed:%s", mysql_error(con));
                 throw MySqlException(MySqlException::QUERY_FETCH_RESULT_FAILED);
             }
         }
@@ -497,13 +495,13 @@ public:
     {
         stmt = mysql_stmt_init(con);
         if (stmt == 0) {
-            log.error2("No memory to make statement?");
+            NOVA_LOG_ERROR("No memory to make statement?");
             throw MySqlException(MySqlException::PREPARE_FAILED);
         }
         size_t statement_length = strnlen(statement, 1028);
         if (mysql_stmt_prepare(stmt, statement, statement_length) != 0) {
-            log.error2("An error occurred preparing statement:%s",
-                       mysql_stmt_error(stmt));
+            NOVA_LOG_ERROR2("An error occurred preparing statement:%s",
+                            mysql_stmt_error(stmt));
             throw MySqlException(MySqlException::PREPARE_FAILED);
         }
         parameter_count = mysql_stmt_param_count(stmt);
@@ -517,8 +515,8 @@ public:
             parameter_buffer[index].bind(bind[index]);
         }
         if (mysql_stmt_bind_param(stmt, bind) != 0) {
-            log.error2("Prepared statement bind parm failed: %s",
-                      mysql_stmt_error(stmt));
+            NOVA_LOG_ERROR2("Prepared statement bind parm failed: %s",
+                            mysql_stmt_error(stmt));
             throw MySqlException(MySqlException::PREPARE_BIND_FAILED);
         }
     }
@@ -544,7 +542,7 @@ public:
 
     virtual MySqlResultSetPtr execute(int result_count) {
         if (mysql_stmt_execute(stmt) != 0) {
-            log.error2("execute failed: %s", mysql_stmt_error(stmt));
+            NOVA_LOG_ERROR2("execute failed: %s", mysql_stmt_error(stmt));
         }
         if (result_count == 0) {
             MySqlResultSetPtr ptr(new MySqlQueryResultSet(con));
@@ -655,15 +653,15 @@ void MySqlConnection::init() {
 
     con = mysql_init(NULL);
     if (con == NULL) {
-        log.error2("Error %u: %s\n", mysql_errno(0), mysql_error(0));
+        NOVA_LOG_ERROR2("Error %u: %s\n", mysql_errno(0), mysql_error(0));
         throw MySqlException(MySqlException::GENERAL);
     }
 
     if (mysql_real_connect(mysql_con(con), uri.c_str(), user.c_str(), password.c_str(),
                            /*dbname*/ NULL, /*port*/ 0, /* socket */NULL,
                            /* Flag */0) == NULL) {
-        log.error2("Error %u: %s\n", mysql_errno(mysql_con(con)),
-                   mysql_error(mysql_con(con)));
+        NOVA_LOG_ERROR2("Error %u: %s\n", mysql_errno(mysql_con(con)),
+                        mysql_error(mysql_con(con)));
         throw MySqlException(MySqlException::COULD_NOT_CONNECT);
     }
 
@@ -686,7 +684,7 @@ MySqlPreparedStatementPtr MySqlConnection::prepare_statement(
 
 MySqlResultSetPtr MySqlConnection::query(const char * text) {
     if (mysql_query(mysql_con(get_con()), text) != 0) {
-        log.error2("Query failed:%s", mysql_error(mysql_con(con)));
+        NOVA_LOG_ERROR2("Query failed:%s", mysql_error(mysql_con(con)));
         throw MySqlException(MySqlException::QUERY_FAILED);
     }
     MySqlResultSetPtr rtn(new MySqlQueryResultSet(mysql_con(get_con())));

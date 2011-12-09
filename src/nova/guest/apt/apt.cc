@@ -41,8 +41,8 @@ using nova::utils::io::Timer;
 using std::vector;
 
 #ifdef _VERBOSE_NOVA_GUEST_APT
-#define VERBOSE_LOG(args) log.debug(args)
-#define VERBOSE_LOG3(a1, a2, a3) log.debug(a1, a2, a3)
+#define VERBOSE_LOG(args) NOVA_LOG_DEBUG(args)
+#define VERBOSE_LOG3(a1, a2, a3) NOVA_LOG_DEBUG2(a1, a2, a3)
 #else
 #define VERBOSE_LOG(args) /* args */
 #define VERBOSE_LOG3(a1, a2, a3) /* a1, a2, a3 */
@@ -92,7 +92,6 @@ optional<ProcessResult> match_output(Process & process,
                                      const vector<string> & patterns,
                                      double seconds)
 {
-    Log log;
     typedef shared_ptr<Regex> RegexPtr;
     vector<RegexPtr> regexes;
     BOOST_FOREACH(const string & pattern, patterns) {
@@ -109,7 +108,7 @@ optional<ProcessResult> match_output(Process & process,
         VERBOSE_LOG("********************************************************");
         if (count == 0) {
             if (!process.eof()) {
-                log.error("read should not exit until it gets data.");
+                NOVA_LOG_ERROR("read should not exit until it gets data.");
                 throw AptException(AptException::GENERAL);
             }
         }
@@ -142,7 +141,6 @@ optional<ProcessResult> match_output(Process & process,
  */
 OperationResult _install(bool with_sudo, const char * package_name,
                          double time_out) {
-    Log log;
     Process::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
@@ -180,7 +178,7 @@ OperationResult _install(bool with_sudo, const char * package_name,
         if (index == 0) {
             throw AptException(AptException::PERMISSION_ERROR);
         } else if (index == 1 || index == 2) {
-            log.error2("Could not find package %s.", package_name);
+            NOVA_LOG_ERROR2("Could not find package %s.", package_name);
             throw AptException(AptException::PACKAGE_NOT_FOUND);
         } else if (index == 3) {
             return RUN_DPKG_FIRST;
@@ -195,12 +193,11 @@ OperationResult _install(bool with_sudo, const char * package_name,
             return OK;
         }
     }
-    log.error("Got EOF calling apt-get install!");
+    NOVA_LOG_ERROR("Got EOF calling apt-get install!");
     throw AptException(AptException::GENERAL);
 }
 
 void AptGuest::install(const char * package_name, const double time_out) {
-    Log log;
     update(time_out);
     OperationResult result = _install(with_sudo, package_name, time_out);
     if (result != OK) {
@@ -209,7 +206,7 @@ void AptGuest::install(const char * package_name, const double time_out) {
         }
         result = _install(with_sudo, package_name, time_out);
         if (result != OK) {
-            log.error2("Package %s is in a bad state.", package_name);
+            NOVA_LOG_ERROR2("Package %s is in a bad state.", package_name);
             throw AptException(AptException::PACKAGE_STATE_ERROR);
         }
     }
@@ -217,7 +214,6 @@ void AptGuest::install(const char * package_name, const double time_out) {
 
 OperationResult _remove(bool with_sudo, const char * package_name,
                         double time_out) {
-    Log log;
     Process::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
@@ -256,7 +252,7 @@ OperationResult _remove(bool with_sudo, const char * package_name,
         if (index == 0) {
             throw AptException(AptException::PERMISSION_ERROR);
         } else if (index == 1 || index == 2) {
-            log.error2("Could not find package %s.", package_name);
+            NOVA_LOG_ERROR2("Could not find package %s.", package_name);
             throw AptException(AptException::PACKAGE_NOT_FOUND);
         } else if (index == 3 || index == 4) {
             return REINSTALL_FIRST;
@@ -268,9 +264,9 @@ OperationResult _remove(bool with_sudo, const char * package_name,
             if (index == 7 || index == 8) {
                 string output_package_name = result.get().matches->get(1);
                 if (output_package_name != package_name) {
-                    log.error2("Wait, saw 'Setting up' but it wasn't our "
-                               "package! %s != %s", package_name,
-                               output_package_name.c_str());
+                    NOVA_LOG_ERROR2("Wait, saw 'Setting up' but it wasn't our "
+                                    "package! %s != %s", package_name,
+                                    output_package_name.c_str());
                     throw AptException(AptException::GENERAL);
                 }
             }
@@ -282,7 +278,7 @@ OperationResult _remove(bool with_sudo, const char * package_name,
             return OK;
         }
     }
-    log.error("Got EOF calling apt-get remove!");
+    NOVA_LOG_ERROR("Got EOF calling apt-get remove!");
     throw AptException(AptException::GENERAL);
 }
 
@@ -302,7 +298,6 @@ void AptGuest::remove(const char * package_name, const double time_out) {
 }
 
 void AptGuest::update(const double time_out) {
-    Log log;
     Process::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
@@ -313,7 +308,8 @@ void AptGuest::update(const double time_out) {
     } catch(const TimeOutException & toe) {
         throw AptException(AptException::PROCESS_TIME_OUT);
     } catch(const ProcessException & pe) {
-        log.error2("An error occurred calling apt-get update:%s", pe.what());
+        NOVA_LOG_ERROR2("An error occurred calling apt-get update:%s",
+                        pe.what());
         throw AptException(AptException::UPDATE_FAILED);
     }
 }
@@ -322,8 +318,7 @@ typedef boost::optional<std::string> optional_string;
 
 optional<string> AptGuest::version(const char * package_name,
                                    const double time_out) {
-    Log log;
-    log.debug("Getting version of %s", package_name);
+    NOVA_LOG_DEBUG2("Getting version of %s", package_name);
     Process process(list_of("/usr/bin/dpkg")("-l")(package_name), false);
 
     vector<string> patterns;
@@ -343,8 +338,8 @@ optional<string> AptGuest::version(const char * package_name,
         // 0 and 1 should return the package name as the first regex match.
         string output_package_name = result.get().matches->get(1);
         if (result.get().matches->get(1) != package_name) {
-            log.error2("dpkg called the package something different. "
-                      "%s != %s", package_name, output_package_name.c_str());
+            NOVA_LOG_ERROR2("dpkg called the package something different. "
+                        "%s != %s", package_name, output_package_name.c_str());
             throw AptException(AptException::GENERAL);
         }
         if (result.get().index == 0) {
@@ -359,7 +354,7 @@ optional<string> AptGuest::version(const char * package_name,
             }
         }
     }
-    log.error("version() saw unexpected output from dpkg!");
+    NOVA_LOG_ERROR("version() saw unexpected output from dpkg!");
     throw AptException(AptException::UNEXPECTED_PROCESS_OUTPUT);
 }
 

@@ -178,7 +178,6 @@ struct Worker {
     }
 };
 
-
 BOOST_AUTO_TEST_CASE(writing_lines_in_a_thread) {
     std::cerr << "Welcome to Test #2." << std::endl;
     NOVA_LOG_INFO("Welcome to Test #2.");
@@ -232,15 +231,15 @@ BOOST_AUTO_TEST_CASE(writing_lines_in_a_thread) {
 BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
     std::cerr << "Welcome to Test #3." << std::endl;
     NOVA_LOG_INFO("Welcome to Test #3.");
-    const int worker_count = 50;
+    const int worker_count = 10;
     vector<boost::thread *> threads;
     vector<Worker> workers;
     for (int i = 20; i < worker_count + 20; i ++) {
         workers.push_back(Worker(i));
     }
-    for (int i = 20; i < worker_count + 20; i ++) {
+    BOOST_FOREACH(Worker & worker, workers) {
         CHECK_POINT();
-        threads.push_back(new boost::thread(&Worker::work, &workers[i]));
+        threads.push_back(new boost::thread(&Worker::work, worker));
     }
 
     CHECK_POINT();
@@ -258,9 +257,8 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
             CHECK_POINT();
             std::cout << "next state for : " << worker.id << std::endl;
             worker.next_state();
-            boost::this_thread::sleep(boost::posix_time::seconds(1));
-            nova::Log::rotate_files();
         }
+        nova::Log::rotate_files();
     }
 
     BOOST_CHECK_EQUAL(2,2);

@@ -11,7 +11,7 @@
 #include <string>
 #include <stdlib.h>
 
-#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); NOVA_LOG_DEBUG("At line %d...", __LINE__);
+#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); NOVA_LOG_DEBUG2("At line %d...", __LINE__);
 using nova::flags::FlagMap;
 using nova::flags::FlagMapPtr;
 using nova::flags::FlagValues;
@@ -20,6 +20,7 @@ using nova::JsonObject;
 using nova::JsonObjectPtr;
 using namespace nova::guest;
 using nova::Log;
+using nova::LogOptions;
 using namespace nova::rpc;
 using boost::posix_time::milliseconds;
 using boost::posix_time::time_duration;
@@ -53,6 +54,17 @@ const char * host() {
     return rabbitmq_host.c_str();
 }
 
+struct GlobalFixture {
+    GlobalFixture() {
+        Log::initialize(LogOptions::simple());
+    }
+
+    ~GlobalFixture() {
+        Log::shutdown();
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 BOOST_AUTO_TEST_CASE(SendingAMessage)
 {

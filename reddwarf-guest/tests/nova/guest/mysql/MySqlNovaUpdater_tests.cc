@@ -18,6 +18,7 @@
 using namespace nova::flags;
 using nova::guest::utils::IsoDateTime;
 using nova::Log;
+using nova::LogOptions;
 using namespace nova::db::mysql;
 using nova::guest::mysql::MySqlNovaUpdater;
 using boost::optional;
@@ -25,7 +26,6 @@ using nova::ProcessException;
 using std::string;
 
 namespace nova { namespace guest { namespace mysql {
-
 
 
 
@@ -42,11 +42,13 @@ FlagMapPtr get_flags() {
 
 struct GlobalFixture {
     GlobalFixture() {
+        Log::initialize(LogOptions::simple());
         MySqlConnection::start_up();
     }
 
     ~GlobalFixture() {
         MySqlConnection::shut_down();
+        Log::shutdown();
     }
 };
 

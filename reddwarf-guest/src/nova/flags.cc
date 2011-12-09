@@ -347,7 +347,7 @@ unsigned long FlagValues::report_interval() const {
 }
 
 bool FlagValues::use_syslog() const {
-    return get_flag_value<bool>(*map, "use_syslog");
+    return get_flag_value<bool>(*map, "use_syslog", false);
 }
 
 } } // end nova::flags

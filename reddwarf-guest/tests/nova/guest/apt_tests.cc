@@ -4,6 +4,7 @@
 
 
 #include "nova/guest/apt.h"
+#include "nova/Log.h"
 #include "nova/utils/regex.h"
 #include <fstream>
 #include <unistd.h>
@@ -30,6 +31,19 @@ const bool USE_SUDO = true;
     } catch(const AptException & ae) { \
         BOOST_REQUIRE_EQUAL(ae.code, AptException::ex_code); \
     }
+
+
+struct GlobalFixture {
+    GlobalFixture() {
+        Log::initialize(LogOptions::simple());
+    }
+
+    ~GlobalFixture() {
+        Log::shutdown();
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 /**---------------------------------------------------------------------------
  *- version Tests

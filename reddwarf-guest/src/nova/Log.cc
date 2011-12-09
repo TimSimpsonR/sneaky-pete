@@ -1,9 +1,7 @@
 #include "nova/Log.h"
 
 #include <boost/format.hpp>
-#ifdef _DEBUG
-    #include <iostream>
-#endif
+#include <iostream>
 #include <boost/optional.hpp>
 #include <stdlib.h>
 #include <stdarg.h>

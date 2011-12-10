@@ -57,7 +57,7 @@ struct LogTestsFixture {
 
     LogTestsFixture() : log_file(str(format("log_tests_%d") % test_count)) {
         remove(log_file.c_str());
-        LogFileOptions file_options(log_file, 3);
+        LogFileOptions file_options(log_file, 10000, 3);
         LogOptions options(optional<LogFileOptions>(file_options), true, false);
         nova::Log::initialize(options);
         test_count ++;
@@ -168,6 +168,9 @@ struct Worker {
 
     void work() {
         while(!quit) {
+            if (id == 50) {
+                nova::Log::rotate_logs_if_needed();
+            }
             std::cerr << "WORK id=" << id << " stage=" << stage << std::endl;
             NOVA_LOG_DEBUG2("id=%d stage=%c", id, stage);
             NOVA_LOG_ERROR2("id=%d stage=%c", id, stage);
@@ -259,6 +262,57 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
             worker.next_state();
         }
         nova::Log::rotate_files();
+    }
+
+    BOOST_CHECK_EQUAL(2,2);
+
+    BOOST_FOREACH(Worker & worker, workers) {
+        worker.quit = true;
+    }
+
+    BOOST_CHECK_EQUAL(2,2);
+
+    BOOST_FOREACH(boost::thread * thread, threads) {
+        thread->interrupt();
+        thread->join();
+        delete thread;
+    }
+
+    BOOST_CHECK_EQUAL(2,2);
+    boost::this_thread::sleep(boost::posix_time::seconds(1));
+}
+
+BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files_2) {
+    std::cerr << "Welcome to Test #3." << std::endl;
+    NOVA_LOG_INFO("Welcome to Test #3.");
+    const int worker_count = 10;
+    vector<boost::thread *> threads;
+    vector<Worker> workers;
+    // The ID of 50 will cause that thread to rotate the logs if needed.
+    for (int i = 50; i < worker_count + 50; i ++) {
+        workers.push_back(Worker(i));
+    }
+    BOOST_FOREACH(Worker & worker, workers) {
+        CHECK_POINT();
+        threads.push_back(new boost::thread(&Worker::work, worker));
+    }
+
+    CHECK_POINT();
+
+    boost::posix_time::seconds time(0);
+    boost::this_thread::sleep(time);
+    for (char s = 'a'; s <= 'e'; s = s + (char) 1) {
+        // We give all the workers one whole second to print out their letters.
+        CHECK_POINT();
+        boost::posix_time::seconds time(1);
+        boost::this_thread::sleep(time);
+        CHECK_POINT();
+        std::cout << "Time for waffles." << std::endl;
+        BOOST_FOREACH(Worker & worker, workers) {
+            CHECK_POINT();
+            std::cout << "next state for : " << worker.id << std::endl;
+            worker.next_state();
+        }
     }
 
     BOOST_CHECK_EQUAL(2,2);

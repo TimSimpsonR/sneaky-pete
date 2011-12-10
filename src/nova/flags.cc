@@ -270,6 +270,10 @@ optional<int> FlagValues::log_file_max_old_files() const {
     return get_flag_value<int>(*map, "log_file_max_old_files");
 }
 
+optional<size_t> FlagValues::log_file_max_size() const {
+    return get_flag_value<size_t>(*map, "log_file_max_size");
+}
+
 optional<const char *> FlagValues::log_file_path() const {
     return get_flag_value<const char *>(*map, "log_file_path");
 }

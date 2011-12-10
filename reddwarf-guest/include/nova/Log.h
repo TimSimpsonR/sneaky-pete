@@ -36,11 +36,14 @@ namespace nova {
 
     struct LogFileOptions {
         int max_old_files;
+        size_t max_size;
         std::string path;
-        LogFileOptions(std::string path, int max_old_files);
+        LogFileOptions(std::string path, size_t max_size, int max_old_files);
 
         static void rotate_files();
     };
+
+
 
     struct LogOptions {
         boost::optional<LogFileOptions> file;
@@ -74,6 +77,8 @@ namespace nova {
                 LEVEL_INFO
             };
 
+            boost::optional<size_t> current_log_file_size();
+
             static LogPtr get_instance();
 
             static void initialize(const LogOptions & options);
@@ -81,6 +86,8 @@ namespace nova {
             /** Saves the current log to name.1, after first renaming all other
              *  backed up logs from 1 - options.max_old_files. */
             static void rotate_files();
+
+            static void rotate_logs_if_needed();
 
             void write(const char * file_name, int line_number,
                        Level level, const char * message);
@@ -117,7 +124,7 @@ namespace nova {
 
             static void _open_log(const LogOptions & options);
 
-            LogOptions options;
+            const LogOptions options;
 
             int reference_count;
 

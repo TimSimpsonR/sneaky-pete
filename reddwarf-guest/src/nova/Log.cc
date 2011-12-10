@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <sys/stat.h>
 #include "nova/guest/utils.h"
 
 using boost::format;
@@ -78,8 +79,9 @@ const char * LogException::what() const throw() {
  *- LogFileOptions
  *---------------------------------------------------------------------------*/
 
-LogFileOptions::LogFileOptions(string path, int max_old_files)
+LogFileOptions::LogFileOptions(string path, size_t max_size, int max_old_files)
 :   max_old_files(max_old_files),
+    max_size(max_size),
     path(path) {
 }
 
@@ -135,6 +137,18 @@ void Log::close_file() {
     }
 }
 
+boost::optional<size_t> Log::current_log_file_size() {
+    if (options.file) {
+        struct stat buf;
+        if (::stat(options.file.get().path.c_str(), &buf) == 0) {
+            return boost::optional<size_t>(buf.st_size);
+        } else {
+            write(__FILE__, __LINE__, LEVEL_ERROR, "Could not stat log file!");
+        }
+    }
+    return boost::none;
+}
+
 void Log::initialize(const LogOptions & options) {
     boost::lock_guard<boost::mutex> lock(global_mutex);
     _open_log(options);
@@ -180,7 +194,18 @@ void Log::rotate_files() {
         _rotate_files(old->options.file.get());
         old->open_file();
     }
+}
 
+void Log::rotate_logs_if_needed() {
+    LogPtr log = get_instance();
+    if (log->options.file) {
+        boost::optional<size_t> size = log->current_log_file_size();
+        if (size) { // ignore if we couldn't stat the file.
+            if (size > log->options.file.get().max_size) {
+                rotate_files();
+            }
+        }
+    }
 }
 
 void Log::write(const char * file_name, int line_number, Log::Level level,

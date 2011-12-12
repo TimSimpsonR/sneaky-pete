@@ -11,6 +11,22 @@
 #include "nova/db/mysql.h"
 #include <stdlib.h>
 
+using nova::Log;
+using nova::LogOptions;
+
+
+struct GlobalFixture {
+    GlobalFixture() {
+        Log::initialize(LogOptions::simple());
+    }
+
+    ~GlobalFixture() {
+        Log::shutdown();
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(GlobalFixture);
+
 //#include "nova/"
 #define CHECK_POINT() BOOST_CHECK_EQUAL(2,2);
 #define CHECK_EXCEPTION(statement, ex_code) try { \

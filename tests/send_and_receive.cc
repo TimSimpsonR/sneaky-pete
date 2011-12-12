@@ -11,7 +11,7 @@
 #include <string>
 #include <stdlib.h>
 
-#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); log.debug("At line %d...", __LINE__);
+#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); NOVA_LOG_DEBUG2("At line %d...", __LINE__);
 using nova::flags::FlagMap;
 using nova::flags::FlagMapPtr;
 using nova::flags::FlagValues;
@@ -20,6 +20,7 @@ using nova::JsonObject;
 using nova::JsonObjectPtr;
 using namespace nova::guest;
 using nova::Log;
+using nova::LogOptions;
 using namespace nova::rpc;
 using boost::posix_time::milliseconds;
 using boost::posix_time::time_duration;
@@ -53,10 +54,20 @@ const char * host() {
     return rabbitmq_host.c_str();
 }
 
+struct GlobalFixture {
+    GlobalFixture() {
+        Log::initialize(LogOptions::simple());
+    }
+
+    ~GlobalFixture() {
+        Log::shutdown();
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 BOOST_AUTO_TEST_CASE(SendingAMessage)
 {
-    Log log;
     CHECK_POINT();
     FlagValues flags(get_flags());
     CHECK_POINT();
@@ -66,11 +77,11 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
     CHECK_POINT();
     Receiver receiver(connection, TOPIC, "nova");
     CHECK_POINT();
-    log.info("TEST - Created receiver");
+    NOVA_LOG_INFO("TEST - Created receiver");
     CHECK_POINT();
     Sender sender(connection, TOPIC);
     CHECK_POINT();
-    log.info("TEST - Created sender");
+    NOVA_LOG_INFO("TEST - Created sender");
     CHECK_POINT();
     const char MESSAGE_ONE [] =
     "{"
@@ -81,7 +92,7 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
     CHECK_POINT();
     sender.send(input);
     CHECK_POINT();
-    log.info("TEST - send obj");
+    NOVA_LOG_INFO("TEST - send obj");
     {
         GuestInput input = receiver.next_message();
 

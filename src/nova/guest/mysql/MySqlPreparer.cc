@@ -28,7 +28,7 @@ using namespace std;
 namespace nova { namespace guest { namespace mysql {
 
 namespace {
-    Log log;
+
     const double TIME_OUT = 500;
 
     const char * ADMIN_USER_NAME = "os_admin";
@@ -65,7 +65,7 @@ namespace {
         ofstream tmp_file;
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
-            log.error2("Couldn't open temp file: %s.", temp_file_path);
+            NOVA_LOG_ERROR2("Couldn't open temp file: %s.", temp_file_path);
             throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
         }
         string line;
@@ -102,56 +102,55 @@ void MySqlPreparer::generate_root_password() {
 }
 
 void MySqlPreparer::init_mycnf(const std::string & password) {
-    log.info("Installing my.cnf templates");
+    NOVA_LOG_INFO("Installing my.cnf templates");
 
     apt->install("dbaas-mycnf", TIME_OUT);
 
-    log.info("Replacing my.cnf with template.");
+    NOVA_LOG_INFO("Replacing my.cnf with template.");
     replace_mycnf_with_template(DBAAS_MYCNF, ORIG_MYCNF);
 
-    log.info("Writing new temp my.cnf.");
+    NOVA_LOG_INFO("Writing new temp my.cnf.");
     write_temp_mycnf_with_admin_account(ORIG_MYCNF, TMP_MYCNF, password.c_str());
 
-    log.info("Copying tmp file so we can log in (permissions work-around).");
+    NOVA_LOG_INFO("Copying tmp file so we can log in (permissions work-around).");
     Process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
-    log.info("Moving tmp into final.");
+    NOVA_LOG_INFO("Moving tmp into final.");
     Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
-    log.info("Removing original my.cnf.");
+    NOVA_LOG_INFO("Removing original my.cnf.");
     Process::execute(list_of("/usr/bin/sudo")("rm")(ORIG_MYCNF));
-    log.info("Symlinking final my.cnf.");
+    NOVA_LOG_INFO("Symlinking final my.cnf.");
     Process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
                             (ORIG_MYCNF));
 }
 
 void MySqlPreparer::install_mysql() {
-    Log log;
-    log.info("Installing mysql server.");
+    NOVA_LOG_INFO("Installing mysql server.");
     apt->install("mysql-server-5.1", TIME_OUT);
 }
 
 void MySqlPreparer::prepare() {
-    log.info("Preparing Guest as MySQL Server");
+    NOVA_LOG_INFO("Preparing Guest as MySQL Server");
     install_mysql();
     string admin_password = mysql::generate_password();
 
-    log.info("Generating root password...");
+    NOVA_LOG_INFO("Generating root password...");
     generate_root_password();
-    log.info("Removing anonymous users...");
+    NOVA_LOG_INFO("Removing anonymous users...");
     remove_anonymous_user();
-    log.info("Removing root access...");
+    NOVA_LOG_INFO("Removing root access...");
     remove_remote_root_access();
-    log.info("Creating admin user...");
+    NOVA_LOG_INFO("Creating admin user...");
     create_admin_user(admin_password);
-    log.info("Flushing privileges");
+    NOVA_LOG_INFO("Flushing privileges");
     sql->get_connection()->flush_privileges();
 
-    log.info("Initiating config.");
+    NOVA_LOG_INFO("Initiating config.");
     init_mycnf(admin_password);
     sql->get_connection()->close();
-    log.info("Restarting MySQL...");
+    NOVA_LOG_INFO("Restarting MySQL...");
     restart_mysql();
 
-    log.info("Dbaas preparation complete.");
+    NOVA_LOG_INFO("Dbaas preparation complete.");
 }
 
 void MySqlPreparer::remove_anonymous_user() {
@@ -167,7 +166,7 @@ void MySqlPreparer::remove_remote_root_access() {
 
 void MySqlPreparer::restart_mysql() {
     const char * MYSQL_BASE_DIR = "/var/lib/mysql";
-    log.info("Restarting mysql...");
+    NOVA_LOG_INFO("Restarting mysql...");
     Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("stop"));
 
     // Remove the ib_logfile, if not mysql won't start.

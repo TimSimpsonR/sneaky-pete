@@ -20,19 +20,17 @@ namespace nova { namespace guest { namespace utils {
 
 namespace {
 
-    nova::Log log;
-
     void set_time(char * buffer, size_t buffer_size, const char * format) {
         time_t t = time(NULL);
         // The returned pointer is statically allocated and shared, so
         // don't free it.
         tm * tmp = localtime(&t);
         if (tmp == NULL) {
-            log.error("Could not get localtime!");
+            NOVA_LOG_ERROR("Could not get localtime!");
             throw GuestException(GuestException::GENERAL);
         }
         if (strftime(buffer, buffer_size, format, tmp) == 0) {
-            log.error("strftime returned 0");
+            NOVA_LOG_ERROR("strftime returned 0");
             throw GuestException(GuestException::GENERAL);
         }
     }

@@ -30,7 +30,6 @@ namespace nova { namespace rpc {
         AmqpConnectionPtr connection;
         int last_delivery_tag;
         boost::optional<std::string> last_msg_id;
-        Log log;
         AmqpChannelPtr queue;
         const std::string topic;
 
@@ -66,8 +65,6 @@ namespace nova { namespace rpc {
         std::string exchange_name;
 
         std::string host;
-
-        Log log;
 
         void open(bool wait_first);
 

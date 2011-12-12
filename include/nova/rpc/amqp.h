@@ -111,7 +111,6 @@ namespace nova { namespace rpc {
             std::vector<int> bad_channels;
             std::vector<AmqpChannel *> channels;
             amqp_connection_state_t connection;
-            Log log;
             int reference_count;
             int sockfd;
     };

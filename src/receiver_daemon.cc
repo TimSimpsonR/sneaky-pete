@@ -26,7 +26,7 @@
 #define START_THREAD_TASK() try {
 #define END_THREAD_TASK(name)  \
      } catch(const std::exception & e) { \
-        log.error2("Error in " name "! : %s", e.what()); \
+        NOVA_LOG_ERROR2("Error in " name "! : %s", e.what()); \
      }
 #define CATCH_RPC_METHOD_ERRORS
 ////////#endif
@@ -63,7 +63,6 @@ static bool quit;
 class PeriodicTasker {
 
 private:
-    Log log;
     JsonObject message;
     MySqlConnectionPtr nova_db;
     string nova_db_name;
@@ -73,8 +72,7 @@ private:
 public:
     PeriodicTasker(MySqlConnectionPtr nova_db, string nova_db_name,
                    MySqlNovaUpdaterPtr status_updater, NewService service_key)
-      : log(),
-        message(PERIODIC_MESSAGE),
+      : message(PERIODIC_MESSAGE),
         nova_db(nova_db),
         nova_db_name(nova_db_name),
         service_key(service_key),
@@ -93,7 +91,7 @@ public:
         while(!quit) {
             unsigned long wait_time = next_periodic_task < next_reporting ?
                 next_periodic_task : next_reporting;
-            log.info2("Waiting for %lu seconds...", wait_time);
+            NOVA_LOG_INFO2("Waiting for %lu seconds...", wait_time);
             boost::posix_time::seconds time(wait_time);
             boost::this_thread::sleep(time);
             next_periodic_task -= wait_time;
@@ -112,8 +110,9 @@ public:
 
     void periodic_tasks() {
         START_THREAD_TASK();
-            log.info("Running periodic tasks...");
+            NOVA_LOG_INFO("Running periodic tasks...");
             status_updater->update();
+            Log::rotate_logs_if_needed();
         END_THREAD_TASK("periodic_tasks()");
     }
 
@@ -138,7 +137,6 @@ AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
 
 int main(int argc, char* argv[]) {
     quit = false;
-    Log log;
 
     // Initialize MySQL libraries. This should be done before spawning threads.
     MySqlConnection::start_up();
@@ -151,6 +149,22 @@ int main(int argc, char* argv[]) {
 
         /* Grab flag values. */
         FlagValues flags(FlagMap::create_from_args(argc, argv, true));
+
+        /* Initialize logging. */
+        optional<LogFileOptions> log_file_options;
+        if (flags.log_file_path()) {
+            LogFileOptions ops(flags.log_file_path().get(),
+                               flags.log_file_max_size(),
+                               flags.log_file_max_time(),
+                               flags.log_file_max_old_files().get_value_or(30));
+            log_file_options = optional<LogFileOptions>(ops);
+        } else {
+            log_file_options = boost::none;
+        }
+        LogOptions log_options(log_file_options,
+                               flags.log_use_std_streams(),
+                               flags.use_syslog());
+        Log::initialize(log_options);
 
         /* Create connection to Nova database. */
         MySqlConnectionPtr nova_db(new MySqlConnection(
@@ -210,7 +224,7 @@ int main(int argc, char* argv[]) {
 
         while(!quit) {
             GuestInput input = receiver.next_message();
-            log.info2("method=%s", input.method_name.c_str());
+            NOVA_LOG_INFO2("method=%s", input.method_name.c_str());
 
             GuestOutput output;
 
@@ -226,9 +240,9 @@ int main(int argc, char* argv[]) {
                 output.failure = boost::none;
             #ifdef CATCH_RPC_METHOD_ERRORS
             } catch(const std::exception & e) {
-                log.error2("Error running method %s : %s",
+                NOVA_LOG_ERROR2("Error running method %s : %s",
                            input.method_name.c_str(), e.what());
-                log.error(e.what());
+                NOVA_LOG_ERROR(e.what());
                 output.result.reset();
                 output.failure = e.what();
             }
@@ -238,10 +252,11 @@ int main(int argc, char* argv[]) {
         }
 #ifndef _DEBUG
     } catch (const std::exception & e) {
-        log.error2("Error: %s", e.what());
+        NOVA_LOG_ERROR2("Error: %s", e.what());
     }
 #endif
 
     MySqlConnection::shut_down();
+    Log::shutdown();
     return 0;
 }

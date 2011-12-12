@@ -25,7 +25,7 @@ using namespace std;
 namespace nova { namespace guest { namespace mysql {
 
 namespace {
-    Log log;
+
 }
 
 
@@ -58,7 +58,7 @@ namespace {
     void db_list_from_array(MySqlDatabaseListPtr db_list, JsonArrayPtr array) {
         for (int i = 0; i < array->get_length(); i ++) {
             JsonObjectPtr db_obj = array->get_object(i);
-            log.info2("database json info:%s", db_obj->to_string());
+            NOVA_LOG_INFO2("database json info:%s", db_obj->to_string());
             db_list->push_back(db_from_obj(db_obj));
         };
     }
@@ -85,7 +85,7 @@ namespace {
 
     JSON_METHOD(create_database) {
         MySqlAdminPtr sql = guest->sql_admin();
-        log.info2("guest create_database"); //", guest->create_database().c_str());
+        NOVA_LOG_INFO2("guest create_database"); //", guest->create_database().c_str());
         MySqlDatabaseListPtr databases(new MySqlDatabaseList());
         JsonArrayPtr array = args->get_array("databases");
         db_list_from_array(databases, array);
@@ -176,10 +176,10 @@ namespace {
     }
 
     JSON_METHOD(prepare) {
-        log.info("Prepare was called.");
-        log.info("Updating status to BUILDING...");
+        NOVA_LOG_INFO("Prepare was called.");
+        NOVA_LOG_INFO("Updating status to BUILDING...");
         guest->sql_updater()->begin_mysql_install();
-        log.info("Calling prepare...");
+        NOVA_LOG_INFO("Calling prepare...");
         {
             MySqlPreparerPtr preparer = guest->sql_preparer();
             preparer->prepare();
@@ -188,8 +188,8 @@ namespace {
 
         // The argument signature is the same as create_database so just
         // forward the method.
-        log.info("Creating initial databases following successful prepare");
-        log.info2("Here's the args: %s", args->to_string());
+        NOVA_LOG_INFO("Creating initial databases following successful prepare");
+        NOVA_LOG_INFO2("Here's the args: %s", args->to_string());
         return create_database(guest, args);
     }
 
@@ -217,7 +217,7 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlMessageHandlerConfig config)
     };
     const MethodEntry * itr = static_method_entries;
     while(itr->name != 0) {
-        log.info2( "Registering method %s", itr->name);
+        NOVA_LOG_INFO2( "Registering method %s", itr->name);
         methods[itr->name] = itr->ptr;
         itr ++;
     }
@@ -228,7 +228,7 @@ JsonDataPtr MySqlMessageHandler::handle_message(const GuestInput & input) {
     if (method_itr != methods.end()) {
         // Make sure our connection is fresh.
         MethodPtr & method = method_itr->second;  // value
-        log.info2( "Executing method %s", input.method_name.c_str());
+        NOVA_LOG_INFO2( "Executing method %s", input.method_name.c_str());
         JsonDataPtr result = (*(method))(this, input.args);
         return result;
     } else {

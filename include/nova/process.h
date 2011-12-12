@@ -86,7 +86,6 @@ class Process {
     private:
         const char * const * argv;
         bool eof_flag;
-        Log log;
         pid_t pid;
         int std_out_fd[2];
         int std_in_fd[2];

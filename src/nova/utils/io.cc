@@ -1,6 +1,7 @@
 #include "nova/utils/io.h"
 
 #include <errno.h>
+#include "nova/Log.h"
 #include <signal.h>
 #include <sys/select.h>
 #include <stdio.h>
@@ -12,22 +13,24 @@
 
 using nova::utils::io::IOException;
 using nova::Log;
+using nova::LogPtr;
 using boost::optional;
 
 namespace {
 
-    inline void checkGE0(Log & log, const int return_code,
+    inline void checkGE0(LogPtr & log, const int return_code,
                          IOException::Code code = IOException::GENERAL) {
         if (return_code < 0) {
-            log.error2("System error : %s", strerror(errno));
+            NOVA_LOG_ERROR2("System error : %s", strerror(errno));
             throw IOException(code);
         }
     }
 
-    inline void checkEqual0(Log & log, const int return_code,
+    inline void checkEqual0(LogPtr & log, const int return_code,
                             IOException::Code code = IOException::GENERAL) {
         if (return_code != 0) {
-            log.error2("System error : %s", strerror(errno));
+            NOVA_LOG_WRITE(log, LEVEL_ERROR)("System error : %s",
+                                             strerror(errno));
             throw IOException(code);
         }
     }
@@ -97,7 +100,7 @@ const char * TimeOutException::what() const throw() {
  *- Timer
  *---------------------------------------------------------------------------*/
 
-Timer::Timer(double seconds) : log() {
+Timer::Timer(double seconds) {
     set_interrupt_handler();
     // Initialize timer.
     itimerspec value;
@@ -105,6 +108,7 @@ Timer::Timer(double seconds) : log() {
     // However even if you use memset on it this error will not go away.
     // http://stackoverflow.com/questions/6122594/timer-create-gives-memory-leaks-issue-syscall-param-timer-createevp-points-to
     // ;_;
+    LogPtr log = Log::get_instance();
     checkEqual0(log, timer_create(CLOCK_REALTIME, NULL, &id),
                 IOException::TIMER_ENABLE_ERROR);
     value.it_value = timespec_from_seconds(seconds);
@@ -116,6 +120,7 @@ Timer::Timer(double seconds) : log() {
 }
 
 Timer::~Timer() {
+    LogPtr log = Log::get_instance();
     checkEqual0(log, timer_delete(id),
                 IOException::TIMER_DISABLE_ERROR);
     time_out_occurred() = false;
@@ -124,8 +129,7 @@ Timer::~Timer() {
 
 void Timer::interrupt(int signal_number, siginfo_t * info,
                              void * context) {
-    Log log;
-    log.error("Interruptin'");
+    NOVA_LOG_ERROR("Interruptin'");
     time_out_occurred() = true;
     remove_interrupt_handler();
     //raise(SIGALRM);
@@ -186,18 +190,16 @@ bool is_file(const char * file_path) {
     } else if (errno == EACCES) {
         throw IOException(IOException::ACCESS_DENIED);
     } else  {
-        Log log;
-        log.error2("stat returned < 0. errno = %d: %s\n EINTR=%d",
-                   errno, strerror(errno), EINTR);
+        NOVA_LOG_ERROR2("stat returned < 0. errno = %d: %s\n EINTR=%d",
+                        errno, strerror(errno), EINTR);
         throw IOException(IOException::GENERAL);
     }
 }
 
 // Throws exceptions if errors are detected.
-size_t read_with_throw(Log & log, int fd, char * const buf, size_t count) {
-    //log.debug("Before read");
+size_t read_with_throw(int fd, char * const buf, size_t count) {
     ssize_t bytes_read = ::read(fd, buf, count);
-    //log.debug("After read");
+    LogPtr log = Log::get_instance();
     checkGE0(log, bytes_read, IOException::READ_ERROR);
     return (size_t) bytes_read;
 }
@@ -207,28 +209,25 @@ size_t read_with_throw(Log & log, int fd, char * const buf, size_t count) {
 // ProcessTimeOutExceptions if they happen.
 int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * errorfds, optional<double> seconds) {
-    Log log;
     timespec time_out = timespec_from_seconds(!seconds ? 0.0 : seconds.get());
     sigset_t empty_set;
     sigemptyset(&empty_set);
     // Unblock all signals for the duration of select.
-    //log.debug("Before pselect");
     int ready = -1;
     while(ready < 0)
     {
         ready = pselect(nfds, readfds, writefds, errorfds,
                             (!seconds ? NULL: &time_out), &empty_set);
-        //log.debug("after pselect");
         if (ready < 0) {
             if (errno == EINTR) {
                 if (Timer::time_out_occurred()) {
                     throw TimeOutException();
                 } else {
-                    log.error("pselect was interrupted, restarting.");
+                    NOVA_LOG_ERROR("pselect was interrupted, restarting.");
                 }
             } else {
-                log.error2("Select returned < 0. errno = %d: %s\n EINTR=%d",
-                           errno, strerror(errno), EINTR);
+                NOVA_LOG_ERROR2("Select returned < 0. errno = %d: %s\n "
+                                "EINTR=%d", errno, strerror(errno), EINTR);
                 throw IOException(IOException::GENERAL);
             }
         }

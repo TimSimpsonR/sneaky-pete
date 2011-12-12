@@ -20,7 +20,6 @@ namespace nova { namespace rpc {
         private:
             AmqpChannelPtr exchange;
             std::string exchange_name;
-            Log log;
             const std::string queue_name;
             const std::string routing_key;
     };

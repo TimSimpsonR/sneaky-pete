@@ -26,6 +26,19 @@ const char * parrot_path() {
     }
 }
 
+
+struct GlobalFixture {
+    GlobalFixture() {
+        Log::initialize(LogOptions::simple());
+    }
+
+    ~GlobalFixture() {
+        Log::shutdown();
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(GlobalFixture);
+
 /**---------------------------------------------------------------------------
  *- Process Tests
  *---------------------------------------------------------------------------*/

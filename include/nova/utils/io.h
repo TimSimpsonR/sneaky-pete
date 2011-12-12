@@ -2,7 +2,6 @@
 #define _NOVA_UTILS_IO_H
 
 #include <boost/optional.hpp>
-#include "nova/Log.h"
 #include <sys/select.h>
 #include <signal.h>
 #include <time.h>
@@ -29,14 +28,13 @@ class Timer {
 
     private:
         timer_t id;
-        Log log;
 };
 
 
 bool is_file(const char * file_path);
 
 /** Throws exceptions if errors are detected. */
-size_t read_with_throw(Log & log, int fd, char * const buf, size_t count);
+size_t read_with_throw(int fd, char * const buf, size_t count);
 
 /** Throws exceptions if errors are detected.
  * Also unblocks time out signals before proceeding and throws

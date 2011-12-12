@@ -8,24 +8,19 @@
 #include <stdio.h>
 #include <syslog.h>
 #include <sys/stat.h>
+#include <time.h>
 #include "nova/guest/utils.h"
 
 using boost::format;
 using nova::Log;
 using nova::guest::utils::IsoDateTime;
+using boost::optional;
 using std::string;
 
 namespace nova {
 
 namespace {
 
-    /*
-     * - Initialize logging system.
-     * - On periodic tasks, check if today's date is a day past the current logger,
-     *   and if so, switch to new logger.
-     * - On first access, if a logger is not present create one.
-     *
-    */
     const char * level_to_string(Log::Level level) {
         switch(level) {
             case Log::LEVEL_DEBUG:
@@ -40,6 +35,8 @@ namespace {
     }
 
     static boost::mutex global_mutex;
+
+    static time_t start_time;
 
     inline int syslog_priority(Log::Level level) {
         switch(level) {
@@ -79,9 +76,11 @@ const char * LogException::what() const throw() {
  *- LogFileOptions
  *---------------------------------------------------------------------------*/
 
-LogFileOptions::LogFileOptions(string path, size_t max_size, int max_old_files)
+LogFileOptions::LogFileOptions(string path, optional<size_t> max_size,
+                               optional<double> max_time_in_seconds, int max_old_files)
 :   max_old_files(max_old_files),
     max_size(max_size),
+    max_time_in_seconds(max_time_in_seconds),
     path(path) {
 }
 
@@ -152,6 +151,7 @@ boost::optional<size_t> Log::current_log_file_size() {
 void Log::initialize(const LogOptions & options) {
     boost::lock_guard<boost::mutex> lock(global_mutex);
     _open_log(options);
+    ::time(&start_time);
 }
 
 LogPtr & Log::_get_instance() {
@@ -194,19 +194,38 @@ void Log::rotate_files() {
         _rotate_files(old->options.file.get());
         old->open_file();
     }
+    ::time(&start_time);
 }
 
 void Log::rotate_logs_if_needed() {
     LogPtr log = get_instance();
-    if (log->options.file) {
-        boost::optional<size_t> size = log->current_log_file_size();
-        if (size) { // ignore if we couldn't stat the file.
-            if (size > log->options.file.get().max_size) {
-                rotate_files();
+    if (log->should_rotate_logs()) {
+        rotate_files();
+    }
+}
+
+bool Log::should_rotate_logs() {
+    if (options.file) {
+        const LogFileOptions & file_options = options.file.get();
+        if (file_options.max_time_in_seconds) {
+            time_t current_time;
+            ::time(&current_time);
+            double diff = difftime(current_time, start_time);
+            if (diff > file_options.max_time_in_seconds.get()) {
+                return true;
+            }
+        } else if (file_options.max_size) {
+            boost::optional<size_t> size = current_log_file_size();
+            if (size) { // ignore if we couldn't stat the file.
+                if (size > file_options.max_size) {
+                    return true;
+                }
             }
         }
     }
+    return false;
 }
+
 
 void Log::write(const char * file_name, int line_number, Log::Level level,
                 const char * message)

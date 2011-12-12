@@ -274,6 +274,10 @@ optional<size_t> FlagValues::log_file_max_size() const {
     return get_flag_value<size_t>(*map, "log_file_max_size");
 }
 
+boost::optional<double> FlagValues::log_file_max_time() const {
+    return get_flag_value<double>(*map, "log_file_max_time");
+}
+
 optional<const char *> FlagValues::log_file_path() const {
     return get_flag_value<const char *>(*map, "log_file_path");
 }

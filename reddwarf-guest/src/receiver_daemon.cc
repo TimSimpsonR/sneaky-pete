@@ -154,8 +154,8 @@ int main(int argc, char* argv[]) {
         optional<LogFileOptions> log_file_options;
         if (flags.log_file_path()) {
             LogFileOptions ops(flags.log_file_path().get(),
-                               flags.log_file_max_size().get_value_or(
-                                   8 * (1024 * 1024)),
+                               flags.log_file_max_size(),
+                               flags.log_file_max_time(),
                                flags.log_file_max_old_files().get_value_or(30));
             log_file_options = optional<LogFileOptions>(ops);
         } else {

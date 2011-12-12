@@ -55,9 +55,11 @@ struct LogTestsFixture {
 
     string log_file;
 
-    LogTestsFixture() : log_file(str(format("log_tests_%d") % test_count)) {
+    LogTestsFixture() : log_file(str(format("bin/log_tests_%d") % test_count)) {
         remove(log_file.c_str());
-        LogFileOptions file_options(log_file, 10000, 3);
+        LogFileOptions file_options(log_file, boost::optional<size_t>(10000),
+                    test_count != 5 ? boost::none : boost::optional<double>(2),
+                                    3);
         LogOptions options(optional<LogFileOptions>(file_options), true, false);
         nova::Log::initialize(options);
         test_count ++;
@@ -331,6 +333,34 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files_2) {
 
     BOOST_CHECK_EQUAL(2,2);
     boost::this_thread::sleep(boost::posix_time::seconds(1));
+}
+
+BOOST_AUTO_TEST_CASE(writing_some_lines_and_waiting_for_rotate) {
+    NOVA_LOG_DEBUG("START!");
+    boost::this_thread::sleep(boost::posix_time::seconds(1));
+    nova::Log::rotate_logs_if_needed();
+    NOVA_LOG_ERROR("Finish");
+    boost::this_thread::sleep(boost::posix_time::seconds(2));
+    nova::Log::rotate_logs_if_needed();
+    // rotate
+    NOVA_LOG_DEBUG("I am the next log.");
+    nova::Log::rotate_logs_if_needed();
+    {
+        vector<string> lines;
+        read_file(lines, 1);
+        Regex regex("START");
+        RegexMatchesPtr matches = regex.match(lines[0].c_str());
+        BOOST_CHECK_EQUAL(!!matches, true);
+    }
+    {
+        vector<string> lines;
+        read_file(lines);
+        Regex regex("I am the next log");
+        RegexMatchesPtr matches = regex.match(lines[0].c_str());
+        BOOST_CHECK_EQUAL(!!matches, true);
+    }
+
+
 }
 
 BOOST_AUTO_TEST_SUITE_END();

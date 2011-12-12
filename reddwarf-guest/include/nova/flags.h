@@ -105,6 +105,8 @@ class FlagValues {
 
         boost::optional<size_t> log_file_max_size() const;
 
+        boost::optional<double> log_file_max_time() const;
+
         bool log_use_std_streams() const;
 
         const char * node_availability_zone() const;

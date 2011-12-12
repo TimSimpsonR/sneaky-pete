@@ -10,8 +10,6 @@
 
 /**
  * Cheezy mini-logging system.
- * We didn't want to pull in syslog or something heavier, so this is the
- * solution... God have mercy on us all.
  */
 namespace nova {
 
@@ -36,9 +34,11 @@ namespace nova {
 
     struct LogFileOptions {
         int max_old_files;
-        size_t max_size;
+        boost::optional<size_t> max_size;
+        boost::optional<double> max_time_in_seconds;
         std::string path;
-        LogFileOptions(std::string path, size_t max_size, int max_old_files);
+        LogFileOptions(std::string path, boost::optional<size_t> max_size,
+                       boost::optional<double> max_time_in_seconds, int max_old_files);
 
         static void rotate_files();
     };
@@ -51,6 +51,8 @@ namespace nova {
         bool use_syslog;
         LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams,
                    bool use_syslog);
+
+        /** Creates a simple set of LogOptions. Useful for tests. */
         static LogOptions simple();
     };
 
@@ -79,6 +81,10 @@ namespace nova {
 
             boost::optional<size_t> current_log_file_size();
 
+            /* Call this to retrieve an instance of the Logger.
+             * The instance returned may need to be taken out of rotation
+             * Do *not* store this logger because it may need to be taken out
+             * of rotation. */
             static LogPtr get_instance();
 
             static void initialize(const LogOptions & options);
@@ -87,6 +93,8 @@ namespace nova {
              *  backed up logs from 1 - options.max_old_files. */
             static void rotate_files();
 
+            /* Checks if rotation of the logs is necessary given the options
+             * and the current state of the log file and the options. */
             static void rotate_logs_if_needed();
 
             void write(const char * file_name, int line_number,
@@ -95,13 +103,7 @@ namespace nova {
             LogLine write_fmt(const char * file_name, int line_number,
                               Level level);
 
-            /* Call this to retrieve an instance of the Logger.
-             * The instance returned may need to be taken out of rotation
-             * Do *not* store this logger (because it may need to be taken out
-             * of rotation) but also do not access it through this function
-
-             * Do *not* store
-             * this logger for a long period of time. */
+            bool should_rotate_logs();
 
             static void shutdown();
         protected:

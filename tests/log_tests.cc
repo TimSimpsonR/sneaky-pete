@@ -60,7 +60,7 @@ struct LogTestsFixture {
         LogFileOptions file_options(log_file, boost::optional<size_t>(10000),
                     test_count != 5 ? boost::none : boost::optional<double>(2),
                                     3);
-        LogOptions options(optional<LogFileOptions>(file_options), true, false);
+        LogOptions options(optional<LogFileOptions>(file_options), false, false);
         nova::Log::initialize(options);
         test_count ++;
     }
@@ -173,7 +173,6 @@ struct Worker {
             if (id == 50) {
                 nova::Log::rotate_logs_if_needed();
             }
-            std::cerr << "WORK id=" << id << " stage=" << stage << std::endl;
             NOVA_LOG_DEBUG2("id=%d stage=%c", id, stage);
             NOVA_LOG_ERROR2("id=%d stage=%c", id, stage);
             NOVA_LOG_INFO2("id=%d stage=%c", id, stage);
@@ -184,7 +183,6 @@ struct Worker {
 };
 
 BOOST_AUTO_TEST_CASE(writing_lines_in_a_thread) {
-    std::cerr << "Welcome to Test #2." << std::endl;
     NOVA_LOG_INFO("Welcome to Test #2.");
     const int worker_count = 10;
     vector<boost::thread *> threads;
@@ -207,10 +205,8 @@ BOOST_AUTO_TEST_CASE(writing_lines_in_a_thread) {
         boost::posix_time::seconds time(1);
         boost::this_thread::sleep(time);
         CHECK_POINT();
-        std::cout << "Time to enter a world of pain." << std::endl;
         BOOST_FOREACH(Worker & worker, workers) {
             CHECK_POINT();
-            std::cout << "next state for : " << worker.id << std::endl;
             worker.next_state();
         }
     }
@@ -234,7 +230,6 @@ BOOST_AUTO_TEST_CASE(writing_lines_in_a_thread) {
 }
 
 BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
-    std::cerr << "Welcome to Test #3." << std::endl;
     NOVA_LOG_INFO("Welcome to Test #3.");
     const int worker_count = 10;
     vector<boost::thread *> threads;
@@ -257,10 +252,8 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
         boost::posix_time::seconds time(1);
         boost::this_thread::sleep(time);
         CHECK_POINT();
-        std::cout << "Time for waffles." << std::endl;
         BOOST_FOREACH(Worker & worker, workers) {
             CHECK_POINT();
-            std::cout << "next state for : " << worker.id << std::endl;
             worker.next_state();
         }
         nova::Log::rotate_files();
@@ -285,7 +278,6 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files) {
 }
 
 BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files_2) {
-    std::cerr << "Welcome to Test #3." << std::endl;
     NOVA_LOG_INFO("Welcome to Test #3.");
     const int worker_count = 10;
     vector<boost::thread *> threads;
@@ -309,10 +301,8 @@ BOOST_AUTO_TEST_CASE(writing_lines_to_threads_while_switching_files_2) {
         boost::posix_time::seconds time(1);
         boost::this_thread::sleep(time);
         CHECK_POINT();
-        std::cout << "Time for waffles." << std::endl;
         BOOST_FOREACH(Worker & worker, workers) {
             CHECK_POINT();
-            std::cout << "next state for : " << worker.id << std::endl;
             worker.next_state();
         }
     }

@@ -48,12 +48,16 @@ namespace nova {
     struct LogOptions {
         boost::optional<LogFileOptions> file;
         bool use_std_streams;
-        bool use_syslog;
-        LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams,
-                   bool use_syslog);
+        LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams);
 
         /** Creates a simple set of LogOptions. Useful for tests. */
         static LogOptions simple();
+    };
+
+    class LogApiScope {
+        public:
+            LogApiScope(const LogOptions & options);
+            ~LogApiScope();
     };
 
     class Log;

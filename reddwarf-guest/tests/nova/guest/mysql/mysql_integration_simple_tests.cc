@@ -12,17 +12,18 @@
 #include <stdlib.h>
 
 using nova::Log;
+using nova::LogApiScope;
 using nova::LogOptions;
 
 
 struct GlobalFixture {
-    GlobalFixture() {
-        Log::initialize(LogOptions::simple());
+
+    LogApiScope log;
+
+    GlobalFixture()
+    : log(LogOptions::simple()) {
     }
 
-    ~GlobalFixture() {
-        Log::shutdown();
-    }
 };
 
 BOOST_GLOBAL_FIXTURE(GlobalFixture);
@@ -75,7 +76,7 @@ FlagMapPtr get_flags() {
 
 BOOST_AUTO_TEST_CASE(integration_tests)
 {
-    MySqlConnection::start_up();
+    MySqlApiScope mysql_api_scope;
 
     FlagValues flags(get_flags());
     string host, user, password, database;
@@ -218,6 +219,4 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         //MySqlResultSetPtr result = connection.query(
 
     }
-
-    MySqlConnection::shut_down();
 }

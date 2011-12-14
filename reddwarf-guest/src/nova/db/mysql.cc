@@ -177,6 +177,8 @@ const char *  MySqlException::code_to_string(Code code) {
             return "Could not convert result set field to boolean.";
         case COULD_NOT_CONVERT_TO_INT:
             return "Could not convert result set field to integer.";
+        case ERROR_INITIALIZING_API:
+            return "An error occurred initializing the MySQL API!";
         case ESCAPE_STRING_BUFFER_TOO_SMALL:
             return "Escape string buffer was too small.";
         case FIELD_INDEX_OUT_OF_BOUNDS:
@@ -220,6 +222,21 @@ const char *  MySqlException::code_to_string(Code code) {
 
 const char * MySqlException::what() const throw() {
     return code_to_string(code);
+}
+
+
+/**---------------------------------------------------------------------------
+ *- MySqlApiScope
+ *---------------------------------------------------------------------------*/
+
+MySqlApiScope::MySqlApiScope() {
+    if (mysql_library_init(0, NULL, NULL) != 0) {
+        throw MySqlException(MySqlException::ERROR_INITIALIZING_API);
+    }
+}
+
+MySqlApiScope::~MySqlApiScope() {
+    mysql_library_end();
 }
 
 
@@ -702,19 +719,6 @@ MySqlResultSetPtr MySqlConnection::query(const char * text) {
     }
     MySqlResultSetPtr rtn(new MySqlQueryResultSet(mysql_con(get_con())));
     return rtn;
-}
-
-// void MySqlConnection::use_database(const char * db_name) {
-//     string using_stmt = str(format("use %s") % escape_string(db_name));
-//     query(using_stmt.c_str());
-// }
-
-void MySqlConnection::start_up() {
-    mysql_library_init(0, NULL, NULL);
-}
-
-void MySqlConnection::shut_down() {
-    mysql_library_end();
 }
 
 

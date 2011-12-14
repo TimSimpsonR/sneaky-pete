@@ -19,6 +19,9 @@ class Regex {
         RegexMatchesPtr match(const char * line, size_t max_matches=5) const;
 
     private:
+        Regex(const Regex &);
+        Regex & operator = (const Regex &);
+
         regex_t regex;
 };
 
@@ -34,6 +37,9 @@ class RegexMatches {
         std::string original_line() const;
 
     private:
+        RegexMatches(const RegexMatches &);
+        RegexMatches & operator = (const RegexMatches &);
+
         std::string line;
         regmatch_t * matches;
         size_t nmatch;

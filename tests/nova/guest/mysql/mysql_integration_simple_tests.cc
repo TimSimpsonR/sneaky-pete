@@ -85,9 +85,9 @@ BOOST_AUTO_TEST_CASE(integration_tests)
     //BOOST_REQUIRE_EQUAL(!!database, true);
     //BOOST_REQUIRE_EQUAL(database.get(), "nova");
 
-    MySqlConnection connection(flags.nova_sql_host(), flags.nova_sql_user(),
-        flags.nova_sql_password());
-    connection.use_database(flags.nova_sql_database());
+    MySqlConnectionWithDefaultDb connection(flags.nova_sql_host(),
+        flags.nova_sql_user(), flags.nova_sql_password(),
+        flags.nova_sql_database());
 
     CHECK_EXCEPTION({ connection.query("use not_real"); }, QUERY_FAILED);
 

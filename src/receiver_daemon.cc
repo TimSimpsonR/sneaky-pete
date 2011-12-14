@@ -64,17 +64,15 @@ class PeriodicTasker {
 
 private:
     JsonObject message;
-    MySqlConnectionPtr nova_db;
-    string nova_db_name;
+    MySqlConnectionWithDefaultDbPtr nova_db;
     NewService service_key;
     MySqlNovaUpdaterPtr status_updater;
 
 public:
-    PeriodicTasker(MySqlConnectionPtr nova_db, string nova_db_name,
+    PeriodicTasker(MySqlConnectionWithDefaultDbPtr nova_db,
                    MySqlNovaUpdaterPtr status_updater, NewService service_key)
       : message(PERIODIC_MESSAGE),
         nova_db(nova_db),
-        nova_db_name(nova_db_name),
         service_key(service_key),
         status_updater(status_updater)
     {
@@ -82,7 +80,6 @@ public:
 
     void ensure_db() {
         nova_db->ensure();
-        nova_db->use_database(nova_db_name.c_str());
     }
 
     void loop(unsigned long periodic_interval, unsigned long report_interval) {
@@ -119,7 +116,7 @@ public:
     void report_state() {
         START_THREAD_TASK();
             ensure_db();
-            ApiPtr api = nova::db::create_api(nova_db, nova_db_name);
+            ApiPtr api = nova::db::create_api(nova_db);
             ServicePtr service = api->service_create(service_key);
             service->report_count ++;
             api->service_update(*service);
@@ -167,9 +164,11 @@ int main(int argc, char* argv[]) {
         Log::initialize(log_options);
 
         /* Create connection to Nova database. */
-        MySqlConnectionPtr nova_db(new MySqlConnection(
-            flags.nova_sql_host(), flags.nova_sql_user(),
-            flags.nova_sql_password()));
+        MySqlConnectionWithDefaultDbPtr nova_db(
+            new MySqlConnectionWithDefaultDb(
+                flags.nova_sql_host(), flags.nova_sql_user(),
+                flags.nova_sql_password(),
+                flags.nova_sql_database()));
 
         /* Create JSON message handlers. */
         const int handler_count = 2;
@@ -181,7 +180,7 @@ int main(int argc, char* argv[]) {
 
         /* Create MySQL updater. */
         MySqlNovaUpdaterPtr mysql_status_updater(new MySqlNovaUpdater(
-            nova_db, flags.nova_sql_database(),
+            nova_db,
             flags.guest_ethernet_device(),
             flags.nova_db_reconnect_wait_time(),
             flags.preset_instance_id()));
@@ -202,7 +201,7 @@ int main(int argc, char* argv[]) {
         service_key.binary = "nova-guest";
         service_key.host = host;
         service_key.topic = "guest";  // Real nova takes binary after "nova-".
-        PeriodicTasker tasker(nova_db, flags.nova_sql_database(),
+        PeriodicTasker tasker(nova_db,
                               mysql_status_updater, service_key);
 
         /* Create AMQP connection. */

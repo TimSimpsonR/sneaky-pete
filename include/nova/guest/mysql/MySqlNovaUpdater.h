@@ -45,8 +45,8 @@ namespace nova { namespace guest { namespace mysql {
                 BUILDING = 0x09
             };
 
-            MySqlNovaUpdater(nova::db::mysql::MySqlConnectionPtr nova_db,
-                             const char * nova_db_name,
+            MySqlNovaUpdater(nova::db::mysql::MySqlConnectionWithDefaultDbPtr
+                                 nova_db,
                              const char * guest_ethernet_device,
                              unsigned long nova_db_reconnect_wait_time,
                              boost::optional<int> preset_instance_id
@@ -88,6 +88,8 @@ namespace nova { namespace guest { namespace mysql {
             void set_status(Status status);
 
         private:
+            MySqlNovaUpdater(MySqlNovaUpdater const &);
+            MySqlNovaUpdater & operator = (const MySqlNovaUpdater &);
 
             std::auto_ptr<MySqlNovaUpdaterContext> context;
 
@@ -100,15 +102,13 @@ namespace nova { namespace guest { namespace mysql {
 
             const std::string guest_ethernet_device;
 
-            nova::db::mysql::MySqlConnectionPtr nova_db;
-
-            std::string nova_db_name;
+            nova::db::mysql::MySqlConnectionWithDefaultDbPtr nova_db;
 
             boost::mutex nova_db_mutex;
 
-            unsigned long nova_db_reconnect_wait_time;
+            const unsigned long nova_db_reconnect_wait_time;
 
-            boost::optional<int> preset_instance_id;
+            const boost::optional<int> preset_instance_id;
 
             boost::optional<Status> status;
     };

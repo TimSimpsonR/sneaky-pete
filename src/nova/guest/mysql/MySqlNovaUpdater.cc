@@ -17,8 +17,8 @@
 
 using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
-using nova::db::mysql::MySqlConnection;
-using nova::db::mysql::MySqlConnectionPtr;
+using nova::db::mysql::MySqlConnectionWithDefaultDb;
+using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
 using nova::db::mysql::MySqlException;
 using nova::guest::mysql::MySqlGuestException;
 using nova::db::mysql::MySqlPreparedStatementPtr;
@@ -49,8 +49,8 @@ bool MySqlNovaUpdaterContext::is_file(const char * file_path) const {
     return io::is_file(file_path);
 }
 
-MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionPtr nova_db_connection,
-                                   const char * nova_db_name,
+MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionWithDefaultDbPtr
+                                       nova_db_connection,
                                    const char * guest_ethernet_device,
                                    unsigned long nova_db_reconnect_wait_time,
                                    boost::optional<int> preset_instance_id,
@@ -58,7 +58,6 @@ MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionPtr nova_db_connection,
 : context(context),
   guest_ethernet_device(guest_ethernet_device),
   nova_db(nova_db_connection),
-  nova_db_name(nova_db_name),
   nova_db_mutex(),
   nova_db_reconnect_wait_time(nova_db_reconnect_wait_time),
   preset_instance_id(preset_instance_id),
@@ -84,7 +83,6 @@ void MySqlNovaUpdater::begin_mysql_install() {
 
 void MySqlNovaUpdater::ensure_db() {
     nova_db->ensure();
-    nova_db->use_database(nova_db_name.c_str());
 }
 
 optional<string> MySqlNovaUpdater::find_mysql_pid_file() const {
@@ -286,7 +284,9 @@ void MySqlNovaUpdater::update() {
         Status status = get_actual_db_status();
         set_status(status);
     } else {
-        NOVA_LOG_INFO("MySQL is not installed, so not updating.");
+        NOVA_LOG_INFO("MySQL is not installed or was no call to prepare was "
+                      "made, so for now we'll skip determining the status of "
+                      "MySQL on this box.");
     }
 }
 

@@ -71,7 +71,7 @@ namespace nova { namespace db { namespace mysql {
             /* The user name and password are loaded from the my.cnf file. */
             MySqlConnection(const char * uri);
 
-            ~MySqlConnection();
+            virtual ~MySqlConnection();
 
             void close();
 
@@ -91,7 +91,7 @@ namespace nova { namespace db { namespace mysql {
 
             MySqlResultSetPtr query(const char * text);
 
-            void use_database(const char * db_name);
+            //void use_database(const char * db_name);
 
             // MySQL allocates some global memory it keeps up with as it runs.
             static void start_up();
@@ -101,18 +101,41 @@ namespace nova { namespace db { namespace mysql {
             static void shut_down();
 
         private:
+            MySqlConnection(const MySqlConnection &);
+            MySqlConnection & operator = (const MySqlConnection &);
+
             void * con;
 
             void * get_con();
+
+            virtual const char * get_db_name() const;
 
             std::string password;
 
             const std::string uri;
 
-            bool use_mycnf;
+            const bool use_mycnf;
 
             std::string user;
     };
+
+    /** This is just like the above but enforces a default db_name is given.
+     *  This is so classes which depend on using a specific database can know
+     *  at compile time one is provided. */
+    class MySqlConnectionWithDefaultDb : public MySqlConnection {
+        public:
+            MySqlConnectionWithDefaultDb(const char * uri, const char * user,
+                                         const char * password,
+                                         const char * db_name);
+
+        private:
+            const std::string db_name;
+
+            virtual const char * get_db_name() const;
+    };
+
+    typedef boost::shared_ptr<MySqlConnectionWithDefaultDb>
+        MySqlConnectionWithDefaultDbPtr;
 
     class MySqlResultSet {
         public:

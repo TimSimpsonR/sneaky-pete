@@ -13,6 +13,9 @@ namespace nova {
         int get_int(const std::string & key);
         std::string get_string(const std::string & key);
     private:
+        ConfigFile(const ConfigFile &);
+        ConfigFile & operator = (const ConfigFile &);
+
         cfg_t *cfg;
 
     };

@@ -84,6 +84,9 @@ class Process {
         void write(const char * msg, size_t length);
 
     private:
+        Process(const Process &);
+        Process & operator = (const Process &);
+
         const char * const * argv;
         bool eof_flag;
         pid_t pid;

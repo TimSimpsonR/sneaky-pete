@@ -37,7 +37,10 @@ class MySqlPreparer {
         void restart_mysql();
 
     private:
-        nova::guest::apt::AptGuest * apt;
+        MySqlPreparer(const MySqlPreparer &);
+        MySqlPreparer & operator = (const MySqlPreparer &);
+
+        nova::guest::apt::AptGuest * const apt;
         MySqlAdminPtr sql;
 };
 

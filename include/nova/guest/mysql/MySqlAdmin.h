@@ -46,6 +46,7 @@ namespace nova { namespace guest { namespace mysql {
 
         private:
             MySqlAdmin(const MySqlAdmin & other);
+            MySqlAdmin & operator = (const MySqlAdmin &);
 
             nova::db::mysql::MySqlConnectionPtr con;
 

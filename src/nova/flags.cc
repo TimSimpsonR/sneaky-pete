@@ -283,7 +283,7 @@ optional<const char *> FlagValues::log_file_path() const {
 }
 
 bool FlagValues::log_use_std_streams() const {
-    return get_flag_value<const char *>(*map, "log_use_std_streams");
+    return get_flag_value<bool>(*map, "log_use_std_streams", false);
 }
 
 const char * FlagValues::node_availability_zone() const {

@@ -42,7 +42,7 @@ public:
 typedef boost::shared_ptr<Api> ApiPtr;
 
 
-ApiPtr create_api(nova::db::mysql::MySqlConnectionPtr con, std::string db_name);
+ApiPtr create_api(nova::db::mysql::MySqlConnectionWithDefaultDbPtr con);
 
 
 }} // nova::db

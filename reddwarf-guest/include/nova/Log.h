@@ -113,6 +113,8 @@ namespace nova {
             ~Log();
 
         private:
+            Log(const Log &);
+            Log & operator = (const Log &);
 
             void close_file();
 

@@ -108,6 +108,9 @@ namespace nova { namespace rpc {
             void remove_channel(AmqpChannel * channel);
 
         private:
+            AmqpConnection(const AmqpConnection &);
+            AmqpConnection & operator = (const AmqpConnection &);
+
             std::vector<int> bad_channels;
             std::vector<AmqpChannel *> channels;
             amqp_connection_state_t connection;
@@ -160,10 +163,12 @@ namespace nova { namespace rpc {
 
         protected:
             AmqpChannel(AmqpConnection * parent, const int channel_number);
-            AmqpChannel(const AmqpChannel & other);
             ~AmqpChannel();
 
         private:
+            AmqpChannel(const AmqpChannel &);
+            AmqpChannel & operator = (const AmqpChannel &);
+
             const int channel_number;
 
             void check(const amqp_rpc_reply_t reply,

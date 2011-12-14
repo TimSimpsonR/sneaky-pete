@@ -38,8 +38,9 @@ namespace nova { namespace guest { namespace mysql {
 
         private:
             MySqlMessageHandler(const MySqlMessageHandler & other);
+            MySqlMessageHandler & operator = (const MySqlMessageHandler &);
 
-            MySqlMessageHandlerConfig config;
+            const MySqlMessageHandlerConfig config;
 
             MethodMap methods;
     };

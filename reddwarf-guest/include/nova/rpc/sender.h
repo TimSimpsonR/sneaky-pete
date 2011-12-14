@@ -18,6 +18,9 @@ namespace nova { namespace rpc {
             void send(const char * publish_string);
 
         private:
+            Sender(const Sender &);
+            Sender & operator = (const Sender &);
+
             AmqpChannelPtr exchange;
             std::string exchange_name;
             const std::string queue_name;

@@ -25,6 +25,9 @@ namespace nova { namespace guest { namespace apt {
                                                  const double time_out=30);
 
         private:
+            AptGuest(const AptGuest &);
+            AptGuest & operator = (const AptGuest &);
+
             bool with_sudo;
     };
 
@@ -69,6 +72,8 @@ namespace nova { namespace guest { namespace apt {
           virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
         private:
+          AptMessageHandler(const AptMessageHandler &);
+          AptMessageHandler & operator = (const AptMessageHandler &);
 
           AptGuest * apt_guest;
     };

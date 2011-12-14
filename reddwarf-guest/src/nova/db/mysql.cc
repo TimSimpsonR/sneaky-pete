@@ -581,11 +581,13 @@ private:
 MySqlConnection::MySqlConnection(const char * uri,
                                  const char * user,
                                  const char * password)
-: con(0), password(password), uri(uri), use_mycnf(false), user(user) {
+: con(0), password(password), uri(uri), use_mycnf(false),
+  user(user) {
 }
 
 MySqlConnection::MySqlConnection(const char * uri)
-: con(0), password(""), uri(uri), use_mycnf(true), user("") {
+: con(0), password(""), uri(uri), use_mycnf(true),
+  user("") {
 }
 
 MySqlConnection::~MySqlConnection() {
@@ -601,8 +603,11 @@ void MySqlConnection::close() {
 
 void MySqlConnection::ensure() {
     // Ensure a fresh connection.
-    close();
-    init();
+    const int result = mysql_con(con) == 0 ? -1 : mysql_ping(mysql_con(con));
+    if (result != 0) {
+        close();
+        init();
+    }
 }
 
 std::string MySqlConnection::escape_string(const char * original) {
@@ -631,6 +636,10 @@ void * MySqlConnection::get_con() {
     return con;
 }
 
+const char * MySqlConnection::get_db_name() const {
+    return NULL;
+}
+
 void MySqlConnection::grant_all_privileges(const char * username,
                                       const char * host) {
     //TODO(tim.simpson): Fix this to use parameters.
@@ -657,8 +666,12 @@ void MySqlConnection::init() {
         throw MySqlException(MySqlException::GENERAL);
     }
 
-    if (mysql_real_connect(mysql_con(con), uri.c_str(), user.c_str(), password.c_str(),
-                           /*dbname*/ NULL, /*port*/ 0, /* socket */NULL,
+    // my_bool reconnect = 1;
+    // mysql_options(mysql_con(con), MYSQL_OPT_RECONNECT, &reconnect);
+
+    if (mysql_real_connect(mysql_con(con), uri.c_str(), user.c_str(),
+                           password.c_str(),
+                           get_db_name(), /*port*/ 0, /* socket */NULL,
                            /* Flag */0) == NULL) {
         NOVA_LOG_ERROR2("Error %u: %s\n", mysql_errno(mysql_con(con)),
                         mysql_error(mysql_con(con)));
@@ -691,10 +704,10 @@ MySqlResultSetPtr MySqlConnection::query(const char * text) {
     return rtn;
 }
 
-void MySqlConnection::use_database(const char * db_name) {
-    string using_stmt = str(format("use %s") % escape_string(db_name));
-    query(using_stmt.c_str());
-}
+// void MySqlConnection::use_database(const char * db_name) {
+//     string using_stmt = str(format("use %s") % escape_string(db_name));
+//     query(using_stmt.c_str());
+// }
 
 void MySqlConnection::start_up() {
     mysql_library_init(0, NULL, NULL);
@@ -702,6 +715,23 @@ void MySqlConnection::start_up() {
 
 void MySqlConnection::shut_down() {
     mysql_library_end();
+}
+
+
+/**---------------------------------------------------------------------------
+ *- MySqlConnectionWithDefaultDb
+*---------------------------------------------------------------------------*/
+
+MySqlConnectionWithDefaultDb::MySqlConnectionWithDefaultDb(
+    const char * uri,
+    const char * user,
+    const char * password,
+    const char * db_name)
+: MySqlConnection(uri, user, password), db_name(db_name) {
+}
+
+const char * MySqlConnectionWithDefaultDb::get_db_name() const {
+    return db_name.c_str();
 }
 
 } } } // nova::guest::mysql

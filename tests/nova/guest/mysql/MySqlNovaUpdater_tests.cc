@@ -83,14 +83,14 @@ struct MySqlNovaUpdaterDefaultTestContext
 struct MySqlNovaUpdaterTestsFixture {
     FlagValues flags;
     int id;
-    MySqlConnectionPtr nova_db;
+    MySqlConnectionWithDefaultDbPtr nova_db;
     MySqlNovaUpdater updater;
 
     MySqlNovaUpdaterTestsFixture()
     :   flags(get_flags()),
-        nova_db(new MySqlConnection(flags.nova_sql_host(),
-            flags.nova_sql_user(), flags.nova_sql_password())),
-        updater(nova_db, flags.nova_sql_database(),
+        nova_db(new MySqlConnectionWithDefaultDb(flags.nova_sql_host(),
+            flags.nova_sql_user(), flags.nova_sql_password(), flags.nova_sql_database())),
+        updater(nova_db,
                 flags.guest_ethernet_device(),
                 flags.nova_sql_reconnect_wait_time(),
                 optional<int>(-255),

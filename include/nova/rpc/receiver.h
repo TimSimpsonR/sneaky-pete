@@ -27,6 +27,9 @@ namespace nova { namespace rpc {
         nova::guest::GuestInput next_message();
 
     private:
+        Receiver(const Receiver &);
+        Receiver & operator = (const Receiver &);
+
         AmqpConnectionPtr connection;
         int last_delivery_tag;
         boost::optional<std::string> last_msg_id;
@@ -57,6 +60,8 @@ namespace nova { namespace rpc {
         void reset();
 
     private:
+        ResilentReceiver(const ResilentReceiver &);
+        ResilentReceiver & operator = (const ResilentReceiver &);
 
         size_t client_memory;
 

@@ -19,13 +19,11 @@ namespace nova { namespace db {
 class ApiMySql : public Api {
 
 private:
-    MySqlConnectionPtr con;
-    string db_name;
+    MySqlConnectionWithDefaultDbPtr con;
 
 public:
-    ApiMySql(MySqlConnectionPtr con, string db_name)
-    : con(con),
-      db_name(db_name)
+    ApiMySql(MySqlConnectionWithDefaultDbPtr con)
+    : con(con)
     {
     }
 
@@ -33,7 +31,6 @@ public:
 
     void ensure() {
         con->ensure();
-        con->use_database(db_name.c_str());
     }
 
     virtual ServicePtr service_create(const NewService & new_service) {
@@ -123,8 +120,8 @@ public:
 
 };
 
-ApiPtr create_api(MySqlConnectionPtr con, string db_name) {
-    ApiPtr ptr(new ApiMySql(con, db_name));
+ApiPtr create_api(MySqlConnectionWithDefaultDbPtr con) {
+    ApiPtr ptr(new ApiMySql(con));
     return ptr;
 }
 

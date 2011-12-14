@@ -100,6 +100,9 @@ namespace nova {
             Root * root;
 
         private:
+            JsonData(const JsonData &);
+            JsonData & operator = (const JsonData &);
+
             JsonData(json_object * obj, int type);
 
             // Validates that obj is not null, is of the given type. If not it
@@ -143,6 +146,9 @@ namespace nova {
             json_object * get(int index) const;
 
         private:
+            // Do not want.
+            JsonArray(const JsonArray &);
+            JsonArray & operator = (const JsonArray &);
 
             int length;
     };
@@ -186,6 +192,9 @@ namespace nova {
             void check_initial_object(json_object * obj, bool owned);
 
         private:
+            // Do not want.
+            JsonObject(const JsonObject &);
+            JsonObject & operator = (const JsonObject &);
 
     };
 

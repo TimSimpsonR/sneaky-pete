@@ -48,12 +48,13 @@ BOOST_AUTO_TEST_CASE(integration_tests)
     args.host = "Letterman";
     args.topic = "cereal";
 
-    MySqlConnectionPtr connection(new MySqlConnection(flags.nova_sql_host(),
-        flags.nova_sql_user(), flags.nova_sql_password()));
+    MySqlConnectionWithDefaultDbPtr connection(
+        new MySqlConnectionWithDefaultDb(flags.nova_sql_host(),
+            flags.nova_sql_user(), flags.nova_sql_password(),
+            flags.nova_sql_database()));
     // Destroy all the matching services.
     {
         CHECK_POINT();
-        connection->use_database(flags.nova_sql_database());
         MySqlPreparedStatementPtr stmt = connection->prepare_statement(
             "DELETE FROM services WHERE  services.binary= ? AND host= ? "
             "AND services.topic = ? AND availability_zone = ?");
@@ -66,7 +67,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
     }
     CHECK_POINT();
 
-    ApiPtr api = nova::db::create_api(connection, flags.nova_sql_database());
+    ApiPtr api = nova::db::create_api(connection);
 
     ServicePtr service;
 

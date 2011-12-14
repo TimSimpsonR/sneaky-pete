@@ -27,6 +27,9 @@ class Timer {
         static bool & time_out_occurred();
 
     private:
+        Timer(const Timer &);
+        Timer & operator = (const Timer &);
+
         timer_t id;
 };
 

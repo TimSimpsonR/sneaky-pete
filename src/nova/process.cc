@@ -244,7 +244,7 @@ void Process::set_eof() {
     if (!eof()) {
         eof_flag = true;
         close(std_out_fd[0]);
-        close(std_in_fd[0]);
+        close(std_in_fd[1]);
         int status;
         int child_pid;
         int options = wait_for_close ? 0 : WNOHANG;

@@ -116,6 +116,7 @@ To debug in the Reddwarf test environment, you must uninstall any
 existing instance of the guest package by executing the following statement:
 
 sudo -E reprepro -Vb /var/www/debian remove squeeze nova-guest
+sudo apt-get update
 
 At this point, any time you create an instance it will eventually time out
 because the agent will never install.

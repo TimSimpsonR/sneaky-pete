@@ -20,6 +20,7 @@ using nova::JsonObject;
 using nova::JsonObjectPtr;
 using namespace nova::guest;
 using nova::Log;
+using nova::LogApiScope;
 using nova::LogOptions;
 using namespace nova::rpc;
 using boost::posix_time::milliseconds;
@@ -55,13 +56,13 @@ const char * host() {
 }
 
 struct GlobalFixture {
-    GlobalFixture() {
-        Log::initialize(LogOptions::simple());
+
+    LogApiScope log;
+
+    GlobalFixture()
+    : log(LogOptions::simple()) {
     }
 
-    ~GlobalFixture() {
-        Log::shutdown();
-    }
 };
 
 BOOST_GLOBAL_FIXTURE(GlobalFixture);

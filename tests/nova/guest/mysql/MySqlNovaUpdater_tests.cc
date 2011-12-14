@@ -41,14 +41,17 @@ FlagMapPtr get_flags() {
 }
 
 struct GlobalFixture {
-    GlobalFixture() {
-        Log::initialize(LogOptions::simple());
-        MySqlConnection::start_up();
+
+    LogApiScope log;
+    MySqlApiScope mysql;
+
+    GlobalFixture()
+    : log(LogOptions::simple()),
+      mysql()
+    {
     }
 
     ~GlobalFixture() {
-        MySqlConnection::shut_down();
-        Log::shutdown();
     }
 };
 

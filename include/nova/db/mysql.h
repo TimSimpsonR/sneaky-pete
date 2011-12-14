@@ -19,6 +19,7 @@ namespace nova { namespace db { namespace mysql {
                 COULD_NOT_CONNECT,
                 COULD_NOT_CONVERT_TO_BOOL,
                 COULD_NOT_CONVERT_TO_INT,
+                ERROR_INITIALIZING_API,
                 ESCAPE_STRING_BUFFER_TOO_SMALL,
                 FIELD_INDEX_OUT_OF_BOUNDS,
                 GENERAL,
@@ -49,6 +50,17 @@ namespace nova { namespace db { namespace mysql {
             virtual const char * what() const throw();
 
             const Code code;
+    };
+
+    /* Toss an instance of this in your main, or anywhere else you'll need to
+     * use the MySQL API, before any connections are open. */
+    class MySqlApiScope {
+        public:
+            // MySQL allocates some global memory it keeps up with as it runs.
+            MySqlApiScope();
+            // Call this once you're 100% finished with MySQL or Valgrind
+            // will complain about a leak. If you forget it isn't a huge deal.
+            ~MySqlApiScope();
     };
 
     class MySqlResultSet;
@@ -90,15 +102,6 @@ namespace nova { namespace db { namespace mysql {
             MySqlPreparedStatementPtr prepare_statement(const char * text);
 
             MySqlResultSetPtr query(const char * text);
-
-            //void use_database(const char * db_name);
-
-            // MySQL allocates some global memory it keeps up with as it runs.
-            static void start_up();
-
-            // Call this once you're 100% finished with MySQL or Valgrind
-            // will complain about a leak. If you forget it isn't a huge deal.
-            static void shut_down();
 
         private:
             MySqlConnection(const MySqlConnection &);

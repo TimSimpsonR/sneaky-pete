@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <syslog.h>
 #include <sys/stat.h>
 #include <time.h>
 #include "nova/guest/utils.h"
@@ -38,17 +37,6 @@ namespace {
 
     static time_t start_time;
 
-    inline int syslog_priority(Log::Level level) {
-        switch(level) {
-            case Log::LEVEL_ERROR:
-                return LOG_ERR;
-            case Log::LEVEL_INFO:
-                return LOG_INFO;
-            default:
-                return LOG_DEBUG;
-        }
-    }
-
 } // end anonymous namespace
 
 
@@ -77,7 +65,8 @@ const char * LogException::what() const throw() {
  *---------------------------------------------------------------------------*/
 
 LogFileOptions::LogFileOptions(string path, optional<size_t> max_size,
-                               optional<double> max_time_in_seconds, int max_old_files)
+                               optional<double> max_time_in_seconds,
+                               int max_old_files)
 :   max_old_files(max_old_files),
     max_size(max_size),
     max_time_in_seconds(max_time_in_seconds),
@@ -89,16 +78,28 @@ LogFileOptions::LogFileOptions(string path, optional<size_t> max_size,
  *- LogOptions
  *---------------------------------------------------------------------------*/
 
-LogOptions::LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams,
-                       bool use_syslog)
- : file(file), use_std_streams(use_std_streams), use_syslog(use_syslog) {
+LogOptions::LogOptions(boost::optional<LogFileOptions> file,
+                       bool use_std_streams)
+ : file(file), use_std_streams(use_std_streams) {
 }
 
 LogOptions LogOptions::simple() {
-    LogOptions log_options(boost::none, true, false);
+    LogOptions log_options(boost::none, true);
     return log_options;
 }
 
+
+/**---------------------------------------------------------------------------
+ *- LogApiScope
+ *---------------------------------------------------------------------------*/
+
+LogApiScope::LogApiScope(const LogOptions & options) {
+    Log::initialize(options);
+}
+
+LogApiScope::~LogApiScope() {
+    Log::shutdown();
+}
 
 /**---------------------------------------------------------------------------
  *- Log
@@ -237,11 +238,6 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
         std::ostream & out = (level == LEVEL_INFO) ? std::cout : std::cerr;
         out << time.c_str() << " " << level_string << " " << message
             << " for " << file_name <<  ":" << line_number << std::endl;
-    }
-    if (options.use_syslog) {
-        int priority = syslog_priority(level);
-        syslog(priority, "%s %s %s for %s:%d", time.c_str(), level_string,
-                         message, file_name, line_number);
     }
     {
         if (file.is_open()) {

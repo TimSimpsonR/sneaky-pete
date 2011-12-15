@@ -36,7 +36,7 @@ FlagMapPtr get_flags() {
 
 BOOST_AUTO_TEST_CASE(integration_tests)
 {
-    MySqlConnection::start_up();
+    MySqlApiScope mysql_api_scope;
 
     FlagValues flags(get_flags());
 
@@ -127,6 +127,4 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         BOOST_CHECK_EQUAL(service2->report_count, service->report_count);
         BOOST_CHECK_EQUAL(service2->id, service->id);
     }
-
-    MySqlConnection::shut_down();
 }

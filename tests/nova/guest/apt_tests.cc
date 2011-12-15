@@ -34,13 +34,13 @@ const bool USE_SUDO = true;
 
 
 struct GlobalFixture {
-    GlobalFixture() {
-        Log::initialize(LogOptions::simple());
+
+    LogApiScope log;
+
+    GlobalFixture()
+    : log(LogOptions::simple()) {
     }
 
-    ~GlobalFixture() {
-        Log::shutdown();
-    }
 };
 
 BOOST_GLOBAL_FIXTURE(GlobalFixture);

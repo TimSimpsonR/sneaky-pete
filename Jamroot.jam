@@ -510,6 +510,16 @@ exe nova_guest_utils_demo
         tests/nova/guest/utils_demo.cc
     ;
 
+exe nova_process_fd_demo
+    :   u_nova_guest_utils
+        u_nova_flags
+        u_nova_Log
+        u_nova_process
+        lib_boost_thread
+        tests/nova/process_fd_demo.cc
+    :   <linkflags>"-pthread "
+    ;
+
 exe MySqlNovaUpdater_demo
     :   u_nova_guest_utils
         u_nova_flags

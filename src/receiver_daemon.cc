@@ -135,14 +135,16 @@ AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
 int main(int argc, char* argv[]) {
     quit = false;
 
-    // Initialize MySQL libraries. This should be done before spawning threads.
-    MySqlConnection::start_up();
+
 
 #ifndef _DEBUG
 
     try {
         daemon(1,0);
 #endif
+        // Initialize MySQL libraries. This should be done before spawning
+        // threads.
+        MySqlApiScope mysql_api_scope;
 
         /* Grab flag values. */
         FlagValues flags(FlagMap::create_from_args(argc, argv, true));
@@ -159,9 +161,9 @@ int main(int argc, char* argv[]) {
             log_file_options = boost::none;
         }
         LogOptions log_options(log_file_options,
-                               flags.log_use_std_streams(),
-                               flags.use_syslog());
-        Log::initialize(log_options);
+                               flags.log_use_std_streams());
+
+        LogApiScope log_api_scope(log_options);
 
         /* Create connection to Nova database. */
         MySqlConnectionWithDefaultDbPtr nova_db(
@@ -254,8 +256,5 @@ int main(int argc, char* argv[]) {
         NOVA_LOG_ERROR2("Error: %s", e.what());
     }
 #endif
-
-    MySqlConnection::shut_down();
-    Log::shutdown();
     return 0;
 }

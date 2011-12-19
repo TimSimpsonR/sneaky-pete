@@ -143,14 +143,13 @@ const char * FlagMap::get(const char * const name,
                              const char * const default_value) {
     const char * value = get(name, false);
     if (value == 0) {
-        map[name] = default_value;
-        value = get(name, true);
+        return default_value;
     }
     return value;
 }
 
 const char * FlagMap::get(const char * const name, bool throw_on_missing) {
-    if (map.count(name) == 0) {
+    if (map.find(name) == map.end()) {
         if (throw_on_missing) {
             throw FlagException(FlagException::KEY_NOT_FOUND, name);
         } else {
@@ -283,7 +282,7 @@ optional<const char *> FlagValues::log_file_path() const {
 }
 
 bool FlagValues::log_use_std_streams() const {
-    return get_flag_value<bool>(*map, "log_use_std_streams", false);
+    return get_flag_value<bool>(*map, "log_use_std_streams", true);
 }
 
 const char * FlagValues::node_availability_zone() const {

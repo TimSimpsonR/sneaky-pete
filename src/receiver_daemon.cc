@@ -22,14 +22,18 @@
 /* In release mode, all errors should be caught so the guest will not die.
  * If you want to see the bugs in the debug mode, you can fiddle with it here.
  */
-/////////#ifndef _DEBUG
+//#ifndef _DEBUG
 #define START_THREAD_TASK() try {
 #define END_THREAD_TASK(name)  \
      } catch(const std::exception & e) { \
         NOVA_LOG_ERROR2("Error in " name "! : %s", e.what()); \
      }
 #define CATCH_RPC_METHOD_ERRORS
-////////#endif
+// #else
+// #define START_THREAD_TASK() /**/
+// #define END_THREAD_TASK(name) /**/
+// #define CATCH_RPC_METHOD_ERRORS
+// #endif
 
 using nova::db::ApiPtr;
 using nova::guest::apt::AptGuest;
@@ -212,16 +216,23 @@ int main(int argc, char* argv[]) {
 
         quit = false;
 
-        /* Start periodic task / report thread. */
+        // This starts the thread.
         boost::thread workerThread(&PeriodicTasker::loop, &tasker,
-                                   flags.periodic_interval(),
-                                   flags.report_interval());
+                                       flags.periodic_interval(),
+                                       flags.report_interval());
+        // Before we go any further, lets all just chill out and take a nap.
+        // TODO(tim.simpson) For reasons I can only assume relate to an even
+        // worse bug I have been able to uncover, sleeping here keeps Sneaky
+        // Pete from morphing into Fat Pete (inexplicable 60 MB virtual memory
+        // increase).
+        boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-        /* Create receiver. */
-        ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
-            flags.rabbit_userid(), flags.rabbit_password(),
-            flags.rabbit_client_memory(), topic.c_str(),
-            flags.control_exchange(),  flags.rabbit_reconnect_wait_time());
+        NOVA_LOG_INFO("Creating listener...");
+
+        ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(), //<-- here?!
+                    flags.rabbit_userid(), flags.rabbit_password(),
+                    flags.rabbit_client_memory(), topic.c_str(),
+                    flags.control_exchange(),  flags.rabbit_reconnect_wait_time());
 
         while(!quit) {
             GuestInput input = receiver.next_message();
@@ -251,6 +262,7 @@ int main(int argc, char* argv[]) {
 
             receiver.finish_message(output);
         }
+
 #ifndef _DEBUG
     } catch (const std::exception & e) {
         NOVA_LOG_ERROR2("Error: %s", e.what());

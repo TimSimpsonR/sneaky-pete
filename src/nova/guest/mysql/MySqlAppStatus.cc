@@ -1,4 +1,4 @@
-#include "nova/guest/mysql/MySqlNovaUpdater.h"
+#include "nova/guest/mysql/MySqlAppStatus.h"
 
 #include <boost/format.hpp>
 #include "nova/utils/io.h"
@@ -40,31 +40,32 @@ namespace nova { namespace guest { namespace mysql {
 
 // These are the normal production methods.
 // By defining these the tests can mock out the dependencies.
-void MySqlNovaUpdaterContext::execute(stringstream & out,
+void MySqlAppStatusContext::execute(stringstream & out,
                                       const Process::CommandList & cmds) const {
     Process::execute(out, cmds);
 }
 
-bool MySqlNovaUpdaterContext::is_file(const char * file_path) const {
+bool MySqlAppStatusContext::is_file(const char * file_path) const {
     return io::is_file(file_path);
 }
 
-MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionWithDefaultDbPtr
+MySqlAppStatus::MySqlAppStatus(MySqlConnectionWithDefaultDbPtr
                                        nova_db_connection,
                                    const char * guest_ethernet_device,
                                    unsigned long nova_db_reconnect_wait_time,
                                    boost::optional<int> preset_instance_id,
-                                   MySqlNovaUpdaterContext * context)
+                                   MySqlAppStatusContext * context)
 : context(context),
   guest_ethernet_device(guest_ethernet_device),
   nova_db(nova_db_connection),
   nova_db_mutex(),
   nova_db_reconnect_wait_time(nova_db_reconnect_wait_time),
   preset_instance_id(preset_instance_id),
+  restart_mode(false),
   status(boost::none)
 {
-    struct F : MySqlNovaUpdaterFunctor {
-        MySqlNovaUpdater * updater;
+    struct F : MySqlAppStatusFunctor {
+        MySqlAppStatus * updater;
 
         virtual void operator()() {
             updater->status = updater->get_status_from_nova_db();
@@ -75,17 +76,18 @@ MySqlNovaUpdater::MySqlNovaUpdater(MySqlConnectionWithDefaultDbPtr
     repeatedly_attempt_mysql_method(f);
 }
 
-void MySqlNovaUpdater::begin_mysql_install() {
+void MySqlAppStatus::begin_mysql_install() {
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
-    ensure_db();
+    nova_db->ensure();
     set_status(BUILDING);
 }
 
-void MySqlNovaUpdater::ensure_db() {
-    nova_db->ensure();
+void MySqlAppStatus::begin_mysql_restart() {
+    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    this->restart_mode = true;;
 }
 
-optional<string> MySqlNovaUpdater::find_mysql_pid_file() const {
+optional<string> MySqlAppStatus::find_mysql_pid_file() const {
     stringstream out;
     try {
         context->execute(out, list_of("/usr/bin/sudo")("/usr/sbin/mysqld")
@@ -105,7 +107,13 @@ optional<string> MySqlNovaUpdater::find_mysql_pid_file() const {
     return rtn;
 }
 
-MySqlNovaUpdater::Status MySqlNovaUpdater::get_actual_db_status() const {
+void MySqlAppStatus::end_install_or_restart() {
+    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    this->restart_mode = false;
+    repeatedly_attempt_to_set_status(get_actual_db_status());
+}
+
+MySqlAppStatus::Status MySqlAppStatus::get_actual_db_status() const {
     // RUNNING = We could ping mysql.
     // BLOCKED = We can't ping it, but we can see the process running.
     // CRASHED = The process is dead, but left evidence it once existed.
@@ -141,7 +149,7 @@ MySqlNovaUpdater::Status MySqlNovaUpdater::get_actual_db_status() const {
     }
 }
 
-int MySqlNovaUpdater::get_guest_instance_id() {
+int MySqlAppStatus::get_guest_instance_id() {
     if (preset_instance_id) {
         return preset_instance_id.get();
     }
@@ -161,7 +169,7 @@ int MySqlNovaUpdater::get_guest_instance_id() {
     return boost::lexical_cast<int>(id.get().c_str());
 }
 
-optional<MySqlNovaUpdater::Status> MySqlNovaUpdater::get_status_from_nova_db() {
+optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
     int instance_id = get_guest_instance_id();
     MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(
         "SELECT state FROM guest_status WHERE instance_id= ? ");
@@ -177,36 +185,40 @@ optional<MySqlNovaUpdater::Status> MySqlNovaUpdater::get_status_from_nova_db() {
     return boost::none;
 }
 
-void MySqlNovaUpdater::mark_mysql_as_installed() {
+bool MySqlAppStatus::is_mysql_installed() {
+    return (status && status.get() != BUILDING && status.get() != FAILED);
+}
+
+bool MySqlAppStatus::is_mysql_restarting() {
+    return restart_mode;
+}
+
+void MySqlAppStatus::repeatedly_attempt_to_set_status(Status status) {
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
 
-    struct F : MySqlNovaUpdaterFunctor {
+    struct F : MySqlAppStatusFunctor {
         Status status;
-        MySqlNovaUpdater * updater;
+        MySqlAppStatus * updater;
 
         virtual void operator()() {
             updater->set_status(status);
         }
     };
     F f;
-    f.status = get_actual_db_status();
+    f.status = status;
     f.updater = this;
     // f->updater = this;
     // f->status = get_actual_db_status();
     repeatedly_attempt_mysql_method(f);
 }
 
-bool MySqlNovaUpdater::mysql_is_installed() {
-    return (status && status.get() != BUILDING && status.get() != FAILED);
-}
-
-void MySqlNovaUpdater::repeatedly_attempt_mysql_method(
-    MySqlNovaUpdaterFunctor & f)
+void MySqlAppStatus::repeatedly_attempt_mysql_method(
+    MySqlAppStatusFunctor & f)
 {
     bool success = false;
     while(!success){
         try {
-            this->ensure_db();
+            this->nova_db->ensure();
             f();
             success = true;
         } catch(const MySqlException & mse) {
@@ -221,7 +233,7 @@ void MySqlNovaUpdater::repeatedly_attempt_mysql_method(
     }
 }
 
-void MySqlNovaUpdater::set_status(MySqlNovaUpdater::Status status) {
+void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
     int instance_id = get_guest_instance_id();
 
     const char * description = status_name(status);
@@ -255,7 +267,7 @@ void MySqlNovaUpdater::set_status(MySqlNovaUpdater::Status status) {
     this->status = optional<int>(status);
 }
 
-const char * MySqlNovaUpdater::status_name(MySqlNovaUpdater::Status status) {
+const char * MySqlAppStatus::status_name(MySqlAppStatus::Status status) {
     // Make sure this matches nova.compute.power_state!
     switch(status) {
         case BUILDING:
@@ -275,19 +287,33 @@ const char * MySqlNovaUpdater::status_name(MySqlNovaUpdater::Status status) {
     }
 }
 
-void MySqlNovaUpdater::update() {
+void MySqlAppStatus::update() {
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
-    ensure_db();
+    nova_db->ensure();
 
-    if (mysql_is_installed()) {
+    if (is_mysql_installed() && !is_mysql_restarting()) {
         NOVA_LOG_INFO("Determining status of MySQL app...");
         Status status = get_actual_db_status();
         set_status(status);
     } else {
-        NOVA_LOG_INFO("MySQL is not installed or was no call to prepare was "
-                      "made, so for now we'll skip determining the status of "
-                      "MySQL on this box.");
+        NOVA_LOG_INFO("MySQL is not installed or is in restart mode, so for "
+                      "now we'll skip determining the status of MySQL on this "
+                      "box.");
     }
+}
+
+bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
+                                                      int max_time){
+    const int wait_time = 3;
+    for (int time = 0; time < max_time; time += wait_time) {
+        boost::this_thread::sleep(boost::posix_time::seconds(wait_time));
+        time += 1;
+        if (get_actual_db_status() != status)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 

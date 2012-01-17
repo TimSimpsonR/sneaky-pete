@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE nova_guest_mysql_MySqlNovaUpdater_tests
+#define BOOST_TEST_MODULE nova_guest_mysql_MySqlAppStatus_tests
 #include <boost/test/unit_test.hpp>
 
 // Gentlemen, prepare for maximum LOLs!
@@ -9,7 +9,7 @@
 #include <boost/optional.hpp>
 #include "nova/Log.h"
 #include "nova/db/mysql.h"
-#include "nova/guest/mysql/MySqlNovaUpdater.h"
+#include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/process.h"
 #include "nova/guest/utils.h"
 
@@ -20,7 +20,7 @@ using nova::guest::utils::IsoDateTime;
 using nova::Log;
 using nova::LogOptions;
 using namespace nova::db::mysql;
-using nova::guest::mysql::MySqlNovaUpdater;
+using nova::guest::mysql::MySqlAppStatus;
 using boost::optional;
 using nova::ProcessException;
 using std::string;
@@ -58,17 +58,17 @@ struct GlobalFixture {
 BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 
-struct MySqlNovaUpdaterDefaultTestContext
-: public virtual MySqlNovaUpdaterContext
+struct MySqlAppStatusDefaultTestContext
+: public virtual MySqlAppStatusContext
 {
     int calls;
 
-    MySqlNovaUpdaterDefaultTestContext() : calls(0) {
+    MySqlAppStatusDefaultTestContext() : calls(0) {
     }
 
     virtual void execute(std::stringstream & out,
                          const std::list<const char *> & cmds) const {
-        const_cast<MySqlNovaUpdaterDefaultTestContext *>(this)->calls ++;
+        const_cast<MySqlAppStatusDefaultTestContext *>(this)->calls ++;
         on_execute(out, calls);
     }
 
@@ -83,13 +83,13 @@ struct MySqlNovaUpdaterDefaultTestContext
 };
 
 
-struct MySqlNovaUpdaterTestsFixture {
+struct MySqlAppStatusTestsFixture {
     FlagValues flags;
     int id;
     MySqlConnectionWithDefaultDbPtr nova_db;
-    MySqlNovaUpdater updater;
+    MySqlAppStatus updater;
 
-    MySqlNovaUpdaterTestsFixture()
+    MySqlAppStatusTestsFixture()
     :   flags(get_flags()),
         nova_db(new MySqlConnectionWithDefaultDb(flags.nova_sql_host(),
             flags.nova_sql_user(), flags.nova_sql_password(), flags.nova_sql_database())),
@@ -97,7 +97,7 @@ struct MySqlNovaUpdaterTestsFixture {
                 flags.guest_ethernet_device(),
                 flags.nova_sql_reconnect_wait_time(),
                 optional<int>(-255),
-                new MySqlNovaUpdaterDefaultTestContext())
+                new MySqlAppStatusDefaultTestContext())
     {
         id = updater.get_guest_instance_id();
 
@@ -105,7 +105,7 @@ struct MySqlNovaUpdaterTestsFixture {
         delete_row();
     }
 
-    ~MySqlNovaUpdaterTestsFixture() {
+    ~MySqlAppStatusTestsFixture() {
         CHECK_POINT();
         delete_row();
     }
@@ -119,16 +119,16 @@ struct MySqlNovaUpdaterTestsFixture {
 };
 
 
-BOOST_FIXTURE_TEST_SUITE(MySqlNovaUpdaterTestSuite,
-                         MySqlNovaUpdaterTestsFixture);
+BOOST_FIXTURE_TEST_SUITE(MySqlAppStatusTestSuite,
+                         MySqlAppStatusTestsFixture);
 
 BOOST_AUTO_TEST_CASE(When_no_row_exists) {
     // Make sure no row exists in MySql db.
     CHECK_POINT();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db(), boost::none);
     void update(); // This shouldn't change anything.
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db(), boost::none);
 }
 
@@ -136,38 +136,38 @@ BOOST_AUTO_TEST_CASE(When_row_is_in_build_state) {
     CHECK_POINT();
     updater.begin_mysql_install();
 
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::BUILDING);
+                      MySqlAppStatus::BUILDING);
 
     CHECK_POINT();
     void update(); // This shouldn't change anything.
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::BUILDING);
+                      MySqlAppStatus::BUILDING);
 }
 
 BOOST_AUTO_TEST_CASE(When_row_is_in_fail_state) {
     CHECK_POINT();
-    updater.set_status(MySqlNovaUpdater::FAILED);
+    updater.set_status(MySqlAppStatus::FAILED);
 
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::FAILED);
+                      MySqlAppStatus::FAILED);
     CHECK_POINT();
     void update(); // This shouldn't change anything.
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::FAILED);
+                      MySqlAppStatus::FAILED);
 
 }
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_pingable) {
-    struct Mock : public virtual MySqlNovaUpdaterDefaultTestContext {
+    struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual void on_execute(std::stringstream & out, int call_number)
         const {
             // Do nothing.
@@ -176,23 +176,23 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_pingable) {
     updater.context.reset(new Mock());
 
     //Even though in make-believe land we can get the status of MySQL, update
-    // should still do nothing until we call "mark_mysql_as_installed."
+    // should still do nothing until we call "end_install_or_restart."
 
     void update();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db(), boost::none);
 
-    updater.mark_mysql_as_installed();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), true);
+    updater.end_install_or_restart();
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), true);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::RUNNING);
+                      MySqlAppStatus::RUNNING);
 }
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_blocked) {
     updater.begin_mysql_install(); // Just to be different.
 
-    struct Mock : public virtual MySqlNovaUpdaterDefaultTestContext {
+    struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual void on_execute(std::stringstream & out, int call_number) const
         {
             if (call_number < 2) {
@@ -203,19 +203,19 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_blocked) {
     updater.context.reset(new Mock());
 
     //Even though in make-believe land we can get the status of MySQL, update
-    // should still do nothing until we call "mark_mysql_as_installed."
+    // should still do nothing until we call "end_install_or_restart."
 
     void update();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), false);
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::BUILDING);
+                      MySqlAppStatus::BUILDING);
 
-    updater.mark_mysql_as_installed();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), true);
+    updater.end_install_or_restart();
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), true);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::BLOCKED);
+                      MySqlAppStatus::BLOCKED);
 }
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_crashed) {
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_crashed) {
     // Third, it tries to find the pid file. Return zero on this one.
     // Finally, return true for whether or not the file exists.
     // The logic should think MySQL at one time was there and assume it crashed.
-    struct Mock : public virtual MySqlNovaUpdaterDefaultTestContext {
+    struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual bool is_file(const char * file_path) const {
             return true;
         }
@@ -239,11 +239,11 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_crashed) {
         }
     };
     updater.context.reset(new Mock());
-    updater.mark_mysql_as_installed();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), true);
+    updater.end_install_or_restart();
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), true);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::CRASHED);
+                      MySqlAppStatus::CRASHED);
 }
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_crashed2) {
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_crashed2) {
     // Third, it tries to find the pid file. Return zero on this one.
     // Finally, return false for whether or not the file exists.
     // Even though it got the pid, the logic should think MySQL was never there.
-    struct Mock : public virtual MySqlNovaUpdaterDefaultTestContext {
+    struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual void on_execute(std::stringstream & out, int call_number) const
         {
             if (call_number == 1 || call_number == 2) {
@@ -264,26 +264,26 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_crashed2) {
         }
     };
     updater.context.reset(new Mock());
-    updater.mark_mysql_as_installed();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), true);
+    updater.end_install_or_restart();
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), true);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::SHUTDOWN);
+                      MySqlAppStatus::SHUTDOWN);
 }
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_but_mysql_not_there) {
-    struct Mock : public virtual MySqlNovaUpdaterDefaultTestContext {
+    struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual void on_execute(std::stringstream & out, int call_number) const
         {
             throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
         }
     };
     updater.context.reset(new Mock());
-    updater.mark_mysql_as_installed();
-    BOOST_CHECK_EQUAL(updater.mysql_is_installed(), true);
+    updater.end_install_or_restart();
+    BOOST_CHECK_EQUAL(updater.is_mysql_installed(), true);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
     BOOST_CHECK_EQUAL(updater.get_status_from_nova_db().get(),
-                      MySqlNovaUpdater::SHUTDOWN);
+                      MySqlAppStatus::SHUTDOWN);
 }
 
 BOOST_AUTO_TEST_SUITE_END();

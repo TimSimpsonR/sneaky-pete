@@ -5,8 +5,8 @@
 #include <boost/foreach.hpp>
 #include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlMessageHandler.h"
-#include "nova/guest/mysql/MySqlNovaUpdater.h"
-#include "nova/guest/mysql/MySqlPreparer.h"
+#include "nova/guest/mysql/MySqlAppStatus.h"
+#include "nova/guest/mysql/MySqlApp.h"
 #include <sstream>
 
 
@@ -83,14 +83,18 @@ namespace {
         out << " }";
     }
 
-    JSON_METHOD(create_database) {
-        MySqlAdminPtr sql = guest->sql_admin();
+    JsonDataPtr _create_database(MySqlAdminPtr sql, JsonObjectPtr args) {
         NOVA_LOG_INFO2("guest create_database"); //", guest->create_database().c_str());
         MySqlDatabaseListPtr databases(new MySqlDatabaseList());
         JsonArrayPtr array = args->get_array("databases");
         db_list_from_array(databases, array);
         sql->create_database(databases);
         return JsonData::from_null();
+    }
+
+    JSON_METHOD(create_database) {
+        MySqlAdminPtr sql = guest->sql_admin();
+        return _create_database(sql, args);
     }
 
     JSON_METHOD(create_user) {
@@ -175,24 +179,6 @@ namespace {
         return JsonData::from_boolean(enabled);
     }
 
-    JSON_METHOD(prepare) {
-        NOVA_LOG_INFO("Prepare was called.");
-        NOVA_LOG_INFO("Updating status to BUILDING...");
-        guest->sql_updater()->begin_mysql_install();
-        NOVA_LOG_INFO("Calling prepare...");
-        {
-            MySqlPreparerPtr preparer = guest->sql_preparer();
-            preparer->prepare();
-        }
-        guest->sql_updater()->mark_mysql_as_installed();
-
-        // The argument signature is the same as create_database so just
-        // forward the method.
-        NOVA_LOG_INFO("Creating initial databases following successful prepare");
-        NOVA_LOG_INFO2("Here's the args: %s", args->to_string());
-        return create_database(guest, args);
-    }
-
     struct MethodEntry {
         const char * const name;
         const MySqlMessageHandler::MethodPtr ptr;
@@ -200,8 +186,7 @@ namespace {
 
 }
 
-MySqlMessageHandler::MySqlMessageHandler(MySqlMessageHandlerConfig config)
-:   config(config)
+MySqlMessageHandler::MySqlMessageHandler()
 {
     const MethodEntry static_method_entries [] = {
         REGISTER(create_database),
@@ -212,7 +197,6 @@ MySqlMessageHandler::MySqlMessageHandler(MySqlMessageHandlerConfig config)
         REGISTER(is_root_enabled),
         REGISTER(list_databases),
         REGISTER(list_users),
-        REGISTER(prepare),
         {0, 0}
     };
     const MethodEntry * itr = static_method_entries;
@@ -236,6 +220,7 @@ JsonDataPtr MySqlMessageHandler::handle_message(const GuestInput & input) {
     }
 }
 
+
 MySqlAdminPtr MySqlMessageHandler::sql_admin() const {
     // Creates a connection from local host with values coming from my.cnf.
     MySqlConnectionPtr connection(new MySqlConnection("localhost"));
@@ -243,13 +228,50 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() const {
     return ptr;
 }
 
-MySqlPreparerPtr MySqlMessageHandler::sql_preparer() const {
-    MySqlPreparerPtr ptr(new MySqlPreparer(config.apt));
-    return ptr;
+
+
+/**---------------------------------------------------------------------------
+ *- MySqlAppMessageHandler
+ *---------------------------------------------------------------------------*/
+
+MySqlAppMessageHandler::MySqlAppMessageHandler(
+    nova::guest::apt::AptGuest & apt,
+    MySqlAppStatusPtr status,
+    int state_change_wait_time)
+: apt(apt),
+  status(status),
+  state_change_wait_time(state_change_wait_time)
+{
 }
 
-MySqlNovaUpdaterPtr MySqlMessageHandler::sql_updater() const {
-    return config.sql_updater;
+MySqlAppMessageHandler::~MySqlAppMessageHandler() {
+
+}
+
+JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
+    if (input.method_name == "prepare") {
+        NOVA_LOG_INFO("Calling prepare...");
+        MySqlAppPtr app = this->create_mysql_app();
+        MySqlAdminPtr db = app->install_and_secure(this->apt);
+        // The argument signature is the same as create_database so just
+        // forward the method.
+        NOVA_LOG_INFO("Creating initial databases following successful prepare");
+        NOVA_LOG_INFO2("Here's the args: %s", input.args->to_string());
+        return _create_database(db, input.args);
+    } else if (input.method_name == "restart") {
+        NOVA_LOG_INFO("Calling restart...");
+        MySqlAppPtr app = this->create_mysql_app();
+        app->restart();
+        return JsonData::from_null();
+    } else {
+        return JsonDataPtr();
+    }
+}
+
+MySqlAppPtr MySqlAppMessageHandler::create_mysql_app()
+{
+    MySqlAppPtr ptr(new MySqlApp(this->status, this->state_change_wait_time));
+    return ptr;
 }
 
 } } } // end namespace

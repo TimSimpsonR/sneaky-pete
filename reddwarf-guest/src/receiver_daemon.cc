@@ -72,11 +72,11 @@ private:
     JsonObject message;
     MySqlConnectionWithDefaultDbPtr nova_db;
     NewService service_key;
-    MySqlNovaUpdaterPtr status_updater;
+    MySqlAppStatusPtr status_updater;
 
 public:
     PeriodicTasker(MySqlConnectionWithDefaultDbPtr nova_db,
-                   MySqlNovaUpdaterPtr status_updater, NewService service_key)
+                   MySqlAppStatusPtr status_updater, NewService service_key)
       : message(PERIODIC_MESSAGE),
         nova_db(nova_db),
         service_key(service_key),
@@ -179,7 +179,7 @@ int main(int argc, char* argv[]) {
                 flags.nova_sql_database()));
 
         /* Create JSON message handlers. */
-        const int handler_count = 3;
+        const int handler_count = 4;
         MessageHandlerPtr handlers[handler_count];
 
         /* Create Apt Guest */
@@ -187,21 +187,22 @@ int main(int argc, char* argv[]) {
         handlers[0].reset(new AptMessageHandler(&apt_worker));
 
         /* Create MySQL updater. */
-        MySqlNovaUpdaterPtr mysql_status_updater(new MySqlNovaUpdater(
+        MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
             nova_db,
             flags.guest_ethernet_device(),
             flags.nova_db_reconnect_wait_time(),
             flags.preset_instance_id()));
 
         /* Create MySQL Guest. */
-        MySqlMessageHandlerConfig mysql_config;
-        mysql_config.apt = &apt_worker;
-        mysql_config.sql_updater = mysql_status_updater;
-        handlers[1].reset(new MySqlMessageHandler(mysql_config));
+        handlers[1].reset(new MySqlMessageHandler());
+
+        handlers[2].reset(new MySqlAppMessageHandler(
+            apt_worker, mysql_status_updater,
+            flags.mysql_state_change_wait_time()));
 
         /* Create the Interrogator for the guest. */
         Interrogator interrogator;
-        handlers[2].reset(new InterrogatorMessageHandler(interrogator));
+        handlers[3].reset(new InterrogatorMessageHandler(interrogator));
 
         /* Set host value. */
         string actual_host = nova::guest::utils::get_host_name();
@@ -253,6 +254,7 @@ int main(int argc, char* argv[]) {
                     output.result = handlers[i]->handle_message(input);
                 }
                 if (!output.result) {
+                    NOVA_LOG_ERROR("No method found!")
                     throw GuestException(GuestException::NO_SUCH_METHOD);
                 }
                 output.failure = boost::none;

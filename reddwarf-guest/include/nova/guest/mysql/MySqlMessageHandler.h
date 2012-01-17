@@ -4,24 +4,19 @@
 #include "nova/guest/guest.h"
 #include <map>
 #include "nova/guest/mysql/MySqlAdmin.h"
-#include "nova/guest/mysql/MySqlNovaUpdater.h"
-#include "nova/guest/mysql/MySqlPreparer.h"
+#include "nova/guest/mysql/MySqlAppStatus.h"
+#include "nova/guest/mysql/MySqlApp.h"
 #include <string>
 
 
 namespace nova { namespace guest { namespace mysql {
-
-    struct MySqlMessageHandlerConfig {
-        nova::guest::apt::AptGuest * apt;
-        nova::guest::mysql::MySqlNovaUpdaterPtr sql_updater;
-    };
 
 
     //TODO(tim.simpson): This should probably be called MySqlGuest.
     class MySqlMessageHandler : public MessageHandler {
 
         public:
-            MySqlMessageHandler(MySqlMessageHandlerConfig config);
+            MySqlMessageHandler();
 
             virtual JsonDataPtr handle_message(const GuestInput & input);
 
@@ -30,19 +25,34 @@ namespace nova { namespace guest { namespace mysql {
 
             typedef std::map<std::string, MethodPtr> MethodMap;
 
-            MySqlAdminPtr sql_admin() const;
+            nova::guest::apt::AptGuest & apt_guest() const;
 
-            MySqlPreparerPtr sql_preparer() const;
-
-            MySqlNovaUpdaterPtr sql_updater() const;
+            static MySqlAdminPtr sql_admin();
 
         private:
             MySqlMessageHandler(const MySqlMessageHandler & other);
             MySqlMessageHandler & operator = (const MySqlMessageHandler &);
 
-            const MySqlMessageHandlerConfig config;
-
             MethodMap methods;
+    };
+
+    class MySqlAppMessageHandler : public MessageHandler {
+
+        public:
+            MySqlAppMessageHandler(nova::guest::apt::AptGuest & apt,
+                                   MySqlAppStatusPtr status,
+                                   int state_change_wait_time);
+
+            virtual ~MySqlAppMessageHandler();
+
+            virtual JsonDataPtr handle_message(const GuestInput & input);
+
+            MySqlAppPtr create_mysql_app();
+
+        private:
+            nova::guest::apt::AptGuest & apt;
+            MySqlAppStatusPtr status;
+            int state_change_wait_time;
     };
 
 } } }

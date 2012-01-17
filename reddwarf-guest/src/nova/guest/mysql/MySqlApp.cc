@@ -1,4 +1,4 @@
-#include "nova/guest/mysql/MySqlPreparer.h"
+#include "nova/guest/mysql/MySqlApp.h"
 #include "nova/guest/apt.h"
 #include <boost/format.hpp>
 #include <fstream>
@@ -82,29 +82,33 @@ namespace {
     }
 }
 
-MySqlPreparer::MySqlPreparer(AptGuest * apt)
-: apt(apt), sql()
+MySqlApp::MySqlApp(MySqlAppStatusPtr status, int state_change_wait_time)
+:   state_change_wait_time(state_change_wait_time),
+    status(status)
 {
-    MySqlConnectionPtr con(new MySqlConnection("localhost", "root", ""));
-    sql.reset(new MySqlAdmin(con));
 }
 
-void MySqlPreparer::create_admin_user(const std::string & password) {
+MySqlApp::~MySqlApp()
+{
+}
+
+void MySqlApp::create_admin_user(MySqlAdmin & db,
+                                 const std::string & password) {
     MySqlUserPtr user(new MySqlUser());
     user->set_name(ADMIN_USER_NAME);
     user->set_password(password);
-    sql->create_user(user, "localhost");
-    sql->get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
+    db.create_user(user, "localhost");
+    db.get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
 }
 
-void MySqlPreparer::generate_root_password() {
-    sql->set_password("root", mysql::generate_password().c_str());
+void MySqlApp::generate_root_password(MySqlAdmin & db) {
+    db.set_password("root", mysql::generate_password().c_str());
 }
 
-void MySqlPreparer::init_mycnf(const std::string & password) {
+void MySqlApp::init_mycnf(AptGuest & apt, const std::string & password) {
     NOVA_LOG_INFO("Installing my.cnf templates");
 
-    apt->install("dbaas-mycnf", TIME_OUT);
+    apt.install("dbaas-mycnf", TIME_OUT);
 
     NOVA_LOG_INFO("Replacing my.cnf with template.");
     replace_mycnf_with_template(DBAAS_MYCNF, ORIG_MYCNF);
@@ -123,60 +127,130 @@ void MySqlPreparer::init_mycnf(const std::string & password) {
                             (ORIG_MYCNF));
 }
 
-void MySqlPreparer::install_mysql() {
-    NOVA_LOG_INFO("Installing mysql server.");
-    apt->install("mysql-server-5.1", TIME_OUT);
-}
+void MySqlApp::install_and_secure(AptGuest & apt) {
+    // The MySqlAdmin class is lazy initialized, so we can create it before
+    // the app exists.
+    MySqlConnectionPtr con(new MySqlConnection("localhost", "root", ""));
+    MySqlAdmin local_db(con);
 
-void MySqlPreparer::prepare() {
+    if (status->is_mysql_installed()) {
+        NOVA_LOG_ERROR("Cannot install and secure MySQL because it is already "
+                       "installed.");
+    }
+    NOVA_LOG_INFO("Updating status to BUILDING...");
+    status->begin_mysql_install();
+
+    // You may wonder why there's no try / catch around this section which
+    // would change status to a failure state if something went wrong.
+    // The reason why is that the Reddwarf compute manager will time out the
+    // instance. If we added a catch here, it would be harder to test this
+    // ability of the Reddwarf compute manager. We may find a way to add error
+    // handling here anyway as it would speed up acknowledgement of failures,
+    // but the bigger priority is making sure the manager retains the ability
+    // to determine when a guest is misbehaving.
+
     NOVA_LOG_INFO("Preparing Guest as MySQL Server");
-    install_mysql();
+    install_mysql(apt);
+
     string admin_password = mysql::generate_password();
 
     NOVA_LOG_INFO("Generating root password...");
-    generate_root_password();
+    generate_root_password(local_db);
     NOVA_LOG_INFO("Removing anonymous users...");
-    remove_anonymous_user();
+    remove_anonymous_user(local_db);
     NOVA_LOG_INFO("Removing root access...");
-    remove_remote_root_access();
+    remove_remote_root_access(local_db);
     NOVA_LOG_INFO("Creating admin user...");
-    create_admin_user(admin_password);
+    create_admin_user(local_db, admin_password);
     NOVA_LOG_INFO("Flushing privileges");
-    sql->get_connection()->flush_privileges();
+    local_db.get_connection()->flush_privileges();
 
     NOVA_LOG_INFO("Initiating config.");
-    init_mycnf(admin_password);
-    sql->get_connection()->close();
+    init_mycnf(apt, admin_password);
+    local_db.get_connection()->close();
     NOVA_LOG_INFO("Restarting MySQL...");
-    restart_mysql();
+    restart_mysql_and_wipe_ib_logfiles();
 
+    status->end_install_or_restart();
     NOVA_LOG_INFO("Dbaas preparation complete.");
 }
 
-void MySqlPreparer::remove_anonymous_user() {
-    sql->get_connection()->query("DELETE FROM mysql.user WHERE User=''");
+void MySqlApp::install_mysql(AptGuest & apt) {
+    NOVA_LOG_INFO("Installing mysql server.");
+    apt.install("mysql-server-5.1", TIME_OUT);
 }
 
-void MySqlPreparer::remove_remote_root_access() {
-    sql->get_connection()->query("DELETE FROM mysql.user"
+void MySqlApp::remove_anonymous_user(MySqlAdmin & db) {
+    db.get_connection()->query("DELETE FROM mysql.user WHERE User=''");
+}
+
+void MySqlApp::remove_remote_root_access(MySqlAdmin & db) {
+    db.get_connection()->query("DELETE FROM mysql.user"
                                    "    WHERE User='root'"
                                    "    AND Host!='localhost'");
-    sql->get_connection()->flush_privileges();
+    db.get_connection()->flush_privileges();
 }
 
-void MySqlPreparer::restart_mysql() {
+void MySqlApp::restart() {
+    struct Restarter {
+        MySqlAppStatusPtr & status;
+
+        Restarter(MySqlAppStatusPtr & status)
+        :   status(status) {
+            status->begin_mysql_restart();
+        }
+
+        ~Restarter() {
+            // Make sure we end this, even if the result is a failure.
+            status->end_install_or_restart();
+        }
+    } restarter(status);
+    stop_mysql();
+    start_mysql();
+}
+
+void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
     const char * MYSQL_BASE_DIR = "/var/lib/mysql";
     NOVA_LOG_INFO("Restarting mysql...");
-    Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("stop"));
 
-    // Remove the ib_logfile, if not mysql won't start.
-    // For some reason wildcards don't seem to work, so
-    // deleting both the files separately
+    stop_mysql();
+
+    NOVA_LOG_INFO("Wiping ib_logfiles...");
+    // When MySQL starts up, it tries to find log files which are the exact
+    // size mandated in its configs. If these do not exist, it simply creates
+    // them, but if they do exist and the file is not the same, it fails to
+    // start!
+    // So we remove the ib_logfile, because if not mysql won't start.
+    // For some reason wildcards don't seem to work, so we delete both files
+    // separately.
     string logfile0 = str(format("%s/ib_logfile0") % MYSQL_BASE_DIR);
     string logfile1 = str(format("%s/ib_logfile1") % MYSQL_BASE_DIR);
     Process::execute(list_of("/usr/bin/sudo")("rm")(logfile0.c_str()));
     Process::execute(list_of("/usr/bin/sudo")("rm")(logfile1.c_str()));
-    Process::execute(list_of("/usr/bin/sudo")("service")("mysql")("start"));
+
+    start_mysql();
+}
+
+void MySqlApp::start_mysql() {
+    NOVA_LOG_INFO("Starting mysql...");
+    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"));
+    if (!status->wait_for_real_state_to_change_to(
+        MySqlAppStatus::RUNNING, this->state_change_wait_time)) {
+        NOVA_LOG_ERROR("Start up of MySQL failed!");
+        status->end_install_or_restart();
+        throw MySqlGuestException(MySqlGuestException::COULD_NOT_START_MYSQL);
+    }
+}
+
+void MySqlApp::stop_mysql() {
+    NOVA_LOG_INFO("Stopping mysql...");
+    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"));
+    if (!status->wait_for_real_state_to_change_to(
+        MySqlAppStatus::SHUTDOWN, this->state_change_wait_time)) {
+        NOVA_LOG_ERROR("Could not stop MySQL!");
+        status->end_install_or_restart();
+        throw MySqlGuestException(MySqlGuestException::COULD_NOT_STOP_MYSQL);
+    }
 }
 
 } } }  // end nova::guest::mysql

@@ -341,8 +341,8 @@ unit u_nova_guest_mysql_MySqlAdmin
     :   tests/nova/guest/mysql/MySqlAdminTests.cc
     ;
 
-unit u_nova_guest_mysql_MySqlNovaUpdater
-    :   src/nova/guest/mysql/MySqlNovaUpdater.cc
+unit u_nova_guest_mysql_MySqlAppStatus
+    :   src/nova/guest/mysql/MySqlAppStatus.cc
     :   lib_boost_thread
         u_nova_db_mysql
         u_nova_utils_io
@@ -350,13 +350,13 @@ unit u_nova_guest_mysql_MySqlNovaUpdater
         u_nova_guest_utils
     ;
 
-unit u_nova_guest_mysql_MySqlPreparer
-    :   src/nova/guest/mysql/MySqlPreparer.cc
+unit u_nova_guest_mysql_MySqlApp
+    :   src/nova/guest/mysql/MySqlApp.cc
     :   u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_configfile
-        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlAppStatus
     ;
 
 unit u_nova_guest_mysql_MySqlMessageHandler
@@ -366,8 +366,8 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_json
         u_nova_db_mysql
         u_nova_guest_mysql_MySqlAdmin
-        u_nova_guest_mysql_MySqlNovaUpdater
-        u_nova_guest_mysql_MySqlPreparer
+        u_nova_guest_mysql_MySqlAppStatus
+        u_nova_guest_mysql_MySqlApp
     ;
 
 unit u_nova_guest_diagnostics_Interrogator
@@ -471,9 +471,9 @@ unit-test mysql_nova_updater_tests
     :   lib_boost_thread
         u_nova_flags
         u_nova_guest_mysql_MySqlGuestException
-        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlAppStatus
         test_dependencies
-        tests/nova/guest/mysql/MySqlNovaUpdater_tests.cc
+        tests/nova/guest/mysql/MySqlAppStatus_tests.cc
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
@@ -500,7 +500,7 @@ unit-test int_tests
         u_nova_Log
         #u_nova_guest_apt_apt
         #u_nova_guest_apt_AptException
-        u_nova_guest_mysql_MySqlPreparer
+        u_nova_guest_mysql_MySqlApp
         tests/nova/guest/mysql/mysql_integration_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
@@ -551,12 +551,12 @@ exe nova_process_fd_demo
     :   <linkflags>"-pthread "
     ;
 
-exe MySqlNovaUpdater_demo
+exe MySqlAppStatus_demo
     :   u_nova_guest_utils
         u_nova_flags
-        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlAppStatus
         u_nova_guest_mysql_MySqlGuestException
-        tests/nova/guest/mysql/MySqlNovaUpdater_demo.cc
+        tests/nova/guest/mysql/MySqlAppStatus_demo.cc
     :   <linkflags>"-pthread "
     ;
 

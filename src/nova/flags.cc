@@ -285,6 +285,10 @@ bool FlagValues::log_use_std_streams() const {
     return get_flag_value<bool>(*map, "log_use_std_streams", true);
 }
 
+int FlagValues::mysql_state_change_wait_time() const {
+    return get_flag_value<int>(*map, "mysql_state_change_wait_time", 2 * 60);
+}
+
 const char * FlagValues::node_availability_zone() const {
     return map->get("node_availability_zone", "nova");
 }

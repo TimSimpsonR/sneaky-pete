@@ -124,16 +124,16 @@ Process::Process(const CommandList & cmds, bool wait_for_close)
     char * * new_argv;
     int new_argv_length;
     create_argv(new_argv, new_argv_length, cmds);
-    #ifdef _NOVA_PROCESS_VERBOSE
+    {
         stringstream str;
         str << "Running the following process: { ";
         BOOST_FOREACH(const char * cmd, cmds) {
             str << cmd;
-            str << ",";
+            str << " ";
         }
         str << "}";
         LOG_DEBUG(str.str().c_str());
-    #endif
+    }
     int status = posix_spawn(&pid, program_path, &file_actions, NULL,
                              new_argv, environ);
     delete_argv(new_argv, new_argv_length);
@@ -251,13 +251,13 @@ void Process::set_eof() {
         while(((child_pid = waitpid(pid, &status, options)) == -1)
               && (errno == EINTR));
         #ifdef _NOVA_PROCESS_VERBOSE
-            LOG_DEBUG8("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
-                      "WIFEXITED=%d, WEXITSTATUS=%d, "
-                      "WIFSIGNALED=%d, WIFSTOPPED=%d",
-                       child_pid, pid,
-                       (child_pid == pid ? "true" : "false"),
-                       WIFEXITED(status), (int) WEXITSTATUS(status),
-                       WIFSIGNALED(status), WIFSTOPPED(status));
+            NOVA_LOG_DEBUG2("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
+                            "WIFEXITED=%d, WEXITSTATUS=%d, "
+                            "WIFSIGNALED=%d, WIFSTOPPED=%d",
+                            child_pid, pid,
+                            (child_pid == pid ? "true" : "false"),
+                            WIFEXITED(status), (int) WEXITSTATUS(status),
+                            WIFSIGNALED(status), WIFSTOPPED(status));
         #endif
         success = child_pid == pid && WIFEXITED(status)
                   && WEXITSTATUS(status) == 0;

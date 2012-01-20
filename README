@@ -162,3 +162,11 @@ If you'd like to avoid this, you can instead start a working instance and then
 enter into the OpenVZ container and kill the existing guest agent and run your
 own version of the agent in its place by executing commands 2 and 5. You can
 then manually test that the instance works.
+
+7. Alternatively you can run the nova-guest in the container maunally. In order 
+to run this command and have the guest work correctly you must run the guest as
+nova.
+
+su nova
+/agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/agent/debian/guest.conf
+ctrl+d (logout)

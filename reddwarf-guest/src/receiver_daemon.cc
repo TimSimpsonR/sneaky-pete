@@ -5,6 +5,7 @@
 #include "nova/flags.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
+#include "nova/guest/diagnostics.h"
 #include "nova/guest/GuestException.h"
 #include <boost/lexical_cast.hpp>
 #include <memory>
@@ -22,7 +23,7 @@
 /* In release mode, all errors should be caught so the guest will not die.
  * If you want to see the bugs in the debug mode, you can fiddle with it here.
  */
-//#ifndef _DEBUG
+// #ifndef _DEBUG
 #define START_THREAD_TASK() try {
 #define END_THREAD_TASK(name)  \
      } catch(const std::exception & e) { \
@@ -44,6 +45,7 @@ using boost::optional;
 using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
+using namespace nova::guest::diagnostics;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using nova::db::NewService;
@@ -177,7 +179,7 @@ int main(int argc, char* argv[]) {
                 flags.nova_sql_database()));
 
         /* Create JSON message handlers. */
-        const int handler_count = 2;
+        const int handler_count = 3;
         MessageHandlerPtr handlers[handler_count];
 
         /* Create Apt Guest */
@@ -196,6 +198,10 @@ int main(int argc, char* argv[]) {
         mysql_config.apt = &apt_worker;
         mysql_config.sql_updater = mysql_status_updater;
         handlers[1].reset(new MySqlMessageHandler(mysql_config));
+
+        /* Create the Interrogator for the guest. */
+        Interrogator interrogator(true);
+        handlers[2].reset(new InterrogatorMessageHandler(interrogator));
 
         /* Set host value. */
         string actual_host = nova::guest::utils::get_host_name();

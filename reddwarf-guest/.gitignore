@@ -8,3 +8,6 @@ bin/*
 debian/*.debhelper
 debian/tmp
 vagrant/.vagrant
+*.sublime-project
+*.sublime-workspace
+parrot/*

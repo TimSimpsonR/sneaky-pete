@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include "nova/guest/version.h"
 #include "nova/utils/regex.h"
 #include "nova/Log.h"
 #include <sstream>
@@ -20,29 +21,28 @@ namespace nova { namespace guest { namespace diagnostics {
  *- Interrogator
  *---------------------------------------------------------------------------*/
 
-Interrogator::Interrogator(bool with_sudo)
-: with_sudo(with_sudo) {
+Interrogator::Interrogator(){
 }
 
-DiagInfoPtr Interrogator::get_diagnostics(double time_out) const {
-    NOVA_LOG_DEBUG2("getDiagnostics call with time_out=%f", time_out);
+DiagInfoPtr Interrogator::get_diagnostics() const {
+    NOVA_LOG_DEBUG("getDiagnostics call ");
 
     DiagInfoPtr map(new DiagInfo());
     int pid = (int)getpid();
 
-    stringstream stream_procStatus;
-    stream_procStatus << "/proc/" << pid << "/status";
+    stringstream stream_proc_status;
+    stream_proc_status << "/proc/" << pid << "/status";
     NOVA_LOG_DEBUG2("proc status file location : %s", 
-                    stream_procStatus.str().c_str());
+                    stream_proc_status.str().c_str());
 
     string stat_line;
 
-    ifstream statusFile(stream_procStatus.str().c_str());
-    if (!statusFile.is_open()) {
+    ifstream status_file(stream_proc_status.str().c_str());
+    if (!status_file.is_open()) {
         throw InterrogatorException(InterrogatorException::FILE_NOT_FOUND);
     }
-    while (statusFile.good()) {
-        getline (statusFile,stat_line);
+    while (status_file.good()) {
+        getline (status_file,stat_line);
         
         Regex regex("(VmSize|VmPeak|VmRSS|VmHWM|Threads):\\s+([0-9]+)");
         RegexMatchesPtr matches = regex.match(stat_line.c_str());
@@ -50,11 +50,9 @@ DiagInfoPtr Interrogator::get_diagnostics(double time_out) const {
         if (matches) {
             NOVA_LOG_DEBUG2("line : %s", stat_line.c_str());
 
-            for (int i = 0; i < 3; ++i) {
-                if (!matches->exists_at(i)) {
-                    throw InterrogatorException(
-                        InterrogatorException::PATTERN_DOES_NOT_MATCH);
-                }
+            if (!matches->exists_at(2)) {
+                throw InterrogatorException(
+                    InterrogatorException::PATTERN_DOES_NOT_MATCH);
             }
 
             string key;
@@ -66,7 +64,10 @@ DiagInfoPtr Interrogator::get_diagnostics(double time_out) const {
             NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());
         }
     }
-    statusFile.close();
+    status_file.close();
+
+    // Add the version to the map
+    (*map)["version"] = NOVA_GUEST_CURRENT_VERSION;
 
     return map;
 }

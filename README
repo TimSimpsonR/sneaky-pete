@@ -143,12 +143,16 @@ execute "sudo vzlist", then:
 
 sudo apt-get install gdb
 
-5. Inside the /agent directory, execute the statically-linked debug version of
+5. Login as the nova user on the vagrant image.
+
+su nova
+
+6. Inside the /agent directory, execute the statically-linked debug version of
 Sneaky-Pete with the following command (this file was copied here in step 2):
 
 gdb /agent/bin/gcc-4.4.5/debug/link-static/nova-guest
 
-6. Once gdb is started, run it with the flag files via
+7. Once gdb is started, run it with the flag files via
 
 run --flagfile=/agent/debian/guest.conf
 
@@ -163,10 +167,6 @@ enter into the OpenVZ container and kill the existing guest agent and run your
 own version of the agent in its place by executing commands 2 and 5. You can
 then manually test that the instance works.
 
-7. Alternatively you can run the nova-guest in the container maunally. In order 
-to run this command and have the guest work correctly you must run the guest as
-nova.
+8. To run the release mode in the container without debugging just execute the command:
 
-su nova
 /agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/agent/debian/guest.conf
-ctrl+d (logout)

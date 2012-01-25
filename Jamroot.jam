@@ -375,19 +375,19 @@ unit u_nova_guest_diagnostics_Interrogator
     :   u_nova_Log
         u_nova_guest_diagnostics_InterrogatorException
         u_nova_utils_io
-        u_nova_process
         u_nova_utils_regex
+    :   tests/nova/guest/apt_json_tests.cc
     ;
 
 unit u_nova_guest_diagnostics_InterrogatorException
     :   src/nova/guest/diagnostics/InterrogatorException.cc
+    :   u_nova_guest_GuestException
     ;
 
 unit u_nova_guest_diagnostics_InterrogatorMessageHandler
     :   src/nova/guest/diagnostics/InterrogatorMessageHandler.cc
     :   # lib_json # <-- this should be automatic...
         u_nova_guest_diagnostics_Interrogator
-        u_nova_guest_diagnostics_InterrogatorException
         u_nova_guest_GuestException
         u_nova_json
         u_nova_Log
@@ -418,22 +418,6 @@ alias guest_lib
 #      Functional Tests
 ###############################################################################
 
-
-# Trying to get the diagnostics to build out.
-unit-test diag_tests
-    :   u_nova_guest_diagnostics_Interrogator
-        u_nova_flags
-        tests/nova/guest/diag_tests.cc
-        test_dependencies
-    :   <define>_VERBOSE_NOVA_GUEST_DIAGNOSTICS
-        # Boost fails this test because a process returns a non-zero exit code.
-        # Its a bug thats been fixed in recent versions.
-        #http://stackoverflow.com/questions/5325202/boostunit-test-case-fails-because-a-child-process-exits-with-nonzero
-        <define>BOOST_TEST_DYN_LINK
-        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
-        #" valgrind --leak-check=full"
-    ;
-explicit diag_tests ;
 
 # Doesn't require anything other than apt-get on the machine, but is brittle.
 unit-test apt_tests

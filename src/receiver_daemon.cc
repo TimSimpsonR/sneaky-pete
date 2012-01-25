@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
         handlers[1].reset(new MySqlMessageHandler(mysql_config));
 
         /* Create the Interrogator for the guest. */
-        Interrogator interrogator(true);
+        Interrogator interrogator;
         handlers[2].reset(new InterrogatorMessageHandler(interrogator));
 
         /* Set host value. */

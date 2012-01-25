@@ -3,6 +3,7 @@
 
 #include "nova/guest/diagnostics.h"
 #include "nova/Log.h"
+#include "nova/guest/version.h"
 #include "nova/utils/regex.h"
 #include <fstream>
 #include <unistd.h>
@@ -13,9 +14,6 @@ using namespace nova::guest;
 using namespace nova::guest::diagnostics;
 using std::string;
 using std::stringstream;
-
-const double TIME_OUT = 60;
-const bool USE_SUDO = true;
 
 struct GlobalFixture {
 
@@ -35,12 +33,13 @@ BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 BOOST_AUTO_TEST_CASE(get_something_back_from_diagnostics)
 {
-    diagnostics::Interrogator guest(USE_SUDO);
-    double timeout = 30;
-    DiagInfoPtr diags = guest.get_diagnostics(timeout);
-    BOOST_TEST_MESSAGE( "Passing in the timeout value of " << timeout );
-    // stringstream msg;
-    // msg << "DiagInfoPtr.get() = " << diags.get();
-    // BOOST_FAIL(msg.str().c_str());
+    diagnostics::Interrogator guest;
+    DiagInfoPtr diags = guest.get_diagnostics();
     BOOST_REQUIRE(diags.get() != 0);
+    BOOST_REQUIRE(diags->count("VmSize") > 0);
+    BOOST_REQUIRE(diags->count("VmPeak") > 0);
+    BOOST_REQUIRE(diags->count("VmRSS") > 0);
+    BOOST_REQUIRE(diags->count("VmHWM") > 0);
+    BOOST_REQUIRE(diags->count("Threads") > 0);
+    BOOST_REQUIRE_EQUAL((*diags)["version"], NOVA_GUEST_CURRENT_VERSION);
 }

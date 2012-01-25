@@ -33,6 +33,7 @@ namespace nova { namespace rpc {
                 LOGIN_FAILED,
                 OPEN_CHANNEL_FAILED,
                 PUBLISH_FAILURE,
+                UNEXPECTED_FRAME_PAYLOAD_METHOD,
                 WAIT_FRAME_FAILED
             };
 

@@ -78,10 +78,6 @@ namespace nova { namespace guest { namespace mysql {
              * an attempt to ascertain its status won't result in nonsense. */
             bool is_mysql_installed();
 
-            /** If true, updates are restricted until the mode is switched
-             *  off. */
-            bool is_mysql_restarting();
-
             /** Returns a readable string for each status enum. */
             static const char * status_name(Status status);
 
@@ -103,6 +99,10 @@ namespace nova { namespace guest { namespace mysql {
 
             /** Determines the ID of this instance in the Nova DB. */
             int get_guest_instance_id();
+
+            /** If true, updates are restricted until the mode is switched
+             *  off. */
+            bool is_mysql_restarting();
 
             /** Executes the method. Retries if there is a MySQL error
              *  after first waiting the time specified in the constructor

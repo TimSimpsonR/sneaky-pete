@@ -194,10 +194,21 @@ void MySqlApp::remove_remote_root_access(MySqlAdminPtr & db) {
 }
 
 void MySqlApp::restart() {
-    status->begin_mysql_restart();
+    struct Restarter {
+        MySqlAppStatusPtr & status;
+
+        Restarter(MySqlAppStatusPtr & status)
+        :   status(status) {
+            status->begin_mysql_restart();
+        }
+
+        ~Restarter() {
+            // Make sure we end this, even if the result is a failure.
+            status->end_install_or_restart();
+        }
+    } restarter(status);
     stop_mysql();
     start_mysql();
-    status->end_install_or_restart();
 }
 
 void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {

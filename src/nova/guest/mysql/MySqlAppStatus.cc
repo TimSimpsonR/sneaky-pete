@@ -194,8 +194,6 @@ bool MySqlAppStatus::is_mysql_restarting() {
 }
 
 void MySqlAppStatus::repeatedly_attempt_to_set_status(Status status) {
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
-
     struct F : MySqlAppStatusFunctor {
         Status status;
         MySqlAppStatus * updater;
@@ -304,15 +302,22 @@ void MySqlAppStatus::update() {
 
 bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
                                                       int max_time){
+    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
     const int wait_time = 3;
     for (int time = 0; time < max_time; time += wait_time) {
         boost::this_thread::sleep(boost::posix_time::seconds(wait_time));
         time += 1;
-        if (get_actual_db_status() != status)
+        NOVA_LOG_INFO2("Waiting for MySQL status to change to %s...",
+                       MySqlAppStatus::status_name(status));
+        const MySqlAppStatus::Status actual_status = get_actual_db_status();
+        NOVA_LOG_INFO2("MySQL status was %s after %d seconds.",
+                       MySqlAppStatus::status_name(actual_status), time);
+        if (actual_status == status)
         {
             return true;
         }
     }
+    NOVA_LOG_ERROR("Time out while waiting for MySQL app status to change!");
     return false;
 }
 

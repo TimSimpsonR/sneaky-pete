@@ -14,15 +14,13 @@ namespace nova { namespace guest { namespace diagnostics {
     class Interrogator {
 
         public:
-            Interrogator(bool with_sudo);
+            Interrogator();
 
-            DiagInfoPtr get_diagnostics(double time_out) const;
+            DiagInfoPtr get_diagnostics() const;
 
         private:
             Interrogator(const Interrogator &);
             Interrogator & operator = (const Interrogator &);
-
-            bool with_sudo;
     };
 
     class InterrogatorException : public std::exception {

@@ -15,9 +15,8 @@ int main(int argc, char* argv[]) {
 
     cout << "Starting up the Interrogator..." << endl;
 
-    Interrogator gator(true);
-    double timeout = 30;
-    DiagInfoPtr output = gator.get_diagnostics(timeout);
+    Interrogator gator();
+    DiagInfoPtr output = gator.get_diagnostics();
 
     cout << "getDiagnostics = " << output.get() << endl;
 

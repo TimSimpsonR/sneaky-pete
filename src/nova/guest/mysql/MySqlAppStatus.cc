@@ -272,6 +272,8 @@ const char * MySqlAppStatus::status_name(MySqlAppStatus::Status status) {
             return "building";
         case BLOCKED:
             return "blocked";
+        case PAUSED:
+            return "paused";
         case CRASHED:
             return "crashed";
         case FAILED:

@@ -47,12 +47,13 @@ namespace nova { namespace guest { namespace mysql {
             /* NOTE: These *MUST* match the values found in
              * nova.compute.power_state! */
             enum Status {
-                RUNNING = 0x01,
+                RUNNING = 0x01, // MySQL is active.
                 BLOCKED = 0x02,
-                SHUTDOWN = 0x04,
-                CRASHED = 0x06,
+                PAUSED = 0x03,  // Instance is rebooting (this is set in Nova).
+                SHUTDOWN = 0x04, // MySQL is not running.
+                CRASHED = 0x06, // When MySQL died after starting.
                 FAILED = 0x08,
-                BUILDING = 0x09
+                BUILDING = 0x09 // MySQL is being installed / prepared.
             };
 
             MySqlAppStatus(nova::db::mysql::MySqlConnectionWithDefaultDbPtr

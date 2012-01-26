@@ -370,6 +370,28 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_guest_mysql_MySqlPreparer
     ;
 
+unit u_nova_guest_diagnostics_Interrogator
+    :   src/nova/guest/diagnostics/Interrogator.cc
+    :   u_nova_Log
+        u_nova_guest_diagnostics_InterrogatorException
+        u_nova_utils_io
+        u_nova_utils_regex
+    :   tests/nova/guest/apt_json_tests.cc
+    ;
+
+unit u_nova_guest_diagnostics_InterrogatorException
+    :   src/nova/guest/diagnostics/InterrogatorException.cc
+    :   u_nova_guest_GuestException
+    ;
+
+unit u_nova_guest_diagnostics_InterrogatorMessageHandler
+    :   src/nova/guest/diagnostics/InterrogatorMessageHandler.cc
+    :   # lib_json # <-- this should be automatic...
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_guest_GuestException
+        u_nova_json
+        u_nova_Log
+    ;
 
 alias guest_lib
     :   u_nova_db_api
@@ -378,6 +400,9 @@ alias guest_lib
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
         u_nova_guest_apt_AptException
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_guest_diagnostics_InterrogatorException
+        u_nova_guest_diagnostics_InterrogatorMessageHandler
         u_nova_guest_utils
         u_nova_json
         u_nova_Log
@@ -389,10 +414,10 @@ alias guest_lib
 
 
 
-
 ###############################################################################
 #      Functional Tests
 ###############################################################################
+
 
 # Doesn't require anything other than apt-get on the machine, but is brittle.
 unit-test apt_tests
@@ -409,7 +434,6 @@ unit-test apt_tests
         #" valgrind --leak-check=full"
     ;
 explicit apt_tests ;
-
 
 # Requires RabbitMQ server to be installed and running on localhost.
 unit-test send_and_receive
@@ -502,6 +526,13 @@ explicit memory_tests ;
 ###############################################################################
 #      Binaries
 ###############################################################################
+
+exe nova_guest_diagnostics_interrogator_demo
+    :   u_nova_guest_diagnostics_Interrogator
+        u_nova_flags
+        u_nova_Log
+        tests/nova/guest/diag_demo.cc
+    ;
 
 exe nova_guest_utils_demo
     :   u_nova_guest_utils

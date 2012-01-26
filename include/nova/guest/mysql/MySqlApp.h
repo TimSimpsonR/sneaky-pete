@@ -21,18 +21,18 @@ class MySqlApp {
         virtual ~MySqlApp();
 
         /** Installs MySql and secure it. */
-        MySqlAdminPtr install_and_secure(nova::guest::apt::AptGuest & apt);
+        void install_and_secure(nova::guest::apt::AptGuest & apt);
 
         /** Restarts MySQL on this host. */
         void restart();
 
     protected:
 
-        void create_admin_user(MySqlAdminPtr & sql,
+        void create_admin_user(MySqlAdmin & sql,
                                const std::string & password);
 
         /** Generate and set a random root password and forget about it. */
-        void generate_root_password(MySqlAdminPtr & sql);
+        void generate_root_password(MySqlAdmin & sql);
 
         /** Install the set of mysql my.cnf templates from dbaas-mycnf package.
          *  The package generates a template suited for the current
@@ -48,10 +48,10 @@ class MySqlApp {
         void install_mysql(nova::guest::apt::AptGuest & apt);
 
         /** Helps secure the MySQL install by removing the anonymous user. */
-        void remove_anonymous_user(MySqlAdminPtr & sql);
+        void remove_anonymous_user(MySqlAdmin & sql);
 
         /** Helps secure the MySQL install by removing remote root access. */
-        void remove_remote_root_access(MySqlAdminPtr & sql);
+        void remove_remote_root_access(MySqlAdmin & sql);
 
         /** Stops MySQL and restarts it, wiping the ib_logfiles in-between.
          *  This should never be done unless the innodb_log_file_size changes.*/

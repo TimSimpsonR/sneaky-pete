@@ -27,7 +27,7 @@ namespace nova { namespace guest { namespace mysql {
 
             nova::guest::apt::AptGuest & apt_guest() const;
 
-            MySqlAdminPtr sql_admin() const;
+            static MySqlAdminPtr sql_admin();
 
         private:
             MySqlMessageHandler(const MySqlMessageHandler & other);

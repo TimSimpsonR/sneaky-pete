@@ -221,7 +221,7 @@ JsonDataPtr MySqlMessageHandler::handle_message(const GuestInput & input) {
 }
 
 
-MySqlAdminPtr MySqlMessageHandler::sql_admin() const {
+MySqlAdminPtr MySqlMessageHandler::sql_admin() {
     // Creates a connection from local host with values coming from my.cnf.
     MySqlConnectionPtr connection(new MySqlConnection("localhost"));
     MySqlAdminPtr ptr(new MySqlAdmin(connection));
@@ -252,12 +252,12 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
-        MySqlAdminPtr db = app->install_and_secure(this->apt);
+        app->install_and_secure(this->apt);
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases following successful prepare");
         NOVA_LOG_INFO2("Here's the args: %s", input.args->to_string());
-        return _create_database(db, input.args);
+        return _create_database(MySqlMessageHandler::sql_admin(), input.args);
     } else if (input.method_name == "restart") {
         NOVA_LOG_INFO("Calling restart...");
         MySqlAppPtr app = this->create_mysql_app();

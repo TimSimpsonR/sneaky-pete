@@ -58,6 +58,9 @@ const char * AmqpException::what() const throw() {
             return "Failed to open channel.";
         case PUBLISH_FAILURE:
             return "Error publishing message.";
+        case UNEXPECTED_FRAME_PAYLOAD_METHOD:
+            return "Did not expect to see any frame other than "
+                   "AMQP_BASIC_DELIVER_METHOD at this time.";
         case WAIT_FRAME_FAILED:
             return "Error while waiting for the next frame of a message.";
         default:
@@ -465,10 +468,19 @@ AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
     AmqpQueueMessagePtr rtn;
 
     if (result < 0) {
+        NOVA_LOG_ERROR("Warning: amqp_simple_wait_frame returned < 0 result.")
         return rtn;
     }
     if (frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD) {
-        return rtn;
+        NOVA_LOG_ERROR2("Warning: amqp_simple_wait_frame returned frame whose "
+                        "id was not AMQP_BASIC_DELIVER_METHOD, but %d.",
+                        frame.payload.method.id);
+        // I've seen in cases where an empty pointer is returned here that the
+        // next message, when read, has a decoded pointer to 0x22 (not null,
+        // but still garbage). So the best solution is throw an exception.
+        // The resilent receiver will open a new connection and things will
+        // proceed smoothly from there.
+        throw AmqpException(AmqpException::UNEXPECTED_FRAME_PAYLOAD_METHOD);
     }
     amqp_basic_deliver_t * decoded = (amqp_basic_deliver_t *)
                                      frame.payload.method.decoded;

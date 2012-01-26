@@ -109,6 +109,10 @@ class FlagValues {
 
         bool log_use_std_streams() const;
 
+        /** Time MySQL we'll wait for the MySQL app to change from running to
+         *  stopped, or vice-versa. */
+        int mysql_state_change_wait_time() const;
+
         const char * node_availability_zone() const;
 
         unsigned long nova_db_reconnect_wait_time() const;

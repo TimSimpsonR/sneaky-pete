@@ -28,7 +28,12 @@ namespace {
                 out << ",";
             }
             comma = true;
-            out << JsonData::json_string(i.first) << ": " << i.second;
+            string version = "version";
+            if (version.compare(i.first) != 0)
+                out << JsonData::json_string(i.first) << ": " << i.second;
+            else
+                out << JsonData::json_string(i.first) << ": " 
+                    << JsonData::json_string(i.second);
         }
         out << "}";
         return out.str();

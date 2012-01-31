@@ -376,7 +376,7 @@ unit u_nova_guest_diagnostics_Interrogator
         u_nova_guest_diagnostics_InterrogatorException
         u_nova_utils_io
         u_nova_utils_regex
-    :   tests/nova/guest/apt_json_tests.cc
+    :   tests/nova/guest/diag_tests.cc
     ;
 
 unit u_nova_guest_diagnostics_InterrogatorException

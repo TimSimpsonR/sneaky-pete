@@ -19,22 +19,23 @@ using namespace boost;
 namespace nova { namespace guest { namespace diagnostics {
 
 namespace {
-    string diagnostics_to_stream(DiagInfoPtr diagnostics) {
+    string diagnostics_to_stream(const DiagInfoPtr diagnostics) {
         stringstream out;
         out << "{";
-        bool comma = false;
-        BOOST_FOREACH(DiagInfo::value_type &i, (*diagnostics)) {
-            if (comma) {
-                out << ",";
-            }
-            comma = true;
-            string version = "version";
-            if (version.compare(i.first) != 0)
-                out << JsonData::json_string(i.first) << ": " << i.second;
-            else
-                out << JsonData::json_string(i.first) << ": " 
-                    << JsonData::json_string(i.second);
-        }
+        out << JsonData::json_string("version") << ": ";
+        out << JsonData::json_string(diagnostics->version);
+        out << ",";
+        out << JsonData::json_string("fd_size") << ": " << diagnostics->fd_size;
+        out << ",";
+        out << JsonData::json_string("vm_size") << ": " << diagnostics->vm_size;
+        out << ",";
+        out << JsonData::json_string("vm_peak") << ": " << diagnostics->vm_peak;
+        out << ",";
+        out << JsonData::json_string("vm_rss") << ": " << diagnostics->vm_rss;
+        out << ",";
+        out << JsonData::json_string("vm_hwm") << ": " << diagnostics->vm_hwm;
+        out << ",";
+        out << JsonData::json_string("threads") << ": " << diagnostics->threads;
         out << "}";
         return out.str();
     }
@@ -48,7 +49,7 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
     NOVA_LOG_DEBUG("entering the handle_message method now ");
     if (input.method_name == "get_diagnostics") {
         NOVA_LOG_DEBUG("handling the get_diagnostics method");
-        DiagInfoPtr diagnostics = interrogator.get_diagnostics();
+        const DiagInfoPtr diagnostics = interrogator.get_diagnostics();
         NOVA_LOG_DEBUG("returned from the get_diagnostics");
         if (diagnostics.get() != 0) {
             //convert from map to string

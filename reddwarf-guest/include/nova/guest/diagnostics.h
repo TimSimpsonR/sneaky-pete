@@ -8,8 +8,17 @@
 
 namespace nova { namespace guest { namespace diagnostics {
 
-    typedef std::map<std::string, std::string> DiagInfo;
-    typedef std::auto_ptr<DiagInfo> DiagInfoPtr;
+    struct DiagInfo {
+        std::string fd_size;
+        std::string vm_size;
+        std::string vm_peak;
+        std::string vm_rss;
+        std::string vm_hwm;
+        std::string threads;
+        std::string version;
+    };
+
+    typedef std::auto_ptr<const DiagInfo> DiagInfoPtr;
 
     class Interrogator {
 

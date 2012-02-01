@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <boost/lexical_cast.hpp>
 #include "nova/guest/version.h"
 #include "nova/utils/regex.h"
 #include "nova/Log.h"
@@ -58,26 +59,33 @@ DiagInfoPtr Interrogator::get_diagnostics() const {
 
             string key;
             string value;
+
             key = matches->get(1);
             value = matches->get(2);
 
             if (key == "FDSize") {
-                proccess_info->fd_size=value;
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->fd_size=convert_value;
             }
             else if (key == "VmSize") {
-                proccess_info->vm_size=value;
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_size=convert_value;
             }
             else if (key == "VmPeak") {
-                proccess_info->vm_peak=value;
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_peak=convert_value;
             }
             else if (key == "VmRSS") {
-                proccess_info->vm_rss=value;
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_rss=convert_value;
             }
             else if (key == "VmHWM") {
-                proccess_info->vm_hwm=value;
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_hwm=convert_value;
             }
             else if (key == "Threads") {
-                proccess_info->threads=value;
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->threads=convert_value;
             }
 
             NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());

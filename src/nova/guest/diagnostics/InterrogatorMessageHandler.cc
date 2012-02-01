@@ -19,7 +19,7 @@ using namespace boost;
 namespace nova { namespace guest { namespace diagnostics {
 
 namespace {
-    string diagnostics_to_stream(const DiagInfoPtr diagnostics) {
+    string diagnostics_to_stream(DiagInfoPtr diagnostics) {
         stringstream out;
         out << "{";
         out << JsonData::json_string("version") << ": ";
@@ -49,7 +49,7 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
     NOVA_LOG_DEBUG("entering the handle_message method now ");
     if (input.method_name == "get_diagnostics") {
         NOVA_LOG_DEBUG("handling the get_diagnostics method");
-        const DiagInfoPtr diagnostics = interrogator.get_diagnostics();
+        DiagInfoPtr diagnostics = interrogator.get_diagnostics();
         NOVA_LOG_DEBUG("returned from the get_diagnostics");
         if (diagnostics.get() != 0) {
             //convert from map to string

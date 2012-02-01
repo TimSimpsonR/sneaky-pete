@@ -9,12 +9,12 @@
 namespace nova { namespace guest { namespace diagnostics {
 
     struct DiagInfo {
-        std::string fd_size;
-        std::string vm_size;
-        std::string vm_peak;
-        std::string vm_rss;
-        std::string vm_hwm;
-        std::string threads;
+        int fd_size;
+        int vm_size;
+        int vm_peak;
+        int vm_rss;
+        int vm_hwm;
+        int threads;
         std::string version;
     };
 

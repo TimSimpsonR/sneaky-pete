@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <boost/lexical_cast.hpp>
 #include "nova/guest/version.h"
 #include "nova/utils/regex.h"
 #include "nova/Log.h"
@@ -27,7 +28,8 @@ Interrogator::Interrogator(){
 DiagInfoPtr Interrogator::get_diagnostics() const {
     NOVA_LOG_DEBUG("getDiagnostics call ");
 
-    DiagInfoPtr map(new DiagInfo());
+    DiagInfo *proccess_info;
+    DiagInfoPtr retValue(proccess_info=new DiagInfo());
     int pid = (int)getpid();
 
     stringstream stream_proc_status;
@@ -44,7 +46,7 @@ DiagInfoPtr Interrogator::get_diagnostics() const {
     while (status_file.good()) {
         getline (status_file,stat_line);
         
-        Regex regex("(VmSize|VmPeak|VmRSS|VmHWM|Threads):\\s+([0-9]+)");
+        Regex regex("(FDSize|VmPeak|VmSize|VmHWM|VmRSS|Threads):\\s+([0-9]+)");
         RegexMatchesPtr matches = regex.match(stat_line.c_str());
 
         if (matches) {
@@ -57,19 +59,44 @@ DiagInfoPtr Interrogator::get_diagnostics() const {
 
             string key;
             string value;
+
             key = matches->get(1);
             value = matches->get(2);
-            (*map)[key] = value;
+
+            if (key == "FDSize") {
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->fd_size=convert_value;
+            }
+            else if (key == "VmSize") {
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_size=convert_value;
+            }
+            else if (key == "VmPeak") {
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_peak=convert_value;
+            }
+            else if (key == "VmRSS") {
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_rss=convert_value;
+            }
+            else if (key == "VmHWM") {
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->vm_hwm=convert_value;
+            }
+            else if (key == "Threads") {
+                int convert_value = boost::lexical_cast<int>(value);
+                proccess_info->threads=convert_value;
+            }
 
             NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());
         }
     }
     status_file.close();
 
-    // Add the version to the map
-    (*map)["version"] = NOVA_GUEST_CURRENT_VERSION;
+    // Add the version to the Info
+    proccess_info->version = NOVA_GUEST_CURRENT_VERSION;
 
-    return map;
+    return retValue;
 }
 
 } } } // end namespace nova::guest::diagnostics

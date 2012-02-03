@@ -36,10 +36,10 @@ BOOST_AUTO_TEST_CASE(get_something_back_from_diagnostics)
     diagnostics::Interrogator guest;
     DiagInfoPtr diags = guest.get_diagnostics();
     BOOST_CHECK(diags.get() != 0);
-    BOOST_CHECK(diags->fd_size > 0);
-    BOOST_CHECK(diags->vm_peak > 0);
-    BOOST_CHECK(diags->vm_rss > 0);
-    BOOST_CHECK(diags->vm_hwm > 0);
-    BOOST_CHECK(diags->threads > 0);
+    BOOST_CHECK_EQUAL(diags->fd_size, 64);
+    BOOST_CHECK(diags->vm_peak > 0 && diags->vm_peak < 25000);
+    BOOST_CHECK(diags->vm_rss > 0 && diags->vm_rss < 5000);
+    BOOST_CHECK(diags->vm_hwm > 0 && diags->vm_hwm < 5000);
+    BOOST_CHECK_EQUAL(diags->threads, 1);
     BOOST_CHECK_EQUAL(diags->version, NOVA_GUEST_CURRENT_VERSION);
 }

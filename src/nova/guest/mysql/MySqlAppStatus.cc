@@ -185,12 +185,16 @@ optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
     return boost::none;
 }
 
-bool MySqlAppStatus::is_mysql_installed() {
+bool MySqlAppStatus::is_mysql_installed() const {
     return (status && status.get() != BUILDING && status.get() != FAILED);
 }
 
-bool MySqlAppStatus::is_mysql_restarting() {
+bool MySqlAppStatus::is_mysql_restarting() const {
     return restart_mode;
+}
+
+bool MySqlAppStatus::is_mysql_running() const {
+    return (status && status.get() == RUNNING);
 }
 
 void MySqlAppStatus::repeatedly_attempt_to_set_status(Status status) {

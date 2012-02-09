@@ -77,7 +77,10 @@ namespace nova { namespace guest { namespace mysql {
 
             /* Returns true if the MySQL application should be installed and
              * an attempt to ascertain its status won't result in nonsense. */
-            bool is_mysql_installed();
+            bool is_mysql_installed() const;
+
+            /* Returns true iff the MySQL application is running. */
+            bool is_mysql_running() const;
 
             /** Returns a readable string for each status enum. */
             static const char * status_name(Status status);
@@ -103,7 +106,7 @@ namespace nova { namespace guest { namespace mysql {
 
             /** If true, updates are restricted until the mode is switched
              *  off. */
-            bool is_mysql_restarting();
+            bool is_mysql_restarting() const;
 
             /** Executes the method. Retries if there is a MySQL error
              *  after first waiting the time specified in the constructor

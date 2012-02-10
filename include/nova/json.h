@@ -182,8 +182,14 @@ namespace nova {
 
             void get_string(const char * key, std::string & value) const;
 
+            int get_int_or_default(const char * key,
+                                               const int default_value) const;
+
             const char * get_string_or_default(const char * key,
                                                const char * default_value) const;
+
+            /* NB: Also returns false if the value for the given key is present, but null. */
+            bool has_item(const char * key) const;
 
         protected:
 

@@ -252,16 +252,28 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
-        app->install_and_secure(this->apt);
+        int memory_mb = input.args->get_int("memory_mb");;
+        app->install_and_secure(this->apt, memory_mb);
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases following successful prepare");
-        NOVA_LOG_INFO2("Here's the args: %s", input.args->to_string());
         return _create_database(MySqlMessageHandler::sql_admin(), input.args);
     } else if (input.method_name == "restart") {
         NOVA_LOG_INFO("Calling restart...");
         MySqlAppPtr app = this->create_mysql_app();
         app->restart();
+        return JsonData::from_null();
+    } else if (input.method_name == "start_mysql_with_conf_changes") {
+        NOVA_LOG_INFO("Calling start with conf changes...");
+        MySqlAppPtr app = this->create_mysql_app();
+        int memory_mb = input.args->get_int("updated_memory_size");
+        app->start_mysql_with_conf_changes(this->apt,
+                                           memory_mb);
+        return JsonData::from_null();
+    } else if (input.method_name == "stop_mysql") {
+        NOVA_LOG_INFO("Calling stop...");
+        MySqlAppPtr app = this->create_mysql_app();
+        app->stop_mysql();
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

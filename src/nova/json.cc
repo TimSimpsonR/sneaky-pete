@@ -32,6 +32,18 @@ namespace {
         return json_object_get_int(int_obj);
     }
 
+    /* Get int from json_object, throw on error. */
+    inline const int get_json_int_or_default(json_object * const int_obj,
+                                                   const int default_value) {
+        if (int_obj == (json_object *)0) {
+            return default_value;
+        }
+        if (json_object_is_type(int_obj, json_type_int) == 0) {
+            return default_value;
+        }
+        return json_object_get_int(int_obj);
+    }
+
     /* Throws if json_object is not a JSON object. */
     inline void validate_json_object(json_object * const object_obj,
                                     const JsonException::Code & not_found_ex) {
@@ -413,10 +425,21 @@ void JsonObject::get_string(const char * key, string & value) const {
     value = get_string(key);
 }
 
+int JsonObject::get_int_or_default(const char * key,
+                                               const int default_value) const {
+    json_object * int_obj = json_object_object_get(object, key);
+    return get_json_int_or_default(int_obj, default_value);
+}
+
 const char * JsonObject::get_string_or_default(const char * key,
                                                const char * default_value) const {
     json_object * string_obj = json_object_object_get(object, key);
     return get_json_string_or_default(string_obj, default_value);
+}
+
+bool JsonObject::has_item(const char * key) const {
+    json_object * object_obj = json_object_object_get(object, key);
+    return (object_obj != (json_object *)0);
 }
 
 } // end namespace nova

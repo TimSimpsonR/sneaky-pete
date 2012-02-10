@@ -253,3 +253,20 @@ BOOST_AUTO_TEST_CASE(getting_values_from_inside_an_object)
     CHECK_JSON_EXCEPTION({ object.get_object("type"); },
                      TYPE_ERROR_NOT_OBJECT);
 }
+
+BOOST_AUTO_TEST_CASE(has_item_works)
+{
+    JsonObject object(json_tokener_parse(
+        "{ 'hovercraft': 'full', 'eels': null }"));
+    BOOST_CHECK_EQUAL(object.has_item("hovercraft"), true);
+    BOOST_CHECK_EQUAL(object.has_item("tobacconist"), false);
+    BOOST_CHECK_EQUAL(object.has_item("eels"), false);
+}
+
+BOOST_AUTO_TEST_CASE(get_int_or_default_works)
+{
+    JsonObject object(json_tokener_parse(
+        "{ 'bacon': 4, 'lettuce': 2, 'tomato': 1 }"));
+    BOOST_CHECK_EQUAL(object.get_int_or_default("tomato", 0), 1);
+    BOOST_CHECK_EQUAL(object.get_int_or_default("tuna", 5), 5);
+}

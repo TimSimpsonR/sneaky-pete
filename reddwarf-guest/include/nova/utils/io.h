@@ -36,6 +36,8 @@ class Timer {
 
 bool is_file(const char * file_path);
 
+bool is_file_sans_logging(const char * file_path);
+
 /** Throws exceptions if errors are detected. */
 size_t read_with_throw(int fd, char * const buf, size_t count);
 

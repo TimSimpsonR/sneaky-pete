@@ -46,6 +46,28 @@ namespace {
         }
         return time;
     }
+
+    bool internal_is_file(const char * file_path, bool log) {
+        struct stat buffer;
+        if (stat(file_path, &buffer) == 0) {
+            return true;
+        }
+        if (errno == ENOENT || errno == ENOTDIR) {
+            return false;
+        } else if (errno == EACCES) {
+            if (log) {
+                NOVA_LOG_ERROR2("Can not access file at path %s.", file_path);
+            }
+            throw IOException(IOException::ACCESS_DENIED);
+        } else  {
+            if (log) {
+                NOVA_LOG_ERROR2("stat for path %s returned < 0. errno = %d: "
+                                "%s\n EINTR=%d", file_path, errno,
+                                strerror(errno), EINTR);
+            }
+            throw IOException(IOException::GENERAL);
+        }
+    }
 }
 
 namespace nova { namespace utils { namespace io {
@@ -181,19 +203,11 @@ bool & Timer::time_out_occurred() {
  *---------------------------------------------------------------------------*/
 
 bool is_file(const char * file_path) {
-    struct stat buffer;
-    if (stat(file_path, &buffer) == 0) {
-        return true;
-    }
-    if (errno == ENOENT || errno == ENOTDIR) {
-        return true;
-    } else if (errno == EACCES) {
-        throw IOException(IOException::ACCESS_DENIED);
-    } else  {
-        NOVA_LOG_ERROR2("stat returned < 0. errno = %d: %s\n EINTR=%d",
-                        errno, strerror(errno), EINTR);
-        throw IOException(IOException::GENERAL);
-    }
+    return internal_is_file(file_path, true);
+}
+
+bool is_file_sans_logging(const char * file_path) {
+    return internal_is_file(file_path, false);
 }
 
 // Throws exceptions if errors are detected.

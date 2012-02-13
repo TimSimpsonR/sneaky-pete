@@ -2,11 +2,13 @@
 #include <boost/format.hpp>
 #include "nova/flags.h"
 #include <iostream>
+#include "nova/Log.h"
 #include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include <string>
 
 
+using namespace nova;
 using namespace nova::flags;
 using boost::format;
 using namespace nova::db::mysql;
@@ -17,19 +19,22 @@ namespace utils = nova::guest::utils;
 
 struct nova::guest::mysql::MySqlAppStatusTestsFixture {
     static void demo(int argc, char* argv[]) {
+        LogApiScope log_api_scope(LogOptions::simple());
         FlagValues flags(FlagMap::create_from_args(argc, argv, true));
 
-        MySqlConnectionPtr sql_connection(new MySqlConnection(
+        MySqlConnectionWithDefaultDbPtr sql_connection(
+            new MySqlConnectionWithDefaultDb(
             flags.nova_sql_host(), flags.nova_sql_user(),
-            flags.nova_sql_password()));
+            flags.nova_sql_password(), "nova"));
 
         cout << "Host Name = " << utils::get_host_name() << endl;
 
         string value = utils::get_ipv4_address(flags.guest_ethernet_device());
         cout << "Ip V4 Address = " << value << endl;
 
-        MySqlAppStatus updater(sql_connection, flags.nova_sql_database(),
-                                 flags.guest_ethernet_device());
+        MySqlAppStatus updater(sql_connection,
+                               flags.guest_ethernet_device(),
+                               flags.nova_db_reconnect_wait_time());
 
         cout << "Instance ID = " << updater.get_guest_instance_id() << endl;
 

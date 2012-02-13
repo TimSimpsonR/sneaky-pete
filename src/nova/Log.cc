@@ -163,6 +163,7 @@ LogPtr & Log::_get_instance() {
 LogPtr Log::get_instance() {
     boost::lock_guard<boost::mutex> lock(global_mutex);
     if (!_get_instance()) {
+        std::cerr << "Logging system not initialized!" << std::endl;
         throw LogException(LogException::NOT_INITIALIZED);
     }
     return _get_instance();

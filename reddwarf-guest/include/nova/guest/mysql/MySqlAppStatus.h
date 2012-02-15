@@ -90,9 +90,10 @@ namespace nova { namespace guest { namespace mysql {
             void update();
 
             /** Waits for the given time for the real status to change to the
-             *  one specified. Does not update the database. */
-            bool wait_for_real_state_to_change_to(Status status,
-                                                  int max_time);
+             *  one specified. Does not update the publicly viewable status
+             *  unless "update_db" is true. */
+            bool wait_for_real_state_to_change_to(Status status, int max_time,
+                                                  bool update_db=false);
 
         protected:
 

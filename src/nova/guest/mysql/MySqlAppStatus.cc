@@ -307,7 +307,8 @@ void MySqlAppStatus::update() {
 }
 
 bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
-                                                      int max_time){
+                                                      int max_time,
+                                                      bool update_db){
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
     const int wait_time = 3;
     for (int time = 0; time < max_time; time += wait_time) {
@@ -320,6 +321,9 @@ bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
                        MySqlAppStatus::status_name(actual_status), time);
         if (actual_status == status)
         {
+            if (update_db) {
+                set_status(actual_status);
+            }
             return true;
         }
     }

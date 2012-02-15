@@ -120,7 +120,7 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
     }
 
     /* As of right here, admin_password contains the password to be applied
-    to the my.cnf file, whether it was there before (and we passed it in) 
+    to the my.cnf file, whether it was there before (and we passed it in)
     or we generated a new one just now (because we didn't pass it in).
     */
 
@@ -186,7 +186,7 @@ void MySqlApp::install_and_secure(AptGuest & apt, int memory_mb) {
     local_db.get_connection()->flush_privileges();
     local_db.get_connection()->close();
 
-    stop_mysql();
+    internal_stop_mysql();
     write_mycnf(apt, memory_mb, admin_password);
     start_mysql();
 
@@ -197,6 +197,17 @@ void MySqlApp::install_and_secure(AptGuest & apt, int memory_mb) {
 void MySqlApp::install_mysql(AptGuest & apt) {
     NOVA_LOG_INFO("Installing mysql server.");
     apt.install("mysql-server-5.1", TIME_OUT);
+}
+
+void MySqlApp::internal_stop_mysql(bool update_db) {
+    NOVA_LOG_INFO("Stopping mysql...");
+    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"));
+    if (!status->wait_for_real_state_to_change_to(
+        MySqlAppStatus::SHUTDOWN, this->state_change_wait_time, update_db)) {
+        NOVA_LOG_ERROR("Could not stop MySQL!");
+        status->end_install_or_restart();
+        throw MySqlGuestException(MySqlGuestException::COULD_NOT_STOP_MYSQL);
+    }
 }
 
 void MySqlApp::remove_anonymous_user(MySqlAdmin & db) {
@@ -224,13 +235,13 @@ void MySqlApp::restart() {
             status->end_install_or_restart();
         }
     } restarter(status);
-    stop_mysql();
+    internal_stop_mysql();
     start_mysql();
 }
 
 void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
     NOVA_LOG_INFO("Restarting mysql...");
-    stop_mysql();
+    internal_stop_mysql();
     wipe_ib_logfiles();
     start_mysql();
 }
@@ -261,14 +272,7 @@ void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
 }
 
 void MySqlApp::stop_mysql() {
-    NOVA_LOG_INFO("Stopping mysql...");
-    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"));
-    if (!status->wait_for_real_state_to_change_to(
-        MySqlAppStatus::SHUTDOWN, this->state_change_wait_time)) {
-        NOVA_LOG_ERROR("Could not stop MySQL!");
-        status->end_install_or_restart();
-        throw MySqlGuestException(MySqlGuestException::COULD_NOT_STOP_MYSQL);
-    }
+    internal_stop_mysql(true);
 }
 
 void MySqlApp::wipe_ib_logfiles() {

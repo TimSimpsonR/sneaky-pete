@@ -60,6 +60,9 @@ class MySqlApp {
          */
         void install_mysql(nova::guest::apt::AptGuest & apt);
 
+        /** Stop mysql. Only update the DB if update_db is true. */
+        void internal_stop_mysql(bool update_db=false);
+
         /** Helps secure the MySQL install by removing the anonymous user. */
         void remove_anonymous_user(MySqlAdmin & sql);
 

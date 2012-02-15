@@ -78,7 +78,7 @@ class MySqlApp {
         MySqlAppStatusPtr status;
 
         /** Starts MySQL on this host. */
-        void start_mysql();
+        void start_mysql(bool update_db=false);
 
         /* Destroy these files as needed for my.cnf changes. */
         void wipe_ib_logfiles();

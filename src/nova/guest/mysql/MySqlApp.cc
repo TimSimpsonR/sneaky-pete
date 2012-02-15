@@ -246,11 +246,11 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
     start_mysql();
 }
 
-void MySqlApp::start_mysql() {
+void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
     Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"));
     if (!status->wait_for_real_state_to_change_to(
-        MySqlAppStatus::RUNNING, this->state_change_wait_time)) {
+        MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");
         status->end_install_or_restart();
         throw MySqlGuestException(MySqlGuestException::COULD_NOT_START_MYSQL);
@@ -268,7 +268,7 @@ void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
     // Make sure dbaas package is upgraded during the install in write_mycnf.
     apt.update(TIME_OUT);
     write_mycnf(apt, updated_memory_mb, boost::none);
-    start_mysql();
+    start_mysql(true);
 }
 
 void MySqlApp::stop_mysql() {

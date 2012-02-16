@@ -171,7 +171,8 @@ LogPtr Log::get_instance() {
 
 void Log::open_file() {
     if (options.file) {
-        file.open(options.file.get().path.c_str());
+        file.open(options.file.get().path.c_str(),
+                  std::ios::out | std::ios::app);
     }
 }
 
@@ -245,6 +246,7 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
             file << time.c_str() << " " << level_string << " " << message
                  << " for " << file_name <<  ":" << line_number << std::endl;
             file.flush();
+
         }
     }
 }

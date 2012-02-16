@@ -262,6 +262,8 @@ void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
     if (status->is_mysql_running()) {
+        NOVA_LOG_ERROR2("Cannot execute start_mysql_with_conf_changes because "
+            "MySQL state == %s!", status->get_current_status_string());
         throw MySqlGuestException(MySqlGuestException::MYSQL_NOT_STOPPED);
     }
     NOVA_LOG_INFO("Initiating config.");

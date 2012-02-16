@@ -169,6 +169,14 @@ int MySqlAppStatus::get_guest_instance_id() {
     return boost::lexical_cast<int>(id.get().c_str());
 }
 
+const char * MySqlAppStatus::get_current_status_string() const {
+    if (status) {
+        return status_name(status.get());
+    } else {
+        return "none";
+    }
+}
+
 optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
     int instance_id = get_guest_instance_id();
     MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(

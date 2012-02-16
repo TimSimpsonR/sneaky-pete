@@ -75,6 +75,9 @@ namespace nova { namespace guest { namespace mysql {
              * DB with the actual MySQL status. */
             void end_install_or_restart();
 
+            /** Useful for diagnostics and logging. */
+            const char * get_current_status_string() const;
+
             /* Returns true if the MySQL application should be installed and
              * an attempt to ascertain its status won't result in nonsense. */
             bool is_mysql_installed() const;

@@ -625,17 +625,13 @@ void MySqlConnection::get_auth_from_config(string & user, string & password) {
 
     // TODO(tim.simpson): This should be the normal my.cnf, but we can't
     // read it from there... yet.
-    //ifstream my_cnf("/etc/mysql/my.cnf");
     ifstream my_cnf("/var/lib/nova/my.cnf");
     if (!my_cnf.is_open()) {
         throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
     }
     std::string line;
-    //char  tmp[256]={0x0};
     bool is_in_client = false;
     while(my_cnf.good()) {
-    //while(fp!=NULL && fgets(tmp, sizeof(tmp) -1,fp) != NULL)
-    //{
         getline(my_cnf, line);
         if (strstr(line.c_str(), "[client]")) {
             is_in_client = true;

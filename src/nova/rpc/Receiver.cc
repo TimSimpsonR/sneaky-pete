@@ -134,6 +134,8 @@ JsonObjectPtr Receiver::_next_message() {
     } else {
         #ifdef _DEBUG
             log_msg << ", (DEBUG) message " << msg->message;
+        #else
+            log_msg << " (message not printed since there was a password in it) ";
         #endif
     }
     NOVA_LOG_INFO(log_msg.str().c_str());

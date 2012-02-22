@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
-#include "nova/guest/version.h"
+#include "nova_guest_version.hpp"
 #include "nova/utils/regex.h"
 #include "nova/Log.h"
 #include <sstream>
@@ -34,7 +34,7 @@ DiagInfoPtr Interrogator::get_diagnostics() const {
 
     stringstream stream_proc_status;
     stream_proc_status << "/proc/" << pid << "/status";
-    NOVA_LOG_DEBUG2("proc status file location : %s", 
+    NOVA_LOG_DEBUG2("proc status file location : %s",
                     stream_proc_status.str().c_str());
 
     string stat_line;
@@ -45,7 +45,7 @@ DiagInfoPtr Interrogator::get_diagnostics() const {
     }
     while (status_file.good()) {
         getline (status_file,stat_line);
-        
+
         Regex regex("(FDSize|VmPeak|VmSize|VmHWM|VmRSS|Threads):\\s+([0-9]+)");
         RegexMatchesPtr matches = regex.match(stat_line.c_str());
 

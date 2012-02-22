@@ -94,7 +94,7 @@ public:
         while(!quit) {
             unsigned long wait_time = next_periodic_task < next_reporting ?
                 next_periodic_task : next_reporting;
-            NOVA_LOG_INFO2("Waiting for %lu seconds...", wait_time);
+            NOVA_LOG_DEBUG2("Waiting for %lu seconds...", wait_time);
             boost::posix_time::seconds time(wait_time);
             boost::this_thread::sleep(time);
             next_periodic_task -= wait_time;
@@ -113,7 +113,7 @@ public:
 
     void periodic_tasks() {
         START_THREAD_TASK();
-            NOVA_LOG_INFO("Running periodic tasks...");
+            NOVA_LOG_DEBUG2("Running periodic tasks...");
             status_updater->update();
             Log::rotate_logs_if_needed();
         END_THREAD_TASK("periodic_tasks()");

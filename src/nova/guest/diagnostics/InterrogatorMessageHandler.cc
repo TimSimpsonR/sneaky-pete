@@ -1,7 +1,7 @@
 #include "nova/guest/diagnostics.h"
 
 #include "nova/guest/GuestException.h"
-#include "nova/guest/version.h"
+#include "nova_guest_version.hpp"
 #include <boost/foreach.hpp>
 #include "nova/Log.h"
 #include <sstream>

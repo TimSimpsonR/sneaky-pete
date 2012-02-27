@@ -39,45 +39,6 @@ namespace {
         }
     }
 
-    void get_username_and_password_from_config_file(string & user,
-                                                           string & password) {
-        const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
-        regex_t regex;
-        regcomp(&regex, pattern, REG_EXTENDED);
-
-        // TODO(tim.simpson): This should be the normal my.cnf, but we can't
-        // read it from there... yet.
-        //ifstream my_cnf("/etc/mysql/my.cnf");
-        ifstream my_cnf("/var/lib/nova/my.cnf");
-        if (!my_cnf.is_open()) {
-            throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
-        }
-        std::string line;
-        //char  tmp[256]={0x0};
-        bool is_in_client = false;
-        while(my_cnf.good()) {
-        //while(fp!=NULL && fgets(tmp, sizeof(tmp) -1,fp) != NULL)
-        //{
-            getline(my_cnf, line);
-            if (strstr(line.c_str(), "[client]")) {
-                is_in_client = true;
-            }
-            if (strstr(line.c_str(), "[mysqld]")) {
-                is_in_client = false;
-            }
-            // Be careful - end index is non-inclusive.
-            if (is_in_client && strstr(line.c_str(), "user")) {
-                append_match_to_string(user, regex, line.c_str());
-            }
-            if (is_in_client && strstr(line.c_str(), "password")) {
-                append_match_to_string(password, regex, line.c_str());
-            }
-        }
-        my_cnf.close();
-
-        regfree(&regex);
-    }
-
     //TODO(tim.simpson): Get rid of this class and IntParameterBuffer, turns out they aren't needed.
     struct ParameterBuffer {
 
@@ -657,6 +618,40 @@ const char * MySqlConnection::get_db_name() const {
     return NULL;
 }
 
+void MySqlConnection::get_auth_from_config(string & user, string & password) {
+    const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
+    regex_t regex;
+    regcomp(&regex, pattern, REG_EXTENDED);
+
+    // TODO(tim.simpson): This should be the normal my.cnf, but we can't
+    // read it from there... yet.
+    ifstream my_cnf("/var/lib/nova/my.cnf");
+    if (!my_cnf.is_open()) {
+        throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
+    }
+    std::string line;
+    bool is_in_client = false;
+    while(my_cnf.good()) {
+        getline(my_cnf, line);
+        if (strstr(line.c_str(), "[client]")) {
+            is_in_client = true;
+        }
+        if (strstr(line.c_str(), "[mysqld]")) {
+            is_in_client = false;
+        }
+        // Be careful - end index is non-inclusive.
+        if (is_in_client && strstr(line.c_str(), "user")) {
+            append_match_to_string(user, regex, line.c_str());
+        }
+        if (is_in_client && strstr(line.c_str(), "password")) {
+            append_match_to_string(password, regex, line.c_str());
+        }
+    }
+    my_cnf.close();
+
+    regfree(&regex);
+}
+
 void MySqlConnection::grant_all_privileges(const char * username,
                                       const char * host) {
     //TODO(tim.simpson): Fix this to use parameters.
@@ -674,7 +669,7 @@ void MySqlConnection::init() {
     }
 
     if (use_mycnf) {
-        get_username_and_password_from_config_file(user, password);
+        get_auth_from_config(user, password);
     }
 
     con = mysql_init(NULL);

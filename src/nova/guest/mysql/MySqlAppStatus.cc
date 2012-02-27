@@ -169,6 +169,14 @@ int MySqlAppStatus::get_guest_instance_id() {
     return boost::lexical_cast<int>(id.get().c_str());
 }
 
+const char * MySqlAppStatus::get_current_status_string() const {
+    if (status) {
+        return status_name(status.get());
+    } else {
+        return "none";
+    }
+}
+
 optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
     int instance_id = get_guest_instance_id();
     MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(
@@ -185,12 +193,16 @@ optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
     return boost::none;
 }
 
-bool MySqlAppStatus::is_mysql_installed() {
+bool MySqlAppStatus::is_mysql_installed() const {
     return (status && status.get() != BUILDING && status.get() != FAILED);
 }
 
-bool MySqlAppStatus::is_mysql_restarting() {
+bool MySqlAppStatus::is_mysql_restarting() const {
     return restart_mode;
+}
+
+bool MySqlAppStatus::is_mysql_running() const {
+    return (status && status.get() == RUNNING);
 }
 
 void MySqlAppStatus::repeatedly_attempt_to_set_status(Status status) {
@@ -303,7 +315,8 @@ void MySqlAppStatus::update() {
 }
 
 bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
-                                                      int max_time){
+                                                      int max_time,
+                                                      bool update_db){
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
     const int wait_time = 3;
     for (int time = 0; time < max_time; time += wait_time) {
@@ -316,6 +329,9 @@ bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
                        MySqlAppStatus::status_name(actual_status), time);
         if (actual_status == status)
         {
+            if (update_db) {
+                set_status(actual_status);
+            }
             return true;
         }
     }

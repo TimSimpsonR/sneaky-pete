@@ -21,12 +21,23 @@ class MySqlApp {
         virtual ~MySqlApp();
 
         /** Installs MySql and secure it. */
-        void install_and_secure(nova::guest::apt::AptGuest & apt);
+        void install_and_secure(nova::guest::apt::AptGuest & apt, int memory_mb);
 
         /** Restarts MySQL on this host. */
         void restart();
 
-    protected:
+        void start_mysql_with_conf_changes(nova::guest::apt::AptGuest & apt,
+                                           int updated_memory_mb);
+
+        /** Stops MySQL on this host. */
+        void stop_mysql();
+
+
+    private:
+
+        // Do not implement.
+        MySqlApp(const MySqlApp &);
+        MySqlApp & operator = (const MySqlApp &);
 
         void create_admin_user(MySqlAdmin & sql,
                                const std::string & password);
@@ -39,13 +50,18 @@ class MySqlApp {
          *  container flavor. Update the os_admin user and password
          * to the my.cnf file for direct login from localhost
          **/
-        void init_mycnf(nova::guest::apt::AptGuest & apt,
-                        const std::string & password);
+
+        void write_mycnf(nova::guest::apt::AptGuest & apt,
+                         int updated_memory_mb,
+                         const boost::optional<std::string> & admin_password_arg);
 
         /*
          * Just installs MySQL, but doesn't secure it.
          */
         void install_mysql(nova::guest::apt::AptGuest & apt);
+
+        /** Stop mysql. Only update the DB if update_db is true. */
+        void internal_stop_mysql(bool update_db=false);
 
         /** Helps secure the MySQL install by removing the anonymous user. */
         void remove_anonymous_user(MySqlAdmin & sql);
@@ -57,20 +73,15 @@ class MySqlApp {
          *  This should never be done unless the innodb_log_file_size changes.*/
         void restart_mysql_and_wipe_ib_logfiles();
 
-        void start_mysql();
-
-        void stop_mysql();
-
-    private:
-        // Do not implement.
-        MySqlApp(const MySqlApp &);
-        MySqlApp & operator = (const MySqlApp &);
-
         int state_change_wait_time;
 
-        MySqlAdminPtr sql;
-
         MySqlAppStatusPtr status;
+
+        /** Starts MySQL on this host. */
+        void start_mysql(bool update_db=false);
+
+        /* Destroy these files as needed for my.cnf changes. */
+        void wipe_ib_logfiles();
 
 };
 

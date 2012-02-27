@@ -75,9 +75,15 @@ namespace nova { namespace guest { namespace mysql {
              * DB with the actual MySQL status. */
             void end_install_or_restart();
 
+            /** Useful for diagnostics and logging. */
+            const char * get_current_status_string() const;
+
             /* Returns true if the MySQL application should be installed and
              * an attempt to ascertain its status won't result in nonsense. */
-            bool is_mysql_installed();
+            bool is_mysql_installed() const;
+
+            /* Returns true iff the MySQL application is running. */
+            bool is_mysql_running() const;
 
             /** Returns a readable string for each status enum. */
             static const char * status_name(Status status);
@@ -87,9 +93,10 @@ namespace nova { namespace guest { namespace mysql {
             void update();
 
             /** Waits for the given time for the real status to change to the
-             *  one specified. Does not update the database. */
-            bool wait_for_real_state_to_change_to(Status status,
-                                                  int max_time);
+             *  one specified. Does not update the publicly viewable status
+             *  unless "update_db" is true. */
+            bool wait_for_real_state_to_change_to(Status status, int max_time,
+                                                  bool update_db=false);
 
         protected:
 
@@ -103,7 +110,7 @@ namespace nova { namespace guest { namespace mysql {
 
             /** If true, updates are restricted until the mode is switched
              *  off. */
-            bool is_mysql_restarting();
+            bool is_mysql_restarting() const;
 
             /** Executes the method. Retries if there is a MySQL error
              *  after first waiting the time specified in the constructor

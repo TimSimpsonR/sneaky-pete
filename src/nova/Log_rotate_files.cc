@@ -33,7 +33,7 @@ namespace {
         int oldest_log_file_index() {
             for (int i = options.max_old_files; i > 0; i --) {
                 string possible_file = file_path(i);
-                if (io::is_file(possible_file.c_str())) {
+                if (io::is_file_sans_logging(possible_file.c_str())) {
                     return i;
                 }
             }
@@ -43,7 +43,7 @@ namespace {
         void rotate() {
             for (int i = oldest_log_file_index(); i >= 0; i --) {
                 string old_file = file_path(i);
-                if (io::is_file(old_file.c_str())) {
+                if (io::is_file_sans_logging(old_file.c_str())) {
                     if (i == options.max_old_files) {
                         ::remove(old_file.c_str());
                     } else {

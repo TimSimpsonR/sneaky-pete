@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
 #ifndef _DEBUG
 
     try {
-        daemon(1,0);
+
 #endif
         // Initialize MySQL libraries. This should be done before spawning
         // threads.

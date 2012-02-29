@@ -3,7 +3,7 @@
 
 #include "nova/guest/diagnostics.h"
 #include "nova/Log.h"
-#include "nova/guest/version.h"
+#include "nova_guest_version.hpp"
 #include "nova/utils/regex.h"
 #include <fstream>
 #include <unistd.h>

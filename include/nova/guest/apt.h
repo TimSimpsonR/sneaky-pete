@@ -3,31 +3,55 @@
 
 #include "guest.h"
 #include <boost/optional.hpp>
+#include <boost/utility.hpp>
 
 
 namespace nova { namespace guest { namespace apt {
 
 
-    class AptGuest {
+    /** Calls apt-get and other Debian package manager commands. */
+    class AptGuest : boost::noncopyable {
 
         public:
-            AptGuest(bool with_sudo);
+            /* Creates a new instance.
+             * "with_sudo" - If true, "sudo" is used for all commands.
+             * "self_package_name" - The name of this package.
+             * "self_update_time_out" - The time waited after the update call
+             * before the assumption is made that the command was executed
+             * incorrectly. */
+            AptGuest(bool with_sudo, const char * self_package_name,
+                     int self_update_time_out);
 
+            /** Attempts to fix apt. */
             void fix(double time_out);
 
+            /** Install the given package. If apt-get output is not received
+             *  for the duration of time_out, an exception is raised. */
             void install(const char * package_name, const double time_out);
 
+            /** Updates this very program. */
+            void install_self_update();
+
+            /** Remove the given package. If apt-get output is not received for
+             *  the duration of time_out, an exception is raised. */
             void remove(const char * package_name, const double time_out);
 
+            /** Updates the cache on this box. If output is not received for the
+             *  duration of time_out, an exception is raised. */
             void update(const double time_out);
 
+            /** Find the version of the given package. Returns the string
+             *  name of the package or boost::none if the package is not
+             *  installed. */
             boost::optional<std::string> version(const char * package_name,
                                                  const double time_out=30);
 
         private:
-            AptGuest(const AptGuest &);
-            AptGuest & operator = (const AptGuest &);
 
+            pid_t _install_new_self();
+
+            std::string self_package_name;
+            int self_update_time_out;
             bool with_sudo;
     };
 
@@ -35,12 +59,6 @@ namespace nova { namespace guest { namespace apt {
 
         public:
             enum Code {
-                /*ADMIN_LOCK_ERROR,
-                GENERAL,
-                INIT_CONFIG_FAILED,
-                INIT_SYSTEM_FAILED,
-                NO_ARCH_INFO,
-                OPEN_FAILED*/
                 ADMIN_LOCK_ERROR = 0,
                 COULD_NOT_FIX = 10,
                 GENERAL = 20,

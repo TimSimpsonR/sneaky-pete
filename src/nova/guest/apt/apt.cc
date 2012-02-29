@@ -48,22 +48,42 @@ using std::vector;
 #define VERBOSE_LOG3(a1, a2, a3) /* a1, a2, a3 */
 #endif
 
-namespace nova { namespace guest { namespace apt {
-
-enum OperationResult {
-    OK = 0,
-    RUN_DPKG_FIRST = 1,
-    REINSTALL_FIRST = 2
-};
 
 //TODO(tim.simpson): Make this the actual standard.
 #define PACKAGE_NAME_REGEX "\\S+"
 
+namespace nova { namespace guest { namespace apt {
 
-AptGuest::AptGuest(bool with_sudo)
-: with_sudo(with_sudo) {
+namespace {
+
+    enum OperationResult {
+        OK = 0,
+        RUN_DPKG_FIRST = 1,
+        REINSTALL_FIRST = 2
+    };
+
+    struct ProcessResult {
+        int index;
+        RegexMatchesPtr matches;
+    };
+
+    void wait_for_proc_to_finish(pid_t pid, int time_out) {
+        int time_left = time_out;
+        while (Process::is_pid_alive(pid) && time_left > 0) {
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
+            time_left--;
+        }
+    }
+
+} // end anonymous namespace
+
+
+AptGuest::AptGuest(bool with_sudo, const char * self_package_name,
+                   int self_update_time_out)
+: self_package_name(self_package_name),
+  self_update_time_out(self_update_time_out), with_sudo(with_sudo)
+{
 }
-
 
 void AptGuest::fix(double time_out) {
     // sudo -E dpkg --configure -a
@@ -82,10 +102,6 @@ void AptGuest::fix(double time_out) {
     }
 }
 
-struct ProcessResult {
-    int index;
-    RegexMatchesPtr matches;
-};
 
 // Returns -1 on EOF, an index of a regular expression that matched.
 optional<ProcessResult> match_output(Process & process,
@@ -212,6 +228,40 @@ void AptGuest::install(const char * package_name, const double time_out) {
     }
 }
 
+pid_t AptGuest::_install_new_self() {
+    // Calling the update function above won't work when updating this process,
+    // because there will be broken pipe issues in apt-get when this program
+    // exits.
+    Process::CommandList cmds;
+    if (with_sudo) {
+        cmds += "/usr/bin/sudo", "-E";
+    }
+    setenv("DEBIAN_FRONTEND", "noninteractive", 1);
+    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
+            self_package_name.c_str();
+    try {
+        return Process::execute_and_abandon(cmds);
+    } catch(const ProcessException & pe) {
+        NOVA_LOG_ERROR2("An error occurred calling apt-get update:%s",
+                        pe.what());
+        throw AptException(AptException::UPDATE_FAILED);
+    }
+}
+
+void AptGuest::install_self_update() {
+    NOVA_LOG_INFO("Installing a new version of Sneaky Pete...");
+    pid_t pid = _install_new_self();
+    NOVA_LOG_INFO("Waiting for oblivion...");
+    wait_for_proc_to_finish(pid, self_update_time_out);
+    if (Process::is_pid_alive(pid)) {
+        NOVA_LOG_ERROR("Time out. apt-get is still running. This is very bad.");
+        throw AptException(AptException::PROCESS_TIME_OUT);
+    }
+    NOVA_LOG_INFO("The install program finished but Sneaky Pete persists. "
+                  "Assuming no update of this code was needed.");
+}
+
+
 OperationResult _remove(bool with_sudo, const char * package_name,
                         double time_out) {
     Process::CommandList cmds;
@@ -313,6 +363,7 @@ void AptGuest::update(const double time_out) {
         throw AptException(AptException::UPDATE_FAILED);
     }
 }
+
 
 typedef boost::optional<std::string> optional_string;
 

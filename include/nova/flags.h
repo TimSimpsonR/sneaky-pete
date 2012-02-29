@@ -91,6 +91,10 @@ class FlagValues {
 
         bool apt_use_sudo() const;
 
+        const char * apt_self_package_name() const;
+
+        int apt_self_update_time_out() const;
+
         const char * control_exchange() const;
 
         const char * db_backend() const;

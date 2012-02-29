@@ -44,6 +44,8 @@ using nova::utils::io::Timer;
 
 bool time_out_occurred;
 
+namespace nova {
+
 namespace {
 
     inline void checkGE0(const int return_code,
@@ -62,9 +64,102 @@ namespace {
         }
     }
 
-}  // end anonymous namespace
+    /** Translates a CommandList to the type requried by posix_spawn. */
+    class ArgV : private boost::noncopyable
+    {
+        public:
+            ArgV(const Process::CommandList & cmds)
+            : new_argv(0), new_argv_length(0) {
+                const size_t max = 2048;
+                new_argv_length = cmds.size() + 1;
+                new_argv = new char * [new_argv_length];
+                size_t i = 0;
+                BOOST_FOREACH(const char * cmd, cmds) {
+                    new_argv[i ++] = strndup(cmd, max);
+                }
+                new_argv[new_argv_length - 1] = NULL;
+            }
 
-namespace nova {
+            ~ArgV() {
+                for (size_t i = 0; i < new_argv_length; ++i) {
+                    ::free(new_argv[i]);
+                }
+                delete[] new_argv;
+                new_argv = 0;
+                new_argv_length = 0;
+            }
+
+            char * * get() {
+                return new_argv;
+            }
+
+        private:
+            char * * new_argv;
+            size_t new_argv_length;
+    };
+
+    /**
+     *  Wraps posix_spawn_file_actions_t to make sure the destroy method is
+     *  called.
+     */
+    class SpawnFileActions : private boost::noncopyable
+    {
+        public:
+            SpawnFileActions() {
+                checkEqual0(posix_spawn_file_actions_init(&file_actions));
+            }
+
+            ~SpawnFileActions() {
+                posix_spawn_file_actions_destroy(&file_actions);
+            }
+
+            void add_close(int fd) {
+                checkEqual0(posix_spawn_file_actions_addclose(&file_actions, fd));
+            }
+
+            void add_dup_to(int fd, int new_fd) {
+                checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
+                    fd, new_fd));
+            }
+
+            inline posix_spawn_file_actions_t * get() {
+                return &file_actions;
+            }
+
+        private:
+            posix_spawn_file_actions_t file_actions;
+    };
+
+    void spawn_process(const Process::CommandList & cmds, pid_t * pid,
+                       SpawnFileActions * actions=0)
+    {
+        if (cmds.size() < 1) {
+            throw ProcessException(ProcessException::NO_PROGRAM_GIVEN);
+        }
+        const char * program_path = cmds.front();
+        ArgV args(cmds);
+        {
+            stringstream str;
+            str << "Running the following process: { ";
+            BOOST_FOREACH(const char * cmd, cmds) {
+                str << cmd;
+                str << " ";
+            }
+            str << "}";
+            LOG_DEBUG(str.str().c_str());
+        }
+        const posix_spawn_file_actions_t * file_actions = NULL;
+        if (actions != 0) {
+            file_actions = actions->get();
+        }
+        int status = posix_spawn(pid, program_path, file_actions, NULL,
+                                 args.get(), environ);
+        if (status != 0) {
+            throw ProcessException(ProcessException::SPAWN_FAILURE);
+        }
+    }
+
+}  // end anonymous namespace
 
 /**---------------------------------------------------------------------------
  *- ProcessException
@@ -92,66 +187,63 @@ const char * ProcessException::what() const throw() {
 
 
 /**---------------------------------------------------------------------------
+ *- Process::Pipe
+ *---------------------------------------------------------------------------*/
+
+Process::Pipe::Pipe() {
+    checkGE0(pipe(fd) < 0);
+    is_open[0] = is_open[1] = true;
+}
+
+Process::Pipe::~Pipe() {
+    close_in();
+    close_out();
+}
+
+void Process::Pipe::close(int index) {
+    if (is_open[index]) {
+        checkEqual0(::close(fd[index]));
+        is_open[index] = false;
+    }
+}
+
+void Process::Pipe::close_in() {
+    close(0);
+}
+
+void Process::Pipe::close_out() {
+    close(1);
+}
+
+
+/**---------------------------------------------------------------------------
  *- Process
  *---------------------------------------------------------------------------*/
 
 Process::Process(const CommandList & cmds, bool wait_for_close)
-: argv(argv), eof_flag(false), success(false),
+: argv(argv), eof_flag(false), std_in_pipe(), std_out_pipe(), success(false),
   wait_for_close(wait_for_close)
 {
-     // Remember 0 is for reading, 1 is for writing.
-    checkGE0(pipe(std_out_fd) < 0);
-    checkGE0(pipe(std_in_fd) < 0);
-
-    posix_spawn_file_actions_t file_actions;
-    checkEqual0(posix_spawn_file_actions_init(&file_actions));
+    SpawnFileActions file_actions;
     // Redirect process stdout / in to the pipes.
-    checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
-        std_in_fd[0], STDIN_FILENO));
-    checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
-        std_out_fd[1], STDOUT_FILENO));
-    checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
-        std_out_fd[1], STDERR_FILENO));
-    checkEqual0(posix_spawn_file_actions_addclose(&file_actions,
-        std_in_fd[1]));
-    checkEqual0(posix_spawn_file_actions_addclose(&file_actions,
-        std_out_fd[0]));
+    file_actions.add_dup_to(std_in_pipe.in(), STDIN_FILENO);
+    file_actions.add_dup_to(std_out_pipe.out(), STDOUT_FILENO);
+    file_actions.add_dup_to(std_out_pipe.out(), STDERR_FILENO);
+    file_actions.add_close(std_in_pipe.out());
+    file_actions.add_close(std_out_pipe.in());
 
-    if (cmds.size() < 1) {
-        throw ProcessException(ProcessException::NO_PROGRAM_GIVEN);
-    }
-    const char * program_path = cmds.front();
-    char * * new_argv;
-    int new_argv_length;
-    create_argv(new_argv, new_argv_length, cmds);
-    {
-        stringstream str;
-        str << "Running the following process: { ";
-        BOOST_FOREACH(const char * cmd, cmds) {
-            str << cmd;
-            str << " ";
-        }
-        str << "}";
-        LOG_DEBUG(str.str().c_str());
-    }
-    int status = posix_spawn(&pid, program_path, &file_actions, NULL,
-                             new_argv, environ);
-    delete_argv(new_argv, new_argv_length);
-    posix_spawn_file_actions_destroy(&file_actions);
+    spawn_process(cmds, &pid, &file_actions);
 
     // Close file descriptors on parent side.
-    checkEqual0(close(std_in_fd[0]));
-    checkEqual0(close(std_out_fd[1]));
-
-    if (status != 0) {
-        throw ProcessException(ProcessException::SPAWN_FAILURE);
-    }
+    std_in_pipe.close_in();
+    std_out_pipe.close_out();
 }
 
 
 Process::~Process() {
     set_eof();  // Close pipes.
 }
+
 
 void Process::create_argv(char * * & new_argv, int & new_argv_length,
                           const CommandList & cmds) {
@@ -188,17 +280,36 @@ void Process::execute(std::stringstream & out, const CommandList & cmds,
     }
 }
 
+pid_t Process::execute_and_abandon(const CommandList & cmds) {
+    pid_t pid;
+    spawn_process(cmds, &pid);
+    return pid;
+}
+
+bool Process::is_pid_alive(pid_t pid) {
+    // Send the "null signal," so kill only performs error checking but does not
+    // actually send a signal.
+    int result = ::kill(pid, 0);
+    if (result == EINVAL && result == EPERM) {
+        NOVA_LOG_ERROR2("Error calling kill with null signal: %s",
+                        strerror(errno));
+        throw ProcessException(ProcessException::GENERAL);
+    }
+    // ESRCH means o such process found.
+    return result == 0;
+}
+
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
     LOG_DEBUG2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (eof_flag == true) {
         throw ProcessException(ProcessException::PROGRAM_FINISHED);
     }
     char buf[1048];
-    if (!ready(std_out_fd[0], seconds)) {
+    if (!ready(std_out_pipe.in(), seconds)) {
         LOG_DEBUG("read_into: ready returned false, returning zero from read_into");
         return 0;
     }
-    size_t count = io::read_with_throw(std_out_fd[0], buf, 1047);
+    size_t count = io::read_with_throw(std_out_pipe.in(), buf, 1047);
     if (count == 0) {
         LOG_DEBUG("read returned 0, EOF");
         set_eof();
@@ -243,8 +354,8 @@ bool Process::ready(int file_desc, const optional<double> seconds) {
 void Process::set_eof() {
     if (!eof()) {
         eof_flag = true;
-        close(std_out_fd[0]);
-        close(std_in_fd[1]);
+        std_out_pipe.close_in();
+        std_in_pipe.close_out();
         int status;
         int child_pid;
         int options = wait_for_close ? 0 : WNOHANG;
@@ -293,7 +404,7 @@ void Process::write(const char * msg) {
 void Process::write(const char * msg, size_t length) {
     //::write(std_in_fd[0], msg, length);
     LOG_DEBUG2("Writing msg with %d bytes.", length);
-    ssize_t count = ::write(std_in_fd[1], msg, length);
+    ssize_t count = ::write(std_in_pipe.out(), msg, length);
     if (count < 0) {
         NOVA_LOG_ERROR2("write failed. errno = %d", errno);
         throw ProcessException(ProcessException::GENERAL);

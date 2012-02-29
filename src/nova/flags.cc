@@ -244,6 +244,14 @@ FlagValues::FlagValues(FlagMapPtr map)
                             _nova_sql_password, _nova_sql_database);
 }
 
+const char * FlagValues::apt_self_package_name() const {
+    return map->get("apt_self_package_name", "nova-guest");
+}
+
+int FlagValues::apt_self_update_time_out() const {
+    return get_flag_value<int>(*map, "apt_self_update_time_out", 1 * 60);
+}
+
 bool FlagValues::apt_use_sudo() const {
     const char * value = map->get("apt_use_sudo", "true");
     return strncmp(value, "true", 4) == 0;

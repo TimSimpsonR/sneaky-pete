@@ -29,6 +29,8 @@ JsonDataPtr AptMessageHandler::handle_message(const GuestInput & input) {
         apt_guest->remove(input.args->get_string("package_name"),
                           input.args->get_int("time_out"));
         return JsonData::from_null();
+    } else if (input.method_name == "update_guest") {
+        apt_guest->install_self_update();
     } else if (input.method_name == "version") {
         const char * package_name = input.args->get_string("package_name");
         optional<string> version = apt_guest->version(package_name);
@@ -37,9 +39,8 @@ JsonDataPtr AptMessageHandler::handle_message(const GuestInput & input) {
         } else {
             return JsonData::from_null();
         }
-    } else {
-        return JsonDataPtr();
     }
+    return JsonDataPtr();
 }
 
 } } } // end namespace nova::guest

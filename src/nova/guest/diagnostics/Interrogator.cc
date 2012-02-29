@@ -1,5 +1,6 @@
 #include "nova/guest/diagnostics.h"
 
+#include <boost/format.hpp>
 #include <fstream>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
@@ -22,30 +23,36 @@ namespace nova { namespace guest { namespace diagnostics {
  *- Interrogator
  *---------------------------------------------------------------------------*/
 
-Interrogator::Interrogator(){
-}
-
-DiagInfoPtr Interrogator::get_diagnostics() const {
+DiagInfoPtr Interrogator::get_diagnostics() {
     NOVA_LOG_DEBUG("getDiagnostics call ");
 
-    DiagInfo *proccess_info;
-    DiagInfoPtr retValue(proccess_info=new DiagInfo());
-    int pid = (int)getpid();
+    DiagInfo * process_info;
+    DiagInfoPtr retValue(process_info=new DiagInfo());
+    pid_t pid = getpid();
 
-    stringstream stream_proc_status;
-    stream_proc_status << "/proc/" << pid << "/status";
-    NOVA_LOG_DEBUG2("proc status file location : %s", 
-                    stream_proc_status.str().c_str());
+    ProcStatus * status = dynamic_cast<ProcStatus *>(process_info);
+    get_proc_status(pid, *status);
+
+    // Add the version to the Info
+    process_info->version = NOVA_GUEST_CURRENT_VERSION;
+
+    return retValue;
+}
+
+void Interrogator::get_proc_status(pid_t pid, ProcStatus & process_info) {
+    string proc_status_file = str(format("/proc/%s/status") % pid);
+    NOVA_LOG_DEBUG2("proc status file location : %s",
+                    proc_status_file.c_str());
 
     string stat_line;
 
-    ifstream status_file(stream_proc_status.str().c_str());
+    ifstream status_file(proc_status_file.c_str());
     if (!status_file.is_open()) {
         throw InterrogatorException(InterrogatorException::FILE_NOT_FOUND);
     }
     while (status_file.good()) {
         getline (status_file,stat_line);
-        
+
         Regex regex("(FDSize|VmPeak|VmSize|VmHWM|VmRSS|Threads):\\s+([0-9]+)");
         RegexMatchesPtr matches = regex.match(stat_line.c_str());
 
@@ -65,38 +72,33 @@ DiagInfoPtr Interrogator::get_diagnostics() const {
 
             if (key == "FDSize") {
                 int convert_value = boost::lexical_cast<int>(value);
-                proccess_info->fd_size=convert_value;
+                process_info.fd_size=convert_value;
             }
             else if (key == "VmSize") {
                 int convert_value = boost::lexical_cast<int>(value);
-                proccess_info->vm_size=convert_value;
+                process_info.vm_size=convert_value;
             }
             else if (key == "VmPeak") {
                 int convert_value = boost::lexical_cast<int>(value);
-                proccess_info->vm_peak=convert_value;
+                process_info.vm_peak=convert_value;
             }
             else if (key == "VmRSS") {
                 int convert_value = boost::lexical_cast<int>(value);
-                proccess_info->vm_rss=convert_value;
+                process_info.vm_rss=convert_value;
             }
             else if (key == "VmHWM") {
                 int convert_value = boost::lexical_cast<int>(value);
-                proccess_info->vm_hwm=convert_value;
+                process_info.vm_hwm=convert_value;
             }
             else if (key == "Threads") {
                 int convert_value = boost::lexical_cast<int>(value);
-                proccess_info->threads=convert_value;
+                process_info.threads=convert_value;
             }
 
             NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());
         }
     }
     status_file.close();
-
-    // Add the version to the Info
-    proccess_info->version = NOVA_GUEST_CURRENT_VERSION;
-
-    return retValue;
 }
 
 } } } // end namespace nova::guest::diagnostics

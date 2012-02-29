@@ -8,28 +8,28 @@
 
 namespace nova { namespace guest { namespace diagnostics {
 
-    struct DiagInfo {
+    struct ProcStatus {
         int fd_size;
         int vm_size;
         int vm_peak;
         int vm_rss;
         int vm_hwm;
         int threads;
+    };
+
+    struct DiagInfo : public ProcStatus {
         std::string version;
     };
 
     typedef std::auto_ptr<const DiagInfo> DiagInfoPtr;
 
     class Interrogator {
-
         public:
-            Interrogator();
+            /** Grabs diagnostics for this program. */
+            static DiagInfoPtr get_diagnostics();
 
-            DiagInfoPtr get_diagnostics() const;
-
-        private:
-            Interrogator(const Interrogator &);
-            Interrogator & operator = (const Interrogator &);
+            /** Grabs process status for the given process id. */
+            static void get_proc_status(pid_t pid, ProcStatus & status);
     };
 
     class InterrogatorException : public std::exception {

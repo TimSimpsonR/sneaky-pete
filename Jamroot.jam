@@ -38,15 +38,20 @@ import os ;
 using testing ;
 
 
+###############################################################################
+#       Project Settings
+###############################################################################
+
 project
 	:	requirements
 		<include>include
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
-        # Uncomment the line below to make the Process class print all output.
+        # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
         ;
+
 
 ###############################################################################
 #       Dependencies
@@ -75,52 +80,19 @@ alias dependencies
 	:   lib_json lib_rabbitmq  lib_uuid lib_confuse lib_boost_thread
  	;
 
-###lib libo_c : : <name>c ;  # Only needed to make pthread work in static builds.
-###alias lib_c : libo_c/<link>shared ;
-
 lib lib_pthread : : <name>pthread ; # Seems to only be needed in static builds
                                     # static builds also require lib_c.
-###alias lib_pthread : libo_pthread/<link>shared ;
 
-###lib lib_m : : <name>m-2.11.1 ;
 lib lib_m : : <name>m ;
 lib lib_stdc++ : : <name>stdc++ ;
-###lib lib_gcc_s : : <name>gcc_s ;
 
-###lib lib_crypt : : <name>crypt-2.11.1 ;
-#lib lib_crypt : : <file>/lib/libcrypt-2.11.1.so ;
-###lib lib_z : : <name>z ;
-###lib lib_c : : <name>c-2.11.1 ;
 lib lib_z : : <file>/usr/lib/libz.so.1 ;
 lib lib_c : : <name>c ;
 
-###lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient_r.so.16.0.0 ;
 lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
-
-# I think I need this to statically bring in lib_mysqlcppcon
-###lib lib_mysql : : <name>mysql ;
-
-
-# The code stuff
-# lib lib_gcc_s : : <file>/lib/libgcc_s.so.1 ;  #< -- LOL, not possible
-# lib lib_c : : <file>/lib/libc.so.6 ;
 
 alias static_dependencies
 	:   dependencies
-        # pthread fun
-        #lib_pthread
-        #lib_c/<link>static
-
-        #lib_gcc_s/<link>static
-        #lib_c/<link>static
-        #lib_m/<link>static
-        #lib_stdc++/<link>static
-
-        #lib_mysqlclient_r
-        #lib_mysql
-        # Needed by libmysqlconn+++ whatever
-        #  lib_z/<link>static
-        #  lib_crypt/<link>static
 	;
 
 alias test_dependencies
@@ -129,8 +101,41 @@ alias test_dependencies
 
 
 ###############################################################################
-#      Custom Rule
+#       Version Header Generator
 ###############################################################################
+import type : register ;
+register VERSION_FILE : th ;
+actions make_version_file_action {
+    GIT_REVISION=`git --git-dir=../.git rev-parse HEAD`
+    QUOTES='"'
+    VERSION_NUMBER=$QUOTES$GIT_REVISION$QUOTES
+    printf "
+    #ifndef __NOVA_GUEST_VERSION_H
+    #define __NOVA_GUEST_VERSION_H
+
+    #define NOVA_GUEST_CURRENT_VERSION $VERSION_NUMBER
+
+    #endif //__NOVA_GUEST_VERSION_H
+    " >> "$(<)"
+}
+IMPORT $(__name__) : make_version_file_action : : make_version_file_action ;
+import generators : register-standard ;
+register-standard make_version_file_action : VERSION_FILE : HPP ;
+
+# Defines the target "nova_guest_version" which will create the target
+# 'nova_guest_version.hpp' in the output directory.
+hpp nova_guest_version : include/nova/guest/version.th ;
+
+
+###############################################################################
+#      Custom Rule "Unit"
+###############################################################################
+# The rule "unit" defines a target related to a single object file which
+# usually comes from one C++ source file, along with a the source code for its
+# unit tests. Anything that depends on a unit will have to run its unit tests.
+#
+# A more complicated explanation:
+#
 # Because we compile certain unit tests with different properties,
 # Boost's gives an error that we're duplicating a target name.  This is a
 # safety feature used to avoid compiling the code in potentially different ways
@@ -141,14 +146,15 @@ alias test_dependencies
 # There does not seem to be a way out of compiling the object file twice-
 # you can make the final target an alias of the original object, but because an
 # alias alone cannot declare a dependency, a second object file is used. There
-# is probably a way around this.
+# is probably a way around this but it has not been found yet.
 
 local rule unit ( name : sources * : dependencies * : test-sources *
-                  :  test-properties * : env-vars * )
+                  :  test-properties * : env-vars * : main-properties * )
 {
     if $(test-sources) > []
     {
-        obj __unit_test_obj_$(name) : $(sources) : $(test-properties) ;
+        obj __unit_test_obj_$(name) : $(sources)
+            : $(test-properties) $(main-properties) ;
         unit-test __unit_tests_$(name)
             :   __unit_test_obj_$(name)
                 $(test-sources)
@@ -164,12 +170,13 @@ local rule unit ( name : sources * : dependencies * : test-sources *
               # Be sure to force the unit tests we require to be shared,
               # or it will fail on static builds.
               <dependency>__unit_tests_$(name)/<link>shared
+              $(main-properties)
             ;
         alias $(name) :  __unit_obj_$(name) $(dependencies) ;
     }
     else
     {
-        obj __unit_obj_$(name) : $(sources) ;
+        obj __unit_obj_$(name) : $(sources) : $(main-properties) ;
         alias $(name) :  __unit_obj_$(name) $(dependencies) ;
     }
 }
@@ -341,8 +348,8 @@ unit u_nova_guest_mysql_MySqlAdmin
     :   tests/nova/guest/mysql/MySqlAdminTests.cc
     ;
 
-unit u_nova_guest_mysql_MySqlNovaUpdater
-    :   src/nova/guest/mysql/MySqlNovaUpdater.cc
+unit u_nova_guest_mysql_MySqlAppStatus
+    :   src/nova/guest/mysql/MySqlAppStatus.cc
     :   lib_boost_thread
         u_nova_db_mysql
         u_nova_utils_io
@@ -350,13 +357,13 @@ unit u_nova_guest_mysql_MySqlNovaUpdater
         u_nova_guest_utils
     ;
 
-unit u_nova_guest_mysql_MySqlPreparer
-    :   src/nova/guest/mysql/MySqlPreparer.cc
+unit u_nova_guest_mysql_MySqlApp
+    :   src/nova/guest/mysql/MySqlApp.cc
     :   u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_configfile
-        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlAppStatus
     ;
 
 unit u_nova_guest_mysql_MySqlMessageHandler
@@ -366,10 +373,39 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_json
         u_nova_db_mysql
         u_nova_guest_mysql_MySqlAdmin
-        u_nova_guest_mysql_MySqlNovaUpdater
-        u_nova_guest_mysql_MySqlPreparer
+        u_nova_guest_mysql_MySqlAppStatus
+        u_nova_guest_mysql_MySqlApp
     ;
 
+unit u_nova_guest_diagnostics_Interrogator
+    :   src/nova/guest/diagnostics/Interrogator.cc
+    :   u_nova_Log
+        u_nova_guest_diagnostics_InterrogatorException
+        u_nova_utils_io
+        u_nova_utils_regex
+    :   tests/nova/guest/diag_tests.cc
+    :   <implicit-dependency>nova_guest_version
+    :
+    :   <implicit-dependency>nova_guest_version
+    ;
+
+unit u_nova_guest_diagnostics_InterrogatorException
+    :   src/nova/guest/diagnostics/InterrogatorException.cc
+    :   u_nova_guest_GuestException
+    ;
+
+unit u_nova_guest_diagnostics_InterrogatorMessageHandler
+    :   src/nova/guest/diagnostics/InterrogatorMessageHandler.cc
+    :   # lib_json # <-- this should be automatic...
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_guest_GuestException
+        u_nova_json
+        u_nova_Log
+    :
+    :
+    :
+    :   <implicit-dependency>nova_guest_version
+    ;
 
 alias guest_lib
     :   u_nova_db_api
@@ -378,6 +414,9 @@ alias guest_lib
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
         u_nova_guest_apt_AptException
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_guest_diagnostics_InterrogatorException
+        u_nova_guest_diagnostics_InterrogatorMessageHandler
         u_nova_guest_utils
         u_nova_json
         u_nova_Log
@@ -389,10 +428,10 @@ alias guest_lib
 
 
 
-
 ###############################################################################
 #      Functional Tests
 ###############################################################################
+
 
 # Doesn't require anything other than apt-get on the machine, but is brittle.
 unit-test apt_tests
@@ -409,7 +448,6 @@ unit-test apt_tests
         #" valgrind --leak-check=full"
     ;
 explicit apt_tests ;
-
 
 # Requires RabbitMQ server to be installed and running on localhost.
 unit-test send_and_receive
@@ -447,9 +485,9 @@ unit-test mysql_nova_updater_tests
     :   lib_boost_thread
         u_nova_flags
         u_nova_guest_mysql_MySqlGuestException
-        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlAppStatus
         test_dependencies
-        tests/nova/guest/mysql/MySqlNovaUpdater_tests.cc
+        tests/nova/guest/mysql/MySqlAppStatus_tests.cc
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
@@ -476,7 +514,7 @@ unit-test int_tests
         u_nova_Log
         #u_nova_guest_apt_apt
         #u_nova_guest_apt_AptException
-        u_nova_guest_mysql_MySqlPreparer
+        u_nova_guest_mysql_MySqlApp
         tests/nova/guest/mysql/mysql_integration_tests.cc
         test_dependencies
     :   <define>BOOST_TEST_DYN_LINK
@@ -503,6 +541,13 @@ explicit memory_tests ;
 #      Binaries
 ###############################################################################
 
+exe nova_guest_diagnostics_interrogator_demo
+    :   u_nova_guest_diagnostics_Interrogator
+        u_nova_flags
+        u_nova_Log
+        tests/nova/guest/diag_demo.cc
+    ;
+
 exe nova_guest_utils_demo
     :   u_nova_guest_utils
         u_nova_flags
@@ -520,12 +565,12 @@ exe nova_process_fd_demo
     :   <linkflags>"-pthread "
     ;
 
-exe MySqlNovaUpdater_demo
+exe MySqlAppStatus_demo
     :   u_nova_guest_utils
         u_nova_flags
-        u_nova_guest_mysql_MySqlNovaUpdater
+        u_nova_guest_mysql_MySqlAppStatus
         u_nova_guest_mysql_MySqlGuestException
-        tests/nova/guest/mysql/MySqlNovaUpdater_demo.cc
+        tests/nova/guest/mysql/MySqlAppStatus_demo.cc
     :   <linkflags>"-pthread "
     ;
 
@@ -564,7 +609,7 @@ exe nova-guest
         lib_m
         lib_c
         #lib_pthread
-    :   #<dependency>sql_guest_tests
+    :  #<dependency>sql_guest_tests
 	   # <dependency>memory_tests
         #<linkflags>"-static -pthread -static-libgcc -L~/." #" -static-libgcc "
 
@@ -582,26 +627,6 @@ exe nova-guest
         <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread " #-static -lpthread -lz " #" -static-libgcc " #static-libstdc++"
 
 	;
-
-#exe receiver
-#    :   dependencies
-#        u_nova_configfile/<link>static
-#        u_nova_guest_apt_apt/<link>static
-#        u_nova_guest_apt_AptMessageHandler/<link>static
-#        u_nova_guest_apt_AptException/<link>static
-#        u_nova_json/<link>static
-#        u_nova_Log/<link>static
-#        u_nova_guest_mysql_misc/<link>static
-#        u_nova_guest_mysql_MySqlGuest/<link>static
-#        u_nova_guest_mysql_MySqlMessageHandler/<link>shared
-#        u_nova_rpc_Receiver/<link>static
-#        u_nova_utils_regex/<link>static
-#        u_nova_rpc_Sender/<link>static
-#        src/receiver_daemon.cc/<link>static
-#   :   #<dependency>sql_guest_tests
-#       # <dependency>memory_tests
-#    ;
-
 
 exe sender
 	:	dependencies

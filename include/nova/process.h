@@ -6,6 +6,7 @@
 #include "nova/Log.h"
 #include <list>
 #include <sstream>
+#include <boost/utility.hpp>
 #include <vector>
 
 
@@ -31,8 +32,9 @@ class ProcessException : public std::exception {
         virtual const char * what() const throw();
 };
 
-
-class Process {
+/** Runs and manipulate a process by controlling the standard input and output
+ *  streams. */
+class Process : private boost::noncopyable {
 
     public:
         typedef std::list<const char *> CommandList;
@@ -41,6 +43,7 @@ class Process {
 
         ~Process();
 
+        /** True if the process has ended. */
         inline bool eof() const {
             return eof_flag;
         }
@@ -50,8 +53,18 @@ class Process {
          *  otherwise. */
         static void execute(const CommandList & cmds, double time_out=30);
 
+        /** Similar to execute, but throws a TimeOutException if any reads take
+         *  longer than the time_out argument. */
         static void execute(std::stringstream & out, const CommandList & cmds,
                             double time_out=30);
+
+        /** Executes the given command but does not wait until its finished.
+         *  This function is an anomaly because unlike most functions of this
+         *  class it does not open up the process's streams or wait for it. */
+        static pid_t execute_and_abandon(const CommandList & cmds);
+
+        /** Returns true if the given pid is alive. */
+        static bool is_pid_alive(pid_t pid);
 
         /* Waits until the process's stdout stream has bytes to read or the
          * number of seconds specified by the argument "seconds" passes.
@@ -77,21 +90,52 @@ class Process {
 
         /** Waits for EOF, throws TimeOutException if it doesn't happen. */
         void wait_for_eof(double seconds);
+
+        /** Waits for EOF while reading into the given stream.
+         *  Throws TimeOutException if it doesn't happen. */
         void wait_for_eof(std::stringstream & out, double seconds);
 
+        /** Writes to the process's standard input. */
         void write(const char * msg);
 
+        /** Writes to the process's standard input. */
         void write(const char * msg, size_t length);
 
     private:
-        Process(const Process &);
-        Process & operator = (const Process &);
+
+        /** Helper class for managing the file descriptors of a pipe.*/
+        class Pipe : private boost::noncopyable
+        {
+            public:
+                Pipe();
+
+                ~Pipe();
+
+                void close_in();
+
+                void close_out();
+
+                inline int in() {
+                    return fd[0];
+                }
+
+                inline int out() {
+                    return fd[1];
+                }
+
+            private:
+
+                int fd[2];
+                bool is_open[2];
+
+                void close(int index);
+        };
 
         const char * const * argv;
         bool eof_flag;
         pid_t pid;
-        int std_out_fd[2];
-        int std_in_fd[2];
+        Pipe std_in_pipe;
+        Pipe std_out_pipe;
         bool success;
         bool wait_for_close;
 

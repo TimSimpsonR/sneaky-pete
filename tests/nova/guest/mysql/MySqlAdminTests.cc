@@ -25,3 +25,9 @@ BOOST_AUTO_TEST_CASE(password_must_be_kind_of_long)
     string password = nova::guest::mysql::generate_password();
     BOOST_CHECK_GT(password.length(), 10);
 }
+
+BOOST_AUTO_TEST_CASE(extract_user_test)
+{
+    string user = nova::guest::mysql::extract_user("'test'@'%'");
+    BOOST_CHECK_EQUAL(user, "test");
+}

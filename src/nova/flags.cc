@@ -143,14 +143,13 @@ const char * FlagMap::get(const char * const name,
                              const char * const default_value) {
     const char * value = get(name, false);
     if (value == 0) {
-        map[name] = default_value;
-        value = get(name, true);
+        return default_value;
     }
     return value;
 }
 
 const char * FlagMap::get(const char * const name, bool throw_on_missing) {
-    if (map.count(name) == 0) {
+    if (map.find(name) == map.end()) {
         if (throw_on_missing) {
             throw FlagException(FlagException::KEY_NOT_FOUND, name);
         } else {
@@ -245,6 +244,18 @@ FlagValues::FlagValues(FlagMapPtr map)
                             _nova_sql_password, _nova_sql_database);
 }
 
+const char * FlagValues::apt_self_package_name() const {
+    return map->get("apt_self_package_name", "nova-guest");
+}
+
+const char * FlagValues::apt_guest_config_package() const {
+    return map->get("apt_guest_config_package", "reddwarf-config");
+}
+
+int FlagValues::apt_self_update_time_out() const {
+    return get_flag_value<int>(*map, "apt_self_update_time_out", 1 * 60);
+}
+
 bool FlagValues::apt_use_sudo() const {
     const char * value = map->get("apt_use_sudo", "true");
     return strncmp(value, "true", 4) == 0;
@@ -283,7 +294,11 @@ optional<const char *> FlagValues::log_file_path() const {
 }
 
 bool FlagValues::log_use_std_streams() const {
-    return get_flag_value<bool>(*map, "log_use_std_streams", false);
+    return get_flag_value<bool>(*map, "log_use_std_streams", true);
+}
+
+int FlagValues::mysql_state_change_wait_time() const {
+    return get_flag_value<int>(*map, "mysql_state_change_wait_time", 2 * 60);
 }
 
 const char * FlagValues::node_availability_zone() const {

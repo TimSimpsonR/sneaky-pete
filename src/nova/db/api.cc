@@ -115,7 +115,7 @@ public:
         stmt->set_string(index ++, service.host.c_str());
         stmt->set_string(index ++, service.topic.c_str());
         stmt->set_string(index ++, service.availability_zone.c_str());
-        MySqlResultSetPtr results = stmt->execute();
+        stmt->execute();
     }
 
 };

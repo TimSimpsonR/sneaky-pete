@@ -39,45 +39,6 @@ namespace {
         }
     }
 
-    void get_username_and_password_from_config_file(string & user,
-                                                           string & password) {
-        const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
-        regex_t regex;
-        regcomp(&regex, pattern, REG_EXTENDED);
-
-        // TODO(tim.simpson): This should be the normal my.cnf, but we can't
-        // read it from there... yet.
-        //ifstream my_cnf("/etc/mysql/my.cnf");
-        ifstream my_cnf("/var/lib/nova/my.cnf");
-        if (!my_cnf.is_open()) {
-            throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
-        }
-        std::string line;
-        //char  tmp[256]={0x0};
-        bool is_in_client = false;
-        while(my_cnf.good()) {
-        //while(fp!=NULL && fgets(tmp, sizeof(tmp) -1,fp) != NULL)
-        //{
-            getline(my_cnf, line);
-            if (strstr(line.c_str(), "[client]")) {
-                is_in_client = true;
-            }
-            if (strstr(line.c_str(), "[mysqld]")) {
-                is_in_client = false;
-            }
-            // Be careful - end index is non-inclusive.
-            if (is_in_client && strstr(line.c_str(), "user")) {
-                append_match_to_string(user, regex, line.c_str());
-            }
-            if (is_in_client && strstr(line.c_str(), "password")) {
-                append_match_to_string(password, regex, line.c_str());
-            }
-        }
-        my_cnf.close();
-
-        regfree(&regex);
-    }
-
     //TODO(tim.simpson): Get rid of this class and IntParameterBuffer, turns out they aren't needed.
     struct ParameterBuffer {
 
@@ -197,6 +158,8 @@ const char *  MySqlException::code_to_string(Code code) {
             return "Prepare statement bind failed.";
         case PREPARE_FAILED:
             return "An error occurred creating prepared statement.";
+        case PREPARE_STATEMENT_FAILED:
+            return "Failed prepare_statement call.";
         case QUERY_FAILED:
             return "Query failed.";
         case QUERY_FETCH_RESULT_FAILED:
@@ -290,100 +253,6 @@ int MySqlResultSet::get_int_non_null(int index) const {
         throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_INT);
     }
 }
-
-
-/**---------------------------------------------------------------------------
- *- MySqlPreparedResultSet
- *---------------------------------------------------------------------------*/
-
-//http://dev.mysql.com/doc/refman/5.0/en/mysql-stmt-fetch.html
-class MySqlPreparedResultSet : public MySqlResultSet {
-
-public:
-    MySqlPreparedResultSet(MYSQL * con, MYSQL_STMT* stmt, size_t size)
-    : bind(0), buffer(0), finished(false), row_count(0), size(size),
-      started(false), stmt(stmt)
-    {
-        buffer = new StringParameterBuffer[size];
-        bind = new MYSQL_BIND[size];
-        memset(bind, 0, sizeof(bind));
-
-        for (size_t index = 0; index < size; index ++) {
-            buffer[index].bind(bind[index]);
-        }
-
-        if (mysql_stmt_bind_result(stmt, bind) != 0) {
-            NOVA_LOG_ERROR2("Binding result set failed: %s\n",
-                            mysql_stmt_error(stmt));
-            throw MySqlException(MySqlException::BIND_RESULT_SET_FAILED);
-        }
-    }
-
-    virtual ~MySqlPreparedResultSet() {
-        close();
-    }
-
-    virtual void close() {
-        if (bind != 0) {
-            delete[] bind;
-            delete[] buffer;
-            bind = 0;
-            buffer = 0;
-        }
-    }
-
-    virtual int get_field_count() const {
-        return size;
-    }
-
-    virtual optional<string> get_string(int index) const {
-        if (index < 0 || index >= (int) size) {
-            throw MySqlException(MySqlException::RESULT_INDEX_OUT_OF_BOUNDS);
-        }
-        if (!started) {
-            throw MySqlException(MySqlException::RESULT_SET_NOT_STARTED);
-        }
-        if (finished) {
-            throw MySqlException(MySqlException::RESULT_SET_FINISHED);
-        }
-        if (index < 0 || index >= (int) size) {
-            throw MySqlException(MySqlException::RESULT_INDEX_OUT_OF_BOUNDS);
-        }
-        return buffer[index].to_string();
-    }
-
-    virtual bool next() {
-        if (finished) {
-            return false;
-        }
-        int result = mysql_stmt_fetch(stmt);
-        if (result == MYSQL_NO_DATA) {
-            finished = true;
-            return false;
-        } else if (result == 0) {
-            row_count ++;
-            started = true;
-            return true;
-        }
-        NOVA_LOG_ERROR2("Error calling next mysql_stmt_fetch. Code was %d: %s",
-                        result, mysql_stmt_error(stmt));
-        throw MySqlException(MySqlException::NEXT_FETCH_FAILED);
-    }
-
-    virtual int get_row_count() const {
-        return row_count;
-    }
-
-private:
-    MYSQL_BIND * bind;
-    StringParameterBuffer * buffer;
-    bool finished;
-    int row_count;
-    size_t size;
-    bool started;
-    MYSQL_STMT * stmt;
-
-};
 
 
 /**---------------------------------------------------------------------------
@@ -557,17 +426,10 @@ public:
         }
     }
 
-    virtual MySqlResultSetPtr execute(int result_count) {
+    virtual void execute(int result_count) {
         if (mysql_stmt_execute(stmt) != 0) {
             NOVA_LOG_ERROR2("execute failed: %s", mysql_stmt_error(stmt));
-        }
-        if (result_count == 0) {
-            MySqlResultSetPtr ptr(new MySqlQueryResultSet(con));
-            return ptr;
-        } else {
-            MySqlResultSetPtr ptr(new MySqlPreparedResultSet(con, stmt,
-                                                             result_count));
-            return ptr;
+            throw MySqlException(MySqlException::PREPARE_STATEMENT_FAILED);
         }
     }
 
@@ -657,6 +519,40 @@ const char * MySqlConnection::get_db_name() const {
     return NULL;
 }
 
+void MySqlConnection::get_auth_from_config(string & user, string & password) {
+    const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
+    regex_t regex;
+    regcomp(&regex, pattern, REG_EXTENDED);
+
+    // TODO(tim.simpson): This should be the normal my.cnf, but we can't
+    // read it from there... yet.
+    ifstream my_cnf("/var/lib/nova/my.cnf");
+    if (!my_cnf.is_open()) {
+        throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
+    }
+    std::string line;
+    bool is_in_client = false;
+    while(my_cnf.good()) {
+        getline(my_cnf, line);
+        if (strstr(line.c_str(), "[client]")) {
+            is_in_client = true;
+        }
+        if (strstr(line.c_str(), "[mysqld]")) {
+            is_in_client = false;
+        }
+        // Be careful - end index is non-inclusive.
+        if (is_in_client && strstr(line.c_str(), "user")) {
+            append_match_to_string(user, regex, line.c_str());
+        }
+        if (is_in_client && strstr(line.c_str(), "password")) {
+            append_match_to_string(password, regex, line.c_str());
+        }
+    }
+    my_cnf.close();
+
+    regfree(&regex);
+}
+
 void MySqlConnection::grant_all_privileges(const char * username,
                                       const char * host) {
     //TODO(tim.simpson): Fix this to use parameters.
@@ -668,13 +564,24 @@ void MySqlConnection::grant_all_privileges(const char * username,
     stmt->close();
 }
 
+void MySqlConnection::revoke_privileges(const char * username,
+                                        const char * host,
+                                        const char * privs) {
+    string text = str(format("REVOKE %s ON *.* FROM '%s'@'%s';")
+                      % escape_string(privs) % escape_string(username)
+                      % escape_string(host));
+    MySqlPreparedStatementPtr stmt = prepare_statement(text.c_str());
+    stmt->execute();
+    stmt->close();
+}
+
 void MySqlConnection::init() {
     if (con != 0) {
         throw std::exception();
     }
 
     if (use_mycnf) {
-        get_username_and_password_from_config_file(user, password);
+        get_auth_from_config(user, password);
     }
 
     con = mysql_init(NULL);

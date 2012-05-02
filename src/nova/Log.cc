@@ -163,6 +163,7 @@ LogPtr & Log::_get_instance() {
 LogPtr Log::get_instance() {
     boost::lock_guard<boost::mutex> lock(global_mutex);
     if (!_get_instance()) {
+        std::cerr << "Logging system not initialized!" << std::endl;
         throw LogException(LogException::NOT_INITIALIZED);
     }
     return _get_instance();
@@ -170,7 +171,8 @@ LogPtr Log::get_instance() {
 
 void Log::open_file() {
     if (options.file) {
-        file.open(options.file.get().path.c_str());
+        file.open(options.file.get().path.c_str(),
+                  std::ios::out | std::ios::app);
     }
 }
 
@@ -244,6 +246,7 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
             file << time.c_str() << " " << level_string << " " << message
                  << " for " << file_name <<  ":" << line_number << std::endl;
             file.flush();
+
         }
     }
 }

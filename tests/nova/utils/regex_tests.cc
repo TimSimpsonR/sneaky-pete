@@ -92,3 +92,19 @@ BOOST_AUTO_TEST_CASE(sql_pid_file)
     std::cout << "1=" << matches->get(1) << std::endl;
 
 }
+
+BOOST_AUTO_TEST_CASE(match_user_db_assoc)
+{
+    Regex regex("^'(.+)'@");
+    RegexMatchesPtr matches = regex.match("'test'@%'");
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "test");
+}
+
+BOOST_AUTO_TEST_CASE(match_user_db_assoc1)
+{
+    Regex regex("^'(.+)'@");
+    RegexMatchesPtr matches = regex.match("'te@st@'@%'");
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "te@st@");
+}

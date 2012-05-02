@@ -91,6 +91,12 @@ class FlagValues {
 
         bool apt_use_sudo() const;
 
+        const char * apt_self_package_name() const;
+
+        const char * apt_guest_config_package() const;
+
+        int apt_self_update_time_out() const;
+
         const char * control_exchange() const;
 
         const char * db_backend() const;
@@ -108,6 +114,10 @@ class FlagValues {
         boost::optional<double> log_file_max_time() const;
 
         bool log_use_std_streams() const;
+
+        /** Time MySQL we'll wait for the MySQL app to change from running to
+         *  stopped, or vice-versa. */
+        int mysql_state_change_wait_time() const;
 
         const char * node_availability_zone() const;
 

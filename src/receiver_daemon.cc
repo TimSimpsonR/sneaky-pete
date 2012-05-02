@@ -5,6 +5,7 @@
 #include "nova/flags.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
+#include "nova/guest/diagnostics.h"
 #include "nova/guest/GuestException.h"
 #include <boost/lexical_cast.hpp>
 #include <memory>
@@ -22,14 +23,18 @@
 /* In release mode, all errors should be caught so the guest will not die.
  * If you want to see the bugs in the debug mode, you can fiddle with it here.
  */
-/////////#ifndef _DEBUG
+// #ifndef _DEBUG
 #define START_THREAD_TASK() try {
 #define END_THREAD_TASK(name)  \
      } catch(const std::exception & e) { \
         NOVA_LOG_ERROR2("Error in " name "! : %s", e.what()); \
      }
 #define CATCH_RPC_METHOD_ERRORS
-////////#endif
+// #else
+// #define START_THREAD_TASK() /**/
+// #define END_THREAD_TASK(name) /**/
+// #define CATCH_RPC_METHOD_ERRORS
+// #endif
 
 using nova::db::ApiPtr;
 using nova::guest::apt::AptGuest;
@@ -40,6 +45,7 @@ using boost::optional;
 using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
+using namespace nova::guest::diagnostics;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using nova::db::NewService;
@@ -66,11 +72,11 @@ private:
     JsonObject message;
     MySqlConnectionWithDefaultDbPtr nova_db;
     NewService service_key;
-    MySqlNovaUpdaterPtr status_updater;
+    MySqlAppStatusPtr status_updater;
 
 public:
     PeriodicTasker(MySqlConnectionWithDefaultDbPtr nova_db,
-                   MySqlNovaUpdaterPtr status_updater, NewService service_key)
+                   MySqlAppStatusPtr status_updater, NewService service_key)
       : message(PERIODIC_MESSAGE),
         nova_db(nova_db),
         service_key(service_key),
@@ -88,7 +94,7 @@ public:
         while(!quit) {
             unsigned long wait_time = next_periodic_task < next_reporting ?
                 next_periodic_task : next_reporting;
-            NOVA_LOG_INFO2("Waiting for %lu seconds...", wait_time);
+            NOVA_LOG_DEBUG2("Waiting for %lu seconds...", wait_time);
             boost::posix_time::seconds time(wait_time);
             boost::this_thread::sleep(time);
             next_periodic_task -= wait_time;
@@ -107,7 +113,7 @@ public:
 
     void periodic_tasks() {
         START_THREAD_TASK();
-            NOVA_LOG_INFO("Running periodic tasks...");
+            NOVA_LOG_DEBUG2("Running periodic tasks...");
             status_updater->update();
             Log::rotate_logs_if_needed();
         END_THREAD_TASK("periodic_tasks()");
@@ -140,7 +146,7 @@ int main(int argc, char* argv[]) {
 #ifndef _DEBUG
 
     try {
-        daemon(1,0);
+
 #endif
         // Initialize MySQL libraries. This should be done before spawning
         // threads.
@@ -173,25 +179,33 @@ int main(int argc, char* argv[]) {
                 flags.nova_sql_database()));
 
         /* Create JSON message handlers. */
-        const int handler_count = 2;
+        const int handler_count = 4;
         MessageHandlerPtr handlers[handler_count];
 
         /* Create Apt Guest */
-        AptGuest apt_worker(flags.apt_use_sudo());
+        AptGuest apt_worker(flags.apt_use_sudo(),
+                            flags.apt_guest_config_package(),
+                            flags.apt_self_package_name(),
+                            flags.apt_self_update_time_out());
         handlers[0].reset(new AptMessageHandler(&apt_worker));
 
         /* Create MySQL updater. */
-        MySqlNovaUpdaterPtr mysql_status_updater(new MySqlNovaUpdater(
+        MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
             nova_db,
             flags.guest_ethernet_device(),
             flags.nova_db_reconnect_wait_time(),
             flags.preset_instance_id()));
 
         /* Create MySQL Guest. */
-        MySqlMessageHandlerConfig mysql_config;
-        mysql_config.apt = &apt_worker;
-        mysql_config.sql_updater = mysql_status_updater;
-        handlers[1].reset(new MySqlMessageHandler(mysql_config));
+        handlers[1].reset(new MySqlMessageHandler());
+
+        handlers[2].reset(new MySqlAppMessageHandler(
+            apt_worker, mysql_status_updater,
+            flags.mysql_state_change_wait_time()));
+
+        /* Create the Interrogator for the guest. */
+        Interrogator interrogator;
+        handlers[3].reset(new InterrogatorMessageHandler(interrogator));
 
         /* Set host value. */
         string actual_host = nova::guest::utils::get_host_name();
@@ -212,16 +226,23 @@ int main(int argc, char* argv[]) {
 
         quit = false;
 
-        /* Start periodic task / report thread. */
+        // This starts the thread.
         boost::thread workerThread(&PeriodicTasker::loop, &tasker,
-                                   flags.periodic_interval(),
-                                   flags.report_interval());
+                                       flags.periodic_interval(),
+                                       flags.report_interval());
+        // Before we go any further, lets all just chill out and take a nap.
+        // TODO(tim.simpson) For reasons I can only assume relate to an even
+        // worse bug I have been able to uncover, sleeping here keeps Sneaky
+        // Pete from morphing into Fat Pete (inexplicable 60 MB virtual memory
+        // increase).
+        boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-        /* Create receiver. */
-        ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
-            flags.rabbit_userid(), flags.rabbit_password(),
-            flags.rabbit_client_memory(), topic.c_str(),
-            flags.control_exchange(),  flags.rabbit_reconnect_wait_time());
+        NOVA_LOG_INFO("Creating listener...");
+
+        ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(), //<-- here?!
+                    flags.rabbit_userid(), flags.rabbit_password(),
+                    flags.rabbit_client_memory(), topic.c_str(),
+                    flags.control_exchange(),  flags.rabbit_reconnect_wait_time());
 
         while(!quit) {
             GuestInput input = receiver.next_message();
@@ -236,6 +257,7 @@ int main(int argc, char* argv[]) {
                     output.result = handlers[i]->handle_message(input);
                 }
                 if (!output.result) {
+                    NOVA_LOG_ERROR("No method found!")
                     throw GuestException(GuestException::NO_SUCH_METHOD);
                 }
                 output.failure = boost::none;
@@ -251,6 +273,7 @@ int main(int argc, char* argv[]) {
 
             receiver.finish_message(output);
         }
+
 #ifndef _DEBUG
     } catch (const std::exception & e) {
         NOVA_LOG_ERROR2("Error: %s", e.what());

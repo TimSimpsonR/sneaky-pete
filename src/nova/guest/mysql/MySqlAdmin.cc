@@ -2,12 +2,14 @@
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
+
 #include <fstream>
 #include <iostream>
 #include <memory>
 //#include <mysql/mysql.h>
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlGuestException.h"
+#include "nova/utils/regex.h"
 #include <sstream>
 #include <uuid/uuid.h>
 
@@ -22,11 +24,27 @@ using nova::db::mysql::MySqlPreparedStatementPtr;
 using boost::none;
 using boost::optional;
 using nova::Log;
+using nova::utils::Regex;
+using nova::utils::RegexMatchesPtr;
 using namespace std;
 
 
 namespace nova { namespace guest { namespace mysql {
 
+namespace {
+    typedef map<string, MySqlUserPtr> UserMap;
+}
+
+string extract_user(const string & user) {
+    Regex regex("^'(.+)'@");
+    RegexMatchesPtr matches = regex.match(user.c_str());
+    if (matches || matches->exists_at(1)) {
+        return matches->get(1);
+    } else {
+        NOVA_LOG_ERROR2("Failed to parse the grantee: %s", user.c_str());
+        throw MySqlGuestException(MySqlGuestException::GENERAL);
+    }
+}
 
 string generate_password() {
     uuid_t id;
@@ -119,6 +137,7 @@ MySqlUserPtr MySqlAdmin::enable_root() {
     }
     set_password("root", root_user->get_password().get().c_str());
     con->grant_all_privileges("root", "%");
+    con->revoke_privileges("root", "%", "FILE");
     con->flush_privileges();
     return root_user;
 }
@@ -151,14 +170,31 @@ MySqlDatabaseListPtr MySqlAdmin::list_databases() {
 
 MySqlUserListPtr MySqlAdmin::list_users() {
     MySqlUserListPtr users(new MySqlUserList());
+    UserMap user_map;
+    // Get the list of users
     MySqlResultSetPtr res = con->query(
         "select User from mysql.user where host != 'localhost'");
     while (res->next()) {
         MySqlUserPtr user(new MySqlUser());
         user->set_name(res->get_string(0).get());
         users->push_back(user);
+        user_map[user->get_name()] = user;
     }
     res->close();
+
+    // Get the list of users and their associated databases
+    MySqlResultSetPtr userDbRes = con->query(
+                "SELECT grantee, table_schema from information_schema.SCHEMA_PRIVILEGES "
+                "group by grantee, table_schema;");
+    while(userDbRes->next()) {
+        string username = extract_user(userDbRes->get_string(0).get());
+        MySqlUserPtr & user = user_map[username];
+        MySqlDatabasePtr database(new MySqlDatabase());
+        database->set_name(userDbRes->get_string(1).get());
+        user->get_databases()->push_back(database);
+    }
+    userDbRes->close();
+
     return users;
 }
 

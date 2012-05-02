@@ -11,6 +11,7 @@
 
 namespace nova { namespace guest { namespace mysql {
 
+    std::string extract_user(const std::string & user);
     std::string generate_password();
 
     class MySqlAdmin {

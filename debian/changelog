@@ -1,6 +1,5 @@
-nova-guest (2012.21.12) lucid; urgency=low
+nova-guest (0.0.1-placeholder) unstable; urgency=low
 
-  [aut-gen]
-  * generated version. THIS NEEDS TO BE FIXED!
+  * source package automatically created by stdeb 0.6.0+git
 
- -- Hub Cap <mbasnigh@rackspace.com>  Fri, 05 Aug 2011 03:24:43 -0500
+ -- Major Hayden <major.hayden@rackspace.com>  Thu, 29 Dec 2011 08:38:08 -0600

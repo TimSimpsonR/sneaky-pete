@@ -106,7 +106,7 @@ alias test_dependencies
 import type : register ;
 register VERSION_FILE : th ;
 actions make_version_file_action {
-    GIT_REVISION=`git --git-dir=../.git rev-parse HEAD`
+    GIT_REVISION=`git --git-dir=./.git rev-parse HEAD`
     QUOTES='"'
     VERSION_NUMBER=$QUOTES$GIT_REVISION$QUOTES
     printf "

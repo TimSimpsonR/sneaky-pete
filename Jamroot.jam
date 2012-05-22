@@ -44,7 +44,7 @@ using testing ;
 
 project
 	:	requirements
-		<include>include
+		<include>src
 		<include>/usr/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
@@ -124,7 +124,7 @@ register-standard make_version_file_action : VERSION_FILE : HPP ;
 
 # Defines the target "nova_guest_version" which will create the target
 # 'nova_guest_version.hpp' in the output directory.
-hpp nova_guest_version : include/nova/guest/version.th ;
+hpp nova_guest_version : src/nova/guest/version.th ;
 
 
 ###############################################################################

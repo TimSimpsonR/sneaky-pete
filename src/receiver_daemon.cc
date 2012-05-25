@@ -1,5 +1,4 @@
 #include "nova/rpc/amqp.h"
-#include "nova/db/api.h"
 #include "nova/guest/apt.h"
 #include "nova/ConfigFile.h"
 #include "nova/flags.h"
@@ -7,7 +6,9 @@
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
 #include "nova/guest/GuestException.h"
+#include "nova/guest/HeartBeat.h"
 #include <boost/lexical_cast.hpp>
+#include <iostream>
 #include <memory>
 #include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlMessageHandler.h"
@@ -36,7 +37,6 @@
 // #define CATCH_RPC_METHOD_ERRORS
 // #endif
 
-using nova::db::ApiPtr;
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptMessageHandler;
 using std::auto_ptr;
@@ -48,9 +48,7 @@ using namespace nova::guest;
 using namespace nova::guest::diagnostics;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
-using nova::db::NewService;
 using namespace nova::rpc;
-using nova::db::ServicePtr;
 using std::string;
 
 
@@ -69,23 +67,17 @@ static bool quit;
 class PeriodicTasker {
 
 private:
+    HeartBeat & heart_beat;
     JsonObject message;
     MySqlConnectionWithDefaultDbPtr nova_db;
-    NewService service_key;
     MySqlAppStatusPtr status_updater;
 
 public:
-    PeriodicTasker(MySqlConnectionWithDefaultDbPtr nova_db,
-                   MySqlAppStatusPtr status_updater, NewService service_key)
-      : message(PERIODIC_MESSAGE),
-        nova_db(nova_db),
-        service_key(service_key),
+    PeriodicTasker(HeartBeat & heart_beat, MySqlAppStatusPtr status_updater)
+      : heart_beat(heart_beat),
+        message(PERIODIC_MESSAGE),
         status_updater(status_updater)
     {
-    }
-
-    void ensure_db() {
-        nova_db->ensure();
     }
 
     void loop(unsigned long periodic_interval, unsigned long report_interval) {
@@ -121,11 +113,7 @@ public:
 
     void report_state() {
         START_THREAD_TASK();
-            ensure_db();
-            ApiPtr api = nova::db::create_api(nova_db);
-            ServicePtr service = api->service_create(service_key);
-            service->report_count ++;
-            api->service_update(*service);
+            this->heart_beat.update();
         END_THREAD_TASK("report_state()");
     }
 };
@@ -141,17 +129,13 @@ AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
 int main(int argc, char* argv[]) {
     quit = false;
 
-
+    bool logging_initialized = false;
 
 #ifndef _DEBUG
 
     try {
 
 #endif
-        // Initialize MySQL libraries. This should be done before spawning
-        // threads.
-        MySqlApiScope mysql_api_scope;
-
         /* Grab flag values. */
         FlagValues flags(FlagMap::create_from_args(argc, argv, true));
 
@@ -170,6 +154,20 @@ int main(int argc, char* argv[]) {
                                flags.log_use_std_streams());
 
         LogApiScope log_api_scope(log_options);
+
+        logging_initialized = true;
+
+        NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        NOVA_LOG_INFO(" ^ ^ ^                                       ^");
+        NOVA_LOG_INFO(" ^ '  '       -----REDDWARF-GUEST-AGENT----- ^");
+        NOVA_LOG_INFO(" ^ \\`-'/        -------Sneaky--Pete-------   ^");
+        NOVA_LOG_INFO(" ^   |__                                     ^");
+        NOVA_LOG_INFO(" ^  /                         starting now...^");
+        NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+
+        // Initialize MySQL libraries. This should be done before spawning
+        // threads.
+        MySqlApiScope mysql_api_scope;
 
         /* Create connection to Nova database. */
         MySqlConnectionWithDefaultDbPtr nova_db(
@@ -192,9 +190,8 @@ int main(int argc, char* argv[]) {
         /* Create MySQL updater. */
         MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
             nova_db,
-            flags.guest_ethernet_device(),
             flags.nova_db_reconnect_wait_time(),
-            flags.preset_instance_id()));
+            flags.guest_id()));
 
         /* Create MySQL Guest. */
         handlers[1].reset(new MySqlMessageHandler());
@@ -211,18 +208,14 @@ int main(int argc, char* argv[]) {
         string actual_host = nova::guest::utils::get_host_name();
         string host = flags.host().get_value_or(actual_host.c_str());
 
+        /* Create HeartBeat. */
+        HeartBeat heart_beat(nova_db, flags.guest_id());
+
         /* Create tasker. */
-        NewService service_key;
-        service_key.availability_zone = flags.node_availability_zone();
-        service_key.binary = "nova-guest";
-        service_key.host = host;
-        service_key.topic = "guest";  // Real nova takes binary after "nova-".
-        PeriodicTasker tasker(nova_db,
-                              mysql_status_updater, service_key);
+        PeriodicTasker tasker(heart_beat, mysql_status_updater);
 
         /* Create AMQP connection. */
-        string topic = "guest.";
-        topic += nova::guest::utils::get_host_name();
+        string topic = str(format("guestagent.%s") % flags.guest_id());
 
         quit = false;
 
@@ -276,7 +269,11 @@ int main(int argc, char* argv[]) {
 
 #ifndef _DEBUG
     } catch (const std::exception & e) {
-        NOVA_LOG_ERROR2("Error: %s", e.what());
+        if (logging_initialized) {
+            NOVA_LOG_ERROR2("Error: %s", e.what());
+        } else {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
     }
 #endif
     return 0;

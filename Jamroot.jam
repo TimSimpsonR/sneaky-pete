@@ -258,8 +258,8 @@ unit u_nova_guest_utils
     : u_nova_guest_GuestException
     ;
 
-unit u_nova_db_api
-    :   src/nova/db/api.cc
+unit u_nova_guest_HeartBeat
+    :   src/nova/guest/HeartBeat.cc
     :   u_nova_db_mysql
         u_nova_guest_utils
     ;
@@ -408,7 +408,7 @@ unit u_nova_guest_diagnostics_InterrogatorMessageHandler
     ;
 
 alias guest_lib
-    :   u_nova_db_api
+    :   u_nova_guest_HeartBeat
         u_nova_configfile
         u_nova_flags
         u_nova_guest_apt_apt
@@ -491,18 +491,17 @@ unit-test mysql_nova_updater_tests
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
-explicit api_tests ;
 
 
-unit-test api_tests
+unit-test HeartBeat_tests
     :   u_nova_flags
-        u_nova_db_api
+        u_nova_guest_HeartBeat
         test_dependencies
-        tests/nova/db/api_tests.cc
+        tests/nova/guest/HeartBeat_tests.cc
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
-explicit api_tests ;
+explicit HeartBeat_tests ;
 
 
 # Requires that mysql be utterly destroyed and reinstalled on the machine.

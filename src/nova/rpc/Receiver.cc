@@ -20,7 +20,8 @@ using std::string;
 namespace nova { namespace rpc {
 
 namespace {
-    const char * EMPTY_MESSAGE = "{ \"failure\": null, \"result\":null }";
+    const char * END_MESSAGE = "{ \"failure\": null, \"result\":null, "
+                               "  \"ending\":true }";
 }
 
 
@@ -111,8 +112,8 @@ void Receiver::finish_message(const GuestOutput & output) {
     rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
 
     // This is like telling Nova "roger."
-    NOVA_LOG_INFO2("Replying with empty message: %s", EMPTY_MESSAGE);
-    rtn_ex_channel->publish(exchange_name, routing_key, EMPTY_MESSAGE);
+    NOVA_LOG_INFO2("Replying with 'end' message: %s", END_MESSAGE);
+    rtn_ex_channel->publish(exchange_name, routing_key, END_MESSAGE);
 }
 
 JsonObjectPtr Receiver::_next_message() {

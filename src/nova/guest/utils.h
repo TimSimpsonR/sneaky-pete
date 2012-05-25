@@ -23,9 +23,15 @@ class IsoTime {
 
 class IsoDateTime {
     public:
+        /** Creates an IsoDateTime set to the current time. */
         IsoDateTime();
 
+        bool operator==(const IsoDateTime & rhs) const;
+
         const char * c_str() const;
+
+        /** Update to the current time. */
+        void set_to_now();
 
     private:
         char str[20];

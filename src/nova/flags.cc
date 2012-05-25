@@ -121,7 +121,7 @@ void FlagMap::add_from_file(const char * file_path) {
 }
 
 FlagMapPtr FlagMap::create_from_args(size_t count, char** argv,
-                                           bool ignore_mismatch) {
+                                     bool ignore_mismatch) {
     FlagMapPtr flags(new FlagMap());
     for (size_t i = 0; i < count; i ++) {
         flags->add_from_arg(argv[i], ignore_mismatch);
@@ -269,8 +269,8 @@ const char * FlagValues::db_backend() const {
     return map->get("db_backend", "sqlalchemy");
 }
 
-const char * FlagValues::guest_ethernet_device() const {
-    return map->get("guest_ethernet_device", "eth0");
+const char * FlagValues::guest_id() const {
+    return map->get("guest_id");
 }
 
 optional<const char *> FlagValues::host() const {
@@ -334,10 +334,6 @@ const char * FlagValues::nova_sql_user() const {
 
 unsigned long FlagValues::periodic_interval() const {
     return get_flag_value(*map, "periodic_interval", (unsigned long) 60);
-}
-
-optional<int> FlagValues::preset_instance_id() const {
-    return get_flag_value<int>(*map, "preset_instance_id");
 }
 
 size_t FlagValues::rabbit_client_memory() const {

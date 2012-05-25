@@ -134,19 +134,19 @@ namespace {
 
     JSON_METHOD(list_users) {
         MySqlAdminPtr sql = guest->sql_admin();
-        std::stringstream user_xml;
+        std::stringstream user_json;
         MySqlUserListPtr users = sql->list_users();
-        user_xml << "[";
+        user_json << "[";
         bool once = false;
         BOOST_FOREACH(MySqlUserPtr & user, *users) {
             if (once) {
-                user_xml << ", ";
+                user_json << ", ";
             }
-            user_to_stream(user_xml, user);
+            user_to_stream(user_json, user);
             once = true;
         }
-        user_xml << "]";
-        JsonDataPtr rtn(new JsonArray(user_xml.str().c_str()));
+        user_json << "]";
+        JsonDataPtr rtn(new JsonArray(user_json.str().c_str()));
         return rtn;
     }
 

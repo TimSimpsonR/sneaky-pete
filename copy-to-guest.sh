@@ -1,2 +1,2 @@
-mkdir /vz/private/$1/agent
-sudo cp -rf * /vz/private/$1/agent/
+mkdir /var/lib/vz/private/$1/agent
+sudo cp -rf * /var/lib/vz/private/$1/agent/

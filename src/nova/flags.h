@@ -101,7 +101,7 @@ class FlagValues {
 
         const char * db_backend() const;
 
-        const char * guest_ethernet_device() const;
+        const char * guest_id() const;
 
         boost::optional<const char *> host() const;
 
@@ -134,8 +134,6 @@ class FlagValues {
         const char * nova_sql_user() const;
 
         unsigned long periodic_interval() const;
-
-        boost::optional<int> preset_instance_id() const;
 
         size_t rabbit_client_memory() const;
 

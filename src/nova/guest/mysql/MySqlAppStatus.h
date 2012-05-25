@@ -45,7 +45,7 @@ namespace nova { namespace guest { namespace mysql {
 
         public:
             /* NOTE: These *MUST* match the values found in
-             * nova.compute.power_state! */
+             * reddwarf.instance.models.ServiceStatuses! */
             enum Status {
                 RUNNING = 0x01, // MySQL is active.
                 BLOCKED = 0x02,
@@ -54,15 +54,14 @@ namespace nova { namespace guest { namespace mysql {
                 CRASHED = 0x06, // When MySQL died after starting.
                 FAILED = 0x08,
                 BUILDING = 0x09, // MySQL is being installed / prepared.
-                UNKNOWN=0x16  // Set by Nova when the guest becomes unresponsive
+                UNKNOWN=0x16,  // Set when the guest becomes unresponsive
+                NEW = 0x17 // Set when the instance is shiny and new.
             };
 
             MySqlAppStatus(nova::db::mysql::MySqlConnectionWithDefaultDbPtr
                                  nova_db,
-                             const char * guest_ethernet_device,
                              unsigned long nova_db_reconnect_wait_time,
-                             boost::optional<int> preset_instance_id
-                                 = boost::none,
+                             const char * guest_id,
                              MySqlAppStatusContext * context
                                  = new MySqlAppStatusContext());
 
@@ -106,9 +105,6 @@ namespace nova { namespace guest { namespace mysql {
              *  installed or the installation procedure failed. */
             Status get_actual_db_status() const;
 
-            /** Determines the ID of this instance in the Nova DB. */
-            int get_guest_instance_id();
-
             /** If true, updates are restricted until the mode is switched
              *  off. */
             bool is_mysql_restarting() const;
@@ -133,18 +129,15 @@ namespace nova { namespace guest { namespace mysql {
 
             boost::optional<std::string> find_mysql_pid_file() const;
 
-            /** Talks to Nova DB to get the status of the MySQL app. */
-            boost::optional<Status> get_status_from_nova_db();
+            boost::optional<Status> get_status_from_nova_db() const;
 
-            const std::string guest_ethernet_device;
+            const char * guest_id;
 
             nova::db::mysql::MySqlConnectionWithDefaultDbPtr nova_db;
 
             boost::mutex nova_db_mutex;
 
             const unsigned long nova_db_reconnect_wait_time;
-
-            const boost::optional<int> preset_instance_id;
 
             bool restart_mode;
 

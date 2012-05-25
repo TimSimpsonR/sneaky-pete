@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <sys/socket.h>
+#include <string.h>
 
 
 using nova::guest::GuestException;
@@ -85,12 +86,19 @@ const char * IsoTime::c_str() const {
 }
 
 IsoDateTime::IsoDateTime() {
-    set_time(str, sizeof(str), "%Y-%m-%d %H:%M:%S");
+    set_to_now();
+}
+
+bool IsoDateTime::operator==(const IsoDateTime & rhs) const {
+    return 0 == strncmp(this->str, rhs.str, sizeof(str));
 }
 
 const char * IsoDateTime::c_str() const {
     return str;
 }
 
+void IsoDateTime::set_to_now() {
+    set_time(str, sizeof(str), "%Y-%m-%d %H:%M:%S");
+}
 
 }}} // end nova::guest::utils

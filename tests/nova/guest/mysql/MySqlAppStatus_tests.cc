@@ -85,7 +85,7 @@ struct MySqlAppStatusDefaultTestContext
 
 struct MySqlAppStatusTestsFixture {
     FlagValues flags;
-    int id;
+    const char * id;
     MySqlConnectionWithDefaultDbPtr nova_db;
     MySqlAppStatus updater;
 
@@ -94,12 +94,11 @@ struct MySqlAppStatusTestsFixture {
         nova_db(new MySqlConnectionWithDefaultDb(flags.nova_sql_host(),
             flags.nova_sql_user(), flags.nova_sql_password(), flags.nova_sql_database())),
         updater(nova_db,
-                flags.guest_ethernet_device(),
                 flags.nova_sql_reconnect_wait_time(),
-                optional<int>(-255),
+                flags.guest_id(),
                 new MySqlAppStatusDefaultTestContext())
     {
-        id = updater.get_guest_instance_id();
+        id = updater.guest_id;
 
         CHECK_POINT();
         delete_row();
@@ -112,8 +111,8 @@ struct MySqlAppStatusTestsFixture {
 
     void delete_row() {
         MySqlPreparedStatementPtr stmt = nova_db->prepare_statement(
-            "DELETE from guest_status WHERE instance_id = ?");
-        stmt->set_int(0, id);
+            "DELETE from service_statuses WHERE instance_id = ?");
+        stmt->set_string(0, id);
         stmt->execute(0);
     }
 };

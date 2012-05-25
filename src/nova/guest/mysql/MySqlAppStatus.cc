@@ -51,16 +51,14 @@ bool MySqlAppStatusContext::is_file(const char * file_path) const {
 
 MySqlAppStatus::MySqlAppStatus(MySqlConnectionWithDefaultDbPtr
                                        nova_db_connection,
-                                   const char * guest_ethernet_device,
                                    unsigned long nova_db_reconnect_wait_time,
-                                   boost::optional<int> preset_instance_id,
+                                   const char * guest_id,
                                    MySqlAppStatusContext * context)
 : context(context),
-  guest_ethernet_device(guest_ethernet_device),
+  guest_id(guest_id),
   nova_db(nova_db_connection),
   nova_db_mutex(),
   nova_db_reconnect_wait_time(nova_db_reconnect_wait_time),
-  preset_instance_id(preset_instance_id),
   restart_mode(false),
   status(boost::none)
 {
@@ -149,25 +147,6 @@ MySqlAppStatus::Status MySqlAppStatus::get_actual_db_status() const {
     }
 }
 
-int MySqlAppStatus::get_guest_instance_id() {
-    if (preset_instance_id) {
-        return preset_instance_id.get();
-    }
-    string address = utils::get_ipv4_address(guest_ethernet_device.c_str());
-
-    string text = str(format("SELECT instance_id FROM fixed_ips WHERE "
-                      "address=\"%s\"") % nova_db->escape_string(address.c_str()));
-    MySqlResultSetPtr result = nova_db->query(text.c_str());
-    if (!result->next()) {
-        NOVA_LOG_ERROR2("Could not find guest instance for host given address "
-                        "%s.", address.c_str());
-        throw MySqlGuestException(MySqlGuestException::GUEST_INSTANCE_ID_NOT_FOUND);
-    }
-    optional<string> id = result->get_string(0);
-    NOVA_LOG_DEBUG2("instance from db=%s", id.get().c_str());
-    return boost::lexical_cast<int>(id.get().c_str());
-}
-
 const char * MySqlAppStatus::get_current_status_string() const {
     if (status) {
         return status_name(status.get());
@@ -176,10 +155,10 @@ const char * MySqlAppStatus::get_current_status_string() const {
     }
 }
 
-optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
-    int instance_id = get_guest_instance_id();
-    string text = str(format("SELECT state FROM guest_status WHERE "
-                             "instance_id= %d ") % instance_id);
+optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db()
+const {
+    string text = str(format("SELECT status_id FROM service_statuses WHERE "
+                             "instance_id= '%s' ") % guest_id);
     MySqlResultSetPtr result = nova_db->query(text.c_str());
     if (result->next()) {
         optional<int> status_as_int = result->get_int(0);
@@ -192,7 +171,8 @@ optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db() {
 }
 
 bool MySqlAppStatus::is_mysql_installed() const {
-    return (status && status.get() != BUILDING && status.get() != FAILED);
+    return (status && status.get() != NEW &&
+            status.get() != BUILDING && status.get() != FAILED);
 }
 
 bool MySqlAppStatus::is_mysql_restarting() const {
@@ -242,8 +222,6 @@ void MySqlAppStatus::repeatedly_attempt_mysql_method(
 }
 
 void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
-    int instance_id = get_guest_instance_id();
-
     const char * description = status_name(status);
     Status state = status;
     NOVA_LOG_INFO2("Updating MySQL app status to %d (%s).", ((int)status),
@@ -253,23 +231,20 @@ void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
     if (get_status_from_nova_db() == boost::none) {
         NOVA_LOG_INFO("Inserting new Guest status row. Why wasn't this there?");
         stmt = nova_db->prepare_statement(
-            "INSERT INTO guest_status "
-            "(created_at, updated_at, instance_id, state, state_description) "
-            "VALUES(?, ?, ?, ?, ?) ");
-        stmt->set_string(0, now.c_str());
-        stmt->set_string(1, now.c_str());
-        stmt->set_int(2, instance_id);
-        stmt->set_int(3, (int)state);
-        stmt->set_string(4, description);
+            "INSERT INTO service_statuses "
+            "(instance_id, status_id, status_description) "
+            "VALUES(?, ?, ?) ");
+        stmt->set_string(0, guest_id);
+        stmt->set_int(1, (int)state);
+        stmt->set_string(2, description);
     } else {
         stmt = nova_db->prepare_statement(
-            "UPDATE guest_status "
-            "SET state_description=?, state=?, updated_at=? "
+            "UPDATE service_statuses "
+            "SET status_description=?, status_id=? "
             "WHERE instance_id=?");
         stmt->set_string(0, description);
         stmt->set_int(1, (int) state);
-        stmt->set_string(2, now.c_str());
-        stmt->set_int(3, instance_id);
+        stmt->set_string(2, guest_id);
     }
     stmt->execute(0);
     this->status = optional<int>(status);
@@ -292,8 +267,12 @@ const char * MySqlAppStatus::status_name(MySqlAppStatus::Status status) {
             return "running";
         case SHUTDOWN:
             return "shutdown";
-        default:
+        case NEW:
+            return "new";
+        case UNKNOWN:
             return "unknown_case";
+        default:
+            return "!invalid status code!";
     }
 }
 

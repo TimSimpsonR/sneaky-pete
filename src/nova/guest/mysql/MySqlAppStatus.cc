@@ -281,7 +281,7 @@ void MySqlAppStatus::update() {
     nova_db->ensure();
 
     if (is_mysql_installed() && !is_mysql_restarting()) {
-        NOVA_LOG_INFO("Determining status of MySQL app...");
+        NOVA_LOG_TRACE("Determining status of MySQL app...");
         Status status = get_actual_db_status();
         set_status(status);
     } else {

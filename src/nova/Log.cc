@@ -28,6 +28,8 @@ namespace {
                 return "ERROR";
             case Log::LEVEL_INFO:
                 return "INFO ";
+            case Log::LEVEL_TRACE:
+                return "TRACE";
             default:
                 return "UNKNOWN!";
         }
@@ -79,12 +81,12 @@ LogFileOptions::LogFileOptions(string path, optional<size_t> max_size,
  *---------------------------------------------------------------------------*/
 
 LogOptions::LogOptions(boost::optional<LogFileOptions> file,
-                       bool use_std_streams)
- : file(file), use_std_streams(use_std_streams) {
+                       bool use_std_streams, bool show_trace)
+ : file(file), show_trace(show_trace), use_std_streams(use_std_streams) {
 }
 
 LogOptions LogOptions::simple() {
-    LogOptions log_options(boost::none, true);
+    LogOptions log_options(boost::none, true, true);
     return log_options;
 }
 
@@ -233,6 +235,9 @@ bool Log::should_rotate_logs() {
 void Log::write(const char * file_name, int line_number, Log::Level level,
                 const char * message)
 {
+    if (level == LEVEL_TRACE && !options.show_trace) {
+        return;
+    }
     IsoDateTime time;
     const char * level_string = level_to_string(level);
     boost::lock_guard<boost::mutex> lock(mutex);

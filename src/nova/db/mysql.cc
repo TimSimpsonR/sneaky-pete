@@ -34,6 +34,7 @@ namespace {
             const char* begin_of_new_string = line + start_index;
             const regoff_t match_size = end_index - start_index;
             if (match_size > 0) {
+                str.clear();
                 str.append(begin_of_new_string, match_size);
             }
         }

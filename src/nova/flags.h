@@ -113,6 +113,8 @@ class FlagValues {
 
         boost::optional<double> log_file_max_time() const;
 
+        bool log_show_trace() const;
+
         bool log_use_std_streams() const;
 
         /** Time MySQL we'll wait for the MySQL app to change from running to

@@ -60,10 +60,17 @@ namespace {
     /** Write a new file thats just like the original but with a different
      *  password. */
     void write_temp_mycnf_with_admin_account(const char * original_file_path,
+                                             const char * alt_file_path,
                                              const char * temp_file_path,
                                              const char * password) {
         ifstream mycnf_file;
         mycnf_file.open(original_file_path);
+        if (mycnf_file.fail()) {
+            NOVA_LOG_ERROR2("Error reading from my.cnf file %s, switching "
+                            "to %s.", original_file_path, alt_file_path);
+            mycnf_file.close();
+            mycnf_file.open(alt_file_path);
+        }
         ofstream tmp_file;
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
@@ -72,6 +79,12 @@ namespace {
         }
         string line;
         while(!mycnf_file.eof()) {
+            if (mycnf_file.fail()) {
+                NOVA_LOG_ERROR2("Error reading from my.cnf file: %s.",
+                                original_file_path);
+                throw MySqlGuestException(
+                    MySqlGuestException::CANT_READ_ORIGINAL_MYCNF);
+            }
             std::getline(mycnf_file, line);
             tmp_file << line << std::endl;
             if (line.find("[client]", 0) != string::npos) {
@@ -131,7 +144,7 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
     replace_mycnf_with_template(template_path.c_str(), ORIG_MYCNF);
 
     NOVA_LOG_INFO("Writing new temp my.cnf.");
-    write_temp_mycnf_with_admin_account(ORIG_MYCNF, TMP_MYCNF,
+    write_temp_mycnf_with_admin_account(ORIG_MYCNF, HACKY_MYCNF, TMP_MYCNF,
                                         admin_password.c_str());
 
     NOVA_LOG_INFO("Copying tmp file so we can log in (permissions work-around).");

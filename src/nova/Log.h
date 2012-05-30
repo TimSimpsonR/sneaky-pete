@@ -47,8 +47,11 @@ namespace nova {
 
     struct LogOptions {
         boost::optional<LogFileOptions> file;
+        bool show_trace;
         bool use_std_streams;
-        LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams);
+
+        LogOptions(boost::optional<LogFileOptions> file, bool use_std_streams,
+                   bool show_trace);
 
         /** Creates a simple set of LogOptions. Useful for tests. */
         static LogOptions simple();
@@ -80,7 +83,8 @@ namespace nova {
             enum Level {
                 LEVEL_DEBUG,
                 LEVEL_ERROR,
-                LEVEL_INFO
+                LEVEL_INFO,
+                LEVEL_TRACE
             };
 
             boost::optional<size_t> current_log_file_size();
@@ -170,6 +174,8 @@ namespace nova {
         __FILE__, __LINE__, nova::Log::LEVEL_INFO, arg); }
     #define NOVA_LOG_ERROR(arg) { nova::Log::get_instance()->write( \
         __FILE__, __LINE__, nova::Log::LEVEL_ERROR, arg); }
+    #define NOVA_LOG_TRACE(arg) { nova::Log::get_instance()->write( \
+        __FILE__, __LINE__, nova::Log::LEVEL_TRACE, arg); }
 
     #define NOVA_LOG_DEBUG2 nova::Log::get_instance()->write_fmt( \
         __FILE__, __LINE__, nova::Log::LEVEL_DEBUG)
@@ -177,6 +183,8 @@ namespace nova {
         __FILE__, __LINE__, nova::Log::LEVEL_INFO)
     #define NOVA_LOG_ERROR2 nova::Log::get_instance()->write_fmt( \
         __FILE__, __LINE__, nova::Log::LEVEL_ERROR)
+    #define NOVA_LOG_TRACE2 nova::Log::get_instance()->write_fmt( \
+        __FILE__, __LINE__, nova::Log::LEVEL_TRACE)
 }
 
 #endif

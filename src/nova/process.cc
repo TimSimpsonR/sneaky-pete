@@ -20,10 +20,10 @@
 
 // Be careful with this Macro, as it comments out the entire line.
 #ifdef _NOVA_PROCESS_VERBOSE
-#define LOG_DEBUG(a) NOVA_LOG_DEBUG(a)
-#define LOG_DEBUG2(a, b) NOVA_LOG_DEBUG2(a, b)
-#define LOG_DEBUG3(a, b, c) NOVA_LOG_DEBUG2(a, b, c)
-#define LOG_DEBUG8(a, b, c, d, e, f, g, h) NOVA_LOG_DEBUG2(a, b, c, d, e, f, g, h)
+#define LOG_DEBUG(a) NOVA_LOG_TRACE(a)
+#define LOG_DEBUG2(a, b) NOVA_LOG_TRACE2(a, b)
+#define LOG_DEBUG3(a, b, c) NOVA_LOG_TRACE2(a, b, c)
+#define LOG_DEBUG8(a, b, c, d, e, f, g, h) NOVA_LOG_TRACE2(a, b, c, d, e, f, g, h)
 #else
 #define LOG_DEBUG(a) /* log.debug(a) */
 #define LOG_DEBUG2(a, b) /* log.debug(a, b) */
@@ -146,7 +146,7 @@ namespace {
                 str << " ";
             }
             str << "}";
-            LOG_DEBUG(str.str().c_str());
+            NOVA_LOG_DEBUG(str.str().c_str());
         }
         const posix_spawn_file_actions_t * file_actions = NULL;
         if (actions != 0) {
@@ -362,7 +362,7 @@ void Process::set_eof() {
         while(((child_pid = waitpid(pid, &status, options)) == -1)
               && (errno == EINTR));
         #ifdef _NOVA_PROCESS_VERBOSE
-            NOVA_LOG_DEBUG2("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
+            NOVA_LOG_TRACE2("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
                             "WIFEXITED=%d, WEXITSTATUS=%d, "
                             "WIFSIGNALED=%d, WIFSTOPPED=%d",
                             child_pid, pid,

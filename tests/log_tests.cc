@@ -70,7 +70,7 @@ struct LogTestsFixture {
         }
         LogFileOptions file_options(log_file, boost::optional<size_t>(10000),
                     max_time_in_seconds, 3);
-        LogOptions options(optional<LogFileOptions>(file_options), false);
+        LogOptions options(optional<LogFileOptions>(file_options), false, false);
         nova::Log::initialize(options);
         ++ test_count;
     }

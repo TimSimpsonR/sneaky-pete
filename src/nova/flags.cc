@@ -293,6 +293,10 @@ optional<const char *> FlagValues::log_file_path() const {
     return get_flag_value<const char *>(*map, "log_file_path");
 }
 
+bool FlagValues::log_show_trace() const {
+    return get_flag_value<bool>(*map, "log_show_trace", false);
+}
+
 bool FlagValues::log_use_std_streams() const {
     return get_flag_value<bool>(*map, "log_use_std_streams", true);
 }

@@ -3,8 +3,10 @@
 
 
 #include "nova/db/mysql.h"
+#include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
 #include <string>
+#include <boost/tuple/tuple.hpp>
 #include "nova/guest/mysql/types.h"
 #include <vector>
 
@@ -37,9 +39,13 @@ namespace nova { namespace guest { namespace mysql {
                 return con;
             }
 
-            MySqlDatabaseListPtr list_databases();
+            boost::tuple<MySqlDatabaseListPtr, boost::optional<std::string> >
+                list_databases(unsigned int limit,
+                               boost::optional<std::string> marker);
 
-            MySqlUserListPtr list_users();
+            boost::tuple<MySqlUserListPtr, boost::optional<std::string> >
+                list_users(unsigned int limit,
+                           boost::optional<std::string> marker);
 
             bool is_root_enabled();
 

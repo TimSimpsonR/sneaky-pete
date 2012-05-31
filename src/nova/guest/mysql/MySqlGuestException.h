@@ -17,6 +17,7 @@ namespace nova { namespace guest { namespace mysql {
                 COULD_NOT_STOP_MYSQL,
                 GENERAL,
                 GUEST_INSTANCE_ID_NOT_FOUND,
+                INVALID_ZERO_LIMIT,
                 MYSQL_NOT_STOPPED,
                 NO_PASSWORD_FOR_CREATE_USER
             };

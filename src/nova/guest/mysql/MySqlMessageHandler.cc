@@ -7,7 +7,9 @@
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/guest/mysql/MySqlApp.h"
+#include <boost/optional.hpp>
 #include <sstream>
+#include <boost/tuple/tuple.hpp>
 
 
 using nova::guest::apt::AptGuest;
@@ -18,7 +20,9 @@ using nova::JsonDataPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
 using namespace nova::db::mysql;
+using boost::optional;
 using namespace std;
+using boost::tie;
 
 
 
@@ -133,20 +137,35 @@ namespace {
     }
 
     JSON_METHOD(list_users) {
+        unsigned int limit = args->get_positive_int("limit");
+        optional<string> marker = args->get_optional_string("marker");
+
         MySqlAdminPtr sql = guest->sql_admin();
-        std::stringstream user_json;
-        MySqlUserListPtr users = sql->list_users();
-        user_json << "[";
-        bool once = false;
-        BOOST_FOREACH(MySqlUserPtr & user, *users) {
-            if (once) {
-                user_json << ", ";
+        MySqlUserListPtr users;
+        optional<string> next_marker;
+        boost::tie(users, next_marker) = sql->list_users(limit, marker);
+
+        std::stringstream json;
+        json << "[";
+            // Element 0 = users array.
+            json << "[";
+                bool once = false;
+                BOOST_FOREACH(MySqlUserPtr & user, *users) {
+                    if (once) {
+                        json << ", ";
+                    }
+                    user_to_stream(json, user);
+                    once = true;
+                }
+            json << "], ";
+            // Element 1 = next_marker
+            if (next_marker) {
+                json << JsonData::json_string(next_marker.get());
+            } else {
+                json << "null";
             }
-            user_to_stream(user_json, user);
-            once = true;
-        }
-        user_json << "]";
-        JsonDataPtr rtn(new JsonArray(user_json.str().c_str()));
+        json << "]";
+        JsonDataPtr rtn(new JsonArray(json.str().c_str()));
         return rtn;
     }
 
@@ -158,26 +177,41 @@ namespace {
     }
 
     JSON_METHOD(list_databases) {
+        unsigned int limit = args->get_positive_int("limit");
+        optional<string> marker = args->get_optional_string("marker");
+
         MySqlAdminPtr sql = guest->sql_admin();
-        std::stringstream database_xml;
-        MySqlDatabaseListPtr databases = sql->list_databases();
-        database_xml << "[";
-        bool once = false;
-        BOOST_FOREACH(MySqlDatabasePtr & database, *databases) {
-            if (once) {
-                database_xml << ", ";
-            }
-            once = true;
-            database_xml << "{ \"_name\":"
+        MySqlDatabaseListPtr databases;
+        optional<string> next_marker;
+        boost::tie(databases, next_marker) = sql->list_databases(limit, marker);
+
+        std::stringstream json;
+        json << "[";
+            // Element 0 = database list.
+            json << "[";
+                bool once = false;
+                BOOST_FOREACH(MySqlDatabasePtr & database, *databases) {
+                    if (once) {
+                        json << ", ";
+                    }
+                    once = true;
+                    json << "{ \"_name\":"
                          << JsonData::json_string(database->get_name())
                          << ", \"_collate\":"
                          << JsonData::json_string(database->get_collation())
                          << ", \"_character_set\":"
                          << JsonData::json_string(database->get_character_set())
                          << " }";
-        }
-        database_xml << "]";
-        JsonDataPtr rtn(new JsonArray(database_xml.str().c_str()));
+                }
+            json << "], ";
+            // Element 1 = next marker
+            if (next_marker) {
+                json << JsonData::json_string(next_marker.get());
+            } else {
+                json << "null";
+            }
+        json << "]";
+        JsonDataPtr rtn(new JsonArray(json.str().c_str()));
         return rtn;
     }
 

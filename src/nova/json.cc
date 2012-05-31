@@ -110,6 +110,8 @@ const char * JsonException::code_to_string(Code code) {
             return "The value is not an integer.";
         case TYPE_ERROR_NOT_OBJECT:
             return "The value is not an object.";
+        case TYPE_ERROR_NOT_POSITIVE_INT:
+            return "The value is not a positive integer.";
         case TYPE_ERROR_NOT_STRING:
             return "The value is not a string.";
         case TYPE_INCORRECT:
@@ -426,9 +428,17 @@ void JsonObject::get_string(const char * key, string & value) const {
 }
 
 int JsonObject::get_int_or_default(const char * key,
-                                               const int default_value) const {
+                                   const int default_value) const {
     json_object * int_obj = json_object_object_get(object, key);
     return get_json_int_or_default(int_obj, default_value);
+}
+
+unsigned int JsonObject::get_positive_int(const char * key) const {
+    int any_int = get_int(key);
+    if (any_int < 0) {
+        throw JsonException(JsonException::TYPE_ERROR_NOT_POSITIVE_INT);
+    }
+    return (unsigned int) any_int;
 }
 
 const char * JsonObject::get_string_or_default(const char * key,

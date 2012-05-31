@@ -21,12 +21,14 @@ using nova::db::mysql::MySqlException;
 using nova::db::mysql::MySqlResultSet;
 using nova::db::mysql::MySqlResultSetPtr;
 using nova::db::mysql::MySqlPreparedStatementPtr;
+using boost::make_tuple;
 using boost::none;
 using boost::optional;
 using nova::Log;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using namespace std;
+using boost::tuple;
 
 
 namespace nova { namespace guest { namespace mysql {
@@ -142,40 +144,84 @@ MySqlUserPtr MySqlAdmin::enable_root() {
     return root_user;
 }
 
-MySqlDatabaseListPtr MySqlAdmin::list_databases() {
-    MySqlDatabaseListPtr databases(new MySqlDatabaseList());
-    MySqlResultSetPtr res = con->query(
-    "            SELECT"
-    "                schema_name as name,"
-    "                default_character_set_name as charset,"
-    "                default_collation_name as collation"
-    "            FROM"
-    "                information_schema.schemata"
-    "            WHERE"
-    "                schema_name not in"
-    "                ('mysql', 'information_schema', 'lost+found')"
-    "            ORDER BY"
-    "                schema_name ASC");
 
+tuple<MySqlDatabaseListPtr, optional<string> >
+MySqlAdmin::list_databases(unsigned int limit, optional<string> marker)
+{
+    if (limit == 0) {
+        throw MySqlGuestException(MySqlGuestException::INVALID_ZERO_LIMIT);
+    }
+    stringstream query;
+    query << "   SELECT"
+        "            schema_name as name,"
+        "            default_character_set_name as charset,"
+        "            default_collation_name as collation"
+        "        FROM"
+        "            information_schema.schemata"
+        "        WHERE"
+        "            schema_name not in"
+        "            ('mysql', 'information_schema', 'lost+found')";
+    if (marker) {
+        query << "\n AND schema_name > '"
+              << con->escape_string(marker.get().c_str()) << "'";
+    }
+    query <<
+        "        ORDER BY"
+        "            schema_name ASC"
+        "        LIMIT " << limit + 1;
+
+    MySqlResultSetPtr res = con->query(query.str().c_str());
+
+    MySqlDatabaseListPtr databases(new MySqlDatabaseList());
+    MySqlDatabasePtr database;
+    optional<string> next_marker(boost::none);
     while (res->next()) {
-        MySqlDatabasePtr database(new MySqlDatabase());
+        if (databases->size() >= limit) {
+            // We asked for limit + 1, so we actually don't want to return
+            // this value. We just make sure something past the limit exists
+            // to know if we should return a marker.
+            next_marker = database->get_name();
+            break;
+        }
+        database.reset(new MySqlDatabase());
         database->set_name(res->get_string(0).get());
         database->set_character_set(res->get_string(1).get());
         database->set_collation(res->get_string(2).get());
         databases->push_back(database);
     }
     res->close();
-    return databases;
+    return make_tuple(databases, next_marker);
 }
 
-MySqlUserListPtr MySqlAdmin::list_users() {
-    MySqlUserListPtr users(new MySqlUserList());
+tuple<MySqlUserListPtr, optional<string> >
+MySqlAdmin::list_users(unsigned int limit, optional<string> marker)
+{
+    if (limit == 0) {
+        throw MySqlGuestException(MySqlGuestException::INVALID_ZERO_LIMIT);
+    }
     UserMap user_map;
     // Get the list of users
-    MySqlResultSetPtr res = con->query(
-        "select User from mysql.user where host != 'localhost'");
+    stringstream query;
+    query << "SELECT User FROM mysql.user WHERE host != 'localhost'";
+    if (marker) {
+        query << " AND User > '"
+              << con->escape_string(marker.get().c_str()) << "'";
+    }
+    query << " ORDER BY User ASC LIMIT " << limit + 1;
+
+    MySqlResultSetPtr res = con->query(query.str().c_str());
+    MySqlUserListPtr users(new MySqlUserList());
+    MySqlUserPtr user;
+    optional<string> next_marker(boost::none);
     while (res->next()) {
-        MySqlUserPtr user(new MySqlUser());
+        if (users->size() >= limit) {
+            // We asked for limit + 1, so we actually don't want to return
+            // this value. We just make sure something past the limit exists
+            // to know if we should return a marker.
+            next_marker = user->get_name();
+            break;
+        }
+        user.reset(new MySqlUser());
         user->set_name(res->get_string(0).get());
         users->push_back(user);
         user_map[user->get_name()] = user;
@@ -188,14 +234,16 @@ MySqlUserListPtr MySqlAdmin::list_users() {
                 "group by grantee, table_schema;");
     while(userDbRes->next()) {
         string username = extract_user(userDbRes->get_string(0).get());
-        MySqlUserPtr & user = user_map[username];
-        MySqlDatabasePtr database(new MySqlDatabase());
-        database->set_name(userDbRes->get_string(1).get());
-        user->get_databases()->push_back(database);
+        if (user_map.find(username) != user_map.end()) {
+            MySqlUserPtr & user = user_map[username];
+            MySqlDatabasePtr database(new MySqlDatabase());
+            database->set_name(userDbRes->get_string(1).get());
+            user->get_databases()->push_back(database);
+        }
     }
     userDbRes->close();
 
-    return users;
+    return make_tuple(users, next_marker);
 }
 
 bool MySqlAdmin::is_root_enabled() {

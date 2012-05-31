@@ -32,6 +32,8 @@ const char *  MySqlGuestException::code_to_string(Code code) {
             return "Could not stop MySQL!";
         case GUEST_INSTANCE_ID_NOT_FOUND:
             return "Guest instance ID not found.";
+        case INVALID_ZERO_LIMIT:
+            return "Limit parameter must be positive and non-zero.";
         case MYSQL_NOT_STOPPED:
             return "MySQL was not stopped.";
         case NO_PASSWORD_FOR_CREATE_USER:

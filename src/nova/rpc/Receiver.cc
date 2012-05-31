@@ -104,6 +104,7 @@ void Receiver::finish_message(const GuestOutput & output) {
     } else {
         NOVA_LOG_INFO("Replying to message...");
         #ifdef _DEBUG
+            NOVA_LOG_INFO("Showing the message because SP is in debug mode.");
             NOVA_LOG_INFO2("(DEBUG) Replying with the following: %s",
                            msg.c_str());
         #endif

@@ -24,6 +24,7 @@ namespace nova {
                 TYPE_ERROR_NOT_ARRAY,
                 TYPE_ERROR_NOT_INT,
                 TYPE_ERROR_NOT_OBJECT,
+                TYPE_ERROR_NOT_POSITIVE_INT,
                 TYPE_ERROR_NOT_STRING,
                 TYPE_INCORRECT
             };
@@ -184,6 +185,8 @@ namespace nova {
 
             int get_int_or_default(const char * key,
                                                const int default_value) const;
+
+            unsigned int get_positive_int(const char * key) const;
 
             const char * get_string_or_default(const char * key,
                                                const char * default_value) const;

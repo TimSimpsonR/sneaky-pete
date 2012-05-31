@@ -6,6 +6,10 @@ wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
 sudo apt-key add rabbitmq-signing-key-public.asc
 sudo apt-get update
 
+# Bail on errors.
+set -e
+
+BUILD_DIR=${BUILD_DIR:-/home/vagrant}/sneaky_deps
 
 pkg_install () {
     echo Installing $@...
@@ -27,6 +31,9 @@ hg clone http://hg.rabbitmq.com/rabbitmq-codegen/
 hg clone http://hg.rabbitmq.com/rabbitmq-c/
 
 cd rabbitmq-c
+git submodule init
+git submodule update
+
 autoreconf -i
 ./configure
 # Alter librabbitmq/amqp_connection.c, line 416 / 417 to include the flag

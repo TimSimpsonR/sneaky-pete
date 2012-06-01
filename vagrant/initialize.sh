@@ -31,6 +31,7 @@ hg clone http://hg.rabbitmq.com/rabbitmq-codegen/
 hg clone http://hg.rabbitmq.com/rabbitmq-c/
 
 cd rabbitmq-c
+git reset --hard 3ff795807f102aa866aec4d0921dd83ab3b9757d
 git submodule init
 git submodule update
 

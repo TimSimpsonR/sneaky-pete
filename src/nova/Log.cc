@@ -243,12 +243,14 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
     boost::lock_guard<boost::mutex> lock(mutex);
     if (options.use_std_streams) {
         std::ostream & out = (level == LEVEL_INFO) ? std::cout : std::cerr;
-        out << time.c_str() << " " << level_string << " " << message
+        out << time.c_str() << " " << boost::this_thread::get_id() << " "
+            << level_string << " " << message
             << " for " << file_name <<  ":" << line_number << std::endl;
     }
     {
         if (file.is_open()) {
-            file << time.c_str() << " " << level_string << " " << message
+            file << time.c_str() << " " << boost::this_thread::get_id() << " "
+                 << level_string << " " << message
                  << " for " << file_name <<  ":" << line_number << std::endl;
             file.flush();
 

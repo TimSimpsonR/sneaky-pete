@@ -242,6 +242,7 @@ unit u_nova_Log
       src/nova/Log_rotate_files.cc
     : u_nova_guest_utils
       u_nova_utils_io
+      lib_boost_thread
     : tests/log_tests.cc
       u_nova_utils_regex
     ;

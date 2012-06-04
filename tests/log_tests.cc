@@ -101,7 +101,7 @@ void check_log_line(const string msg, const string & actual_line,
                     const string & level, const string & expected_value) {
     string regex_string = str(format(
         "[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
-        "\\s{1}0x[0-9a-f]{7}\\s{1}%s %s for tests/log_tests.cc:[0-9]+")
+        "\\s{1}0x[0-9a-f]+\\s{1}%s %s for tests/log_tests.cc:[0-9]+")
         % level % expected_value);
     Regex regex(regex_string.c_str());
     RegexMatchesPtr matches = regex.match(actual_line.c_str());
@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(writing_some_lines_and_rotating) {
         vector<string> lines;
         log_fixture.read_file(lines, 2);
         Regex regex("[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                    "\\s{1}0x[0-9a-f]{7}\\s{1}DEBUG Hello from the tests\\. How\'re you doing\\? "
+                    "\\s{1}0x[0-9a-f]+\\s{1}DEBUG Hello from the tests\\. How\'re you doing\\? "
                     "for tests/log_tests.cc:[0-9]+");
         RegexMatchesPtr matches = regex.match(lines[0].c_str());
         BOOST_CHECK_EQUAL(!!matches, true);
@@ -208,7 +208,7 @@ BOOST_AUTO_TEST_CASE(writing_some_lines_and_rotating) {
         vector<string> lines;
         log_fixture.read_file(lines);
         Regex regex("[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                "\\s{1}0x[0-9a-f]{7}\\s{1}INFO  Bye "
+                "\\s{1}0x[0-9a-f]+\\s{1}INFO  Bye "
                 "for tests/log_tests.cc:[0-9]+");
         RegexMatchesPtr matches = regex.match(lines[0].c_str());
         BOOST_CHECK_EQUAL(!!matches, true);

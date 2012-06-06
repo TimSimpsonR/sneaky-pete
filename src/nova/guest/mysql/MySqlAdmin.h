@@ -41,11 +41,13 @@ namespace nova { namespace guest { namespace mysql {
 
             boost::tuple<MySqlDatabaseListPtr, boost::optional<std::string> >
                 list_databases(unsigned int limit,
-                               boost::optional<std::string> marker);
+                               boost::optional<std::string> marker,
+                               bool include_marker = false);
 
             boost::tuple<MySqlUserListPtr, boost::optional<std::string> >
                 list_users(unsigned int limit,
-                           boost::optional<std::string> marker);
+                           boost::optional<std::string> marker,
+                           bool include_marker = false);
 
             bool is_root_enabled();
 

@@ -146,7 +146,8 @@ MySqlUserPtr MySqlAdmin::enable_root() {
 
 
 tuple<MySqlDatabaseListPtr, optional<string> >
-MySqlAdmin::list_databases(unsigned int limit, optional<string> marker)
+MySqlAdmin::list_databases(unsigned int limit, optional<string> marker,
+                           bool include_marker)
 {
     if (limit == 0) {
         throw MySqlGuestException(MySqlGuestException::INVALID_ZERO_LIMIT);
@@ -162,8 +163,13 @@ MySqlAdmin::list_databases(unsigned int limit, optional<string> marker)
         "            schema_name not in"
         "            ('mysql', 'information_schema', 'lost+found')";
     if (marker) {
-        query << "\n AND schema_name > '"
-              << con->escape_string(marker.get().c_str()) << "'";
+        query << "\n AND schema_name ";
+        if (include_marker) {
+            query << " >= ";
+        } else {
+            query << " > ";
+        }
+        query << "'" << con->escape_string(marker.get().c_str()) << "'";
     }
     query <<
         "        ORDER BY"
@@ -194,7 +200,8 @@ MySqlAdmin::list_databases(unsigned int limit, optional<string> marker)
 }
 
 tuple<MySqlUserListPtr, optional<string> >
-MySqlAdmin::list_users(unsigned int limit, optional<string> marker)
+MySqlAdmin::list_users(unsigned int limit, optional<string> marker,
+                       bool include_marker)
 {
     if (limit == 0) {
         throw MySqlGuestException(MySqlGuestException::INVALID_ZERO_LIMIT);
@@ -204,8 +211,13 @@ MySqlAdmin::list_users(unsigned int limit, optional<string> marker)
     stringstream query;
     query << "SELECT User FROM mysql.user WHERE host != 'localhost'";
     if (marker) {
-        query << " AND User > '"
-              << con->escape_string(marker.get().c_str()) << "'";
+        query << " AND User ";
+        if (include_marker) {
+            query << " >= ";
+        } else {
+            query << " > ";
+        }
+        query << "'" << con->escape_string(marker.get().c_str()) << "'";
     }
     query << " ORDER BY User ASC LIMIT " << limit + 1;
 

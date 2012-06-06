@@ -270,3 +270,16 @@ BOOST_AUTO_TEST_CASE(get_int_or_default_works)
     BOOST_CHECK_EQUAL(object.get_int_or_default("tomato", 0), 1);
     BOOST_CHECK_EQUAL(object.get_int_or_default("tuna", 5), 5);
 }
+
+BOOST_AUTO_TEST_CASE(get_bool_works)
+{
+    JsonObject object(json_tokener_parse(
+        "{ 'spam': true, 'eggs':false }"));
+    BOOST_CHECK_EQUAL(object.get_bool("spam"), true);
+    BOOST_CHECK_EQUAL(object.get_bool("eggs"), false);
+    BOOST_CHECK_EQUAL(object.get_optional_bool("legs"), boost::none);
+    BOOST_CHECK_EQUAL(object.get_optional_bool("spam"),
+                      boost::optional<bool>(true));
+    BOOST_CHECK_EQUAL(object.get_optional_bool("eggs"),
+                      boost::optional<bool>(false));
+}

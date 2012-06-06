@@ -22,6 +22,7 @@ namespace nova {
                 INDEX_ERROR,
                 KEY_ERROR,
                 TYPE_ERROR_NOT_ARRAY,
+                TYPE_ERROR_NOT_BOOL,
                 TYPE_ERROR_NOT_INT,
                 TYPE_ERROR_NOT_OBJECT,
                 TYPE_ERROR_NOT_POSITIVE_INT,
@@ -170,13 +171,17 @@ namespace nova {
 
             JsonArrayPtr get_array(const char * key) const;
 
+            bool get_bool(const char * key) const;
+
             int get_int(const char * key) const;
 
             JsonObjectPtr get_object(const char * key) const;
 
             JsonObjectPtr get_object_or_empty(const char * key) const;
 
-             boost::optional<std::string> get_optional_string(const char * key)
+            boost::optional<bool> get_optional_bool(const char * key) const;
+
+            boost::optional<std::string> get_optional_string(const char * key)
                 const;
 
             const char * get_string(const char * key) const;

@@ -139,11 +139,14 @@ namespace {
     JSON_METHOD(list_users) {
         unsigned int limit = args->get_positive_int("limit");
         optional<string> marker = args->get_optional_string("marker");
+        bool include_marker = args->get_optional_bool("include_marker")
+            .get_value_or(false);
 
         MySqlAdminPtr sql = guest->sql_admin();
         MySqlUserListPtr users;
         optional<string> next_marker;
-        boost::tie(users, next_marker) = sql->list_users(limit, marker);
+        boost::tie(users, next_marker) = sql->list_users(limit, marker,
+                                                         include_marker);
 
         std::stringstream json;
         json << "[";
@@ -179,11 +182,14 @@ namespace {
     JSON_METHOD(list_databases) {
         unsigned int limit = args->get_positive_int("limit");
         optional<string> marker = args->get_optional_string("marker");
+        bool include_marker = args->get_optional_bool("include_marker")
+            .get_value_or(false);
 
         MySqlAdminPtr sql = guest->sql_admin();
         MySqlDatabaseListPtr databases;
         optional<string> next_marker;
-        boost::tie(databases, next_marker) = sql->list_databases(limit, marker);
+        boost::tie(databases, next_marker) = sql->list_databases(limit,
+            marker, include_marker);
 
         std::stringstream json;
         json << "[";

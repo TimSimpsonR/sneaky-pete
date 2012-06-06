@@ -21,6 +21,18 @@ namespace {
     }
 
     /* Turn json_object into an int and return, throw on error. */
+    inline int validate_json_bool(json_object * const bool_obj,
+                                 const JsonException::Code & not_found_ex) {
+        if (bool_obj == (json_object *)0) {
+            throw JsonException(not_found_ex);
+        }
+        if (json_object_is_type(bool_obj, json_type_boolean) == 0) {
+            throw JsonException(JsonException::TYPE_ERROR_NOT_BOOL);
+        }
+        return json_object_get_int(bool_obj);
+    }
+
+    /* Turn json_object into an int and return, throw on error. */
     inline int validate_json_int(json_object * const int_obj,
                                  const JsonException::Code & not_found_ex) {
         if (int_obj == (json_object *)0) {
@@ -106,6 +118,8 @@ const char * JsonException::code_to_string(Code code) {
             return "No key with the given name found in the JSON object.";
         case TYPE_ERROR_NOT_ARRAY:
             return "The value is not an array.";
+        case TYPE_ERROR_NOT_BOOL:
+            return "The value is not a bool.";
         case TYPE_ERROR_NOT_INT:
             return "The value is not an integer.";
         case TYPE_ERROR_NOT_OBJECT:
@@ -383,6 +397,11 @@ JsonArrayPtr JsonObject::get_array(const char * key) const {
     return rtn;
 }
 
+bool JsonObject::get_bool(const char * key) const {
+    json_object * bool_obj = json_object_object_get(object, key);
+    return validate_json_bool(bool_obj, JsonException::KEY_ERROR);
+}
+
 int JsonObject::get_int(const char * key) const {
     json_object * int_obj = json_object_object_get(object, key);
     return validate_json_int(int_obj, JsonException::KEY_ERROR);
@@ -393,6 +412,16 @@ JsonObjectPtr JsonObject::get_object(const char * key) const {
     validate_json_object(object_obj, JsonException::KEY_ERROR);
     JsonObjectPtr rtn(new JsonObject(object_obj, root));
     return rtn;
+}
+
+optional<bool> JsonObject::get_optional_bool(const char * key) const {
+    json_object * bool_obj = json_object_object_get(object, key);
+    if (bool_obj == (json_object *)0) {
+        return boost::none;
+    } else {
+        bool rtn = validate_json_bool(bool_obj, JsonException::KEY_ERROR);
+        return optional<bool>(rtn);
+    }
 }
 
 optional<string> JsonObject::get_optional_string(const char * key) const {

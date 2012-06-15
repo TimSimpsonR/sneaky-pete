@@ -26,9 +26,9 @@ pkg_install mercurial \
 mkdir $BUILD_DIR/build
 
 # Installing Rabbit
-cd $BUILD_DIR/build
-hg clone http://hg.rabbitmq.com/rabbitmq-codegen/
-hg clone http://hg.rabbitmq.com/rabbitmq-c/
+cd $BUILD_DIR
+git clone git://github.com/rabbitmq/rabbitmq-codegen.git
+git clone git://github.com/alanxz/rabbitmq-c.git
 
 cd rabbitmq-c
 git reset --hard 3ff795807f102aa866aec4d0921dd83ab3b9757d

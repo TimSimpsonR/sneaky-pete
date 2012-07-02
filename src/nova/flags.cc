@@ -4,6 +4,7 @@
 #include "nova/utils/regex.h"
 #include <fstream>
 #include <string.h>
+#include <boost/algorithm/string.hpp>
 
 
 using boost::format;
@@ -11,6 +12,7 @@ using boost::optional;
 using std::string;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
+using boost::algorithm::trim;
 
 namespace nova { namespace flags {
 
@@ -76,6 +78,7 @@ void FlagMap::add_from_arg(const char * arg, bool ignore_mismatch) {
 // Adds a line in the form "--name=value"
 void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
     string line = arg;
+    trim(line);
     if (line.size() > 0 && line.substr(0, 1) == "#") {
         return;
     }
@@ -96,6 +99,8 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
     }
     string name = line.substr(2, index - 2);
     string value = line.substr(index + 1, line.size() - 1);
+    trim(name);
+    trim(value);
     if (map.count(name) == 0) {
         if (name == "flagfile") {
             add_from_file(value.c_str());

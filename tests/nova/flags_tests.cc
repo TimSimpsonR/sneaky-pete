@@ -65,3 +65,12 @@ BOOST_AUTO_TEST_CASE(adding_the_same_key_with_a_different_value_is_not)
     CHECK_EXCEPTION({ flags->add_from_arg("--dinosaur=raptor"); },
                     DUPLICATE_FLAG_VALUE);
 }
+
+BOOST_AUTO_TEST_CASE(spaces_are_trimmed)
+{
+    FlagMapPtr flags(new FlagMap());
+    flags->add_from_arg("--spacey=10  ");
+    BOOST_CHECK_EQUAL(flags->get("spacey"), "10");
+    flags->add_from_arg("         --ardy    =   rocks the party ");
+    BOOST_CHECK_EQUAL(flags->get("ardy"), "rocks the party");
+}

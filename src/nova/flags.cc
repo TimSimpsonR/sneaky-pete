@@ -267,7 +267,7 @@ bool FlagValues::apt_use_sudo() const {
 }
 
 const char * FlagValues::control_exchange() const {
-    return map->get("control_exchange", "nova");
+    return map->get("control_exchange", "reddwarf");
 }
 
 const char * FlagValues::db_backend() const {

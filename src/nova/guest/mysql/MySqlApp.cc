@@ -1,5 +1,6 @@
 #include "nova/guest/mysql/MySqlApp.h"
 #include "nova/guest/apt.h"
+#include <exception>
 #include <boost/format.hpp>
 #include <fstream>
 #include "nova/utils/io.h"
@@ -173,38 +174,35 @@ void MySqlApp::install_and_secure(AptGuest & apt, int memory_mb) {
     NOVA_LOG_INFO("Updating status to BUILDING...");
     status->begin_mysql_install();
 
-    // You may wonder why there's no try / catch around this section which
-    // would change status to a failure state if something went wrong.
-    // The reason why is that the Reddwarf compute manager will time out the
-    // instance. If we added a catch here, it would be harder to test this
-    // ability of the Reddwarf compute manager. We may find a way to add error
-    // handling here anyway as it would speed up acknowledgement of failures,
-    // but the bigger priority is making sure the manager retains the ability
-    // to determine when a guest is misbehaving.
+    try {
+        NOVA_LOG_INFO("Preparing Guest as MySQL Server");
+        install_mysql(apt);
 
-    NOVA_LOG_INFO("Preparing Guest as MySQL Server");
-    install_mysql(apt);
+        string admin_password = mysql::generate_password();
 
-    string admin_password = mysql::generate_password();
+        NOVA_LOG_INFO("Generating root password...");
+        generate_root_password(local_db);
+        NOVA_LOG_INFO("Removing anonymous users...");
+        remove_anonymous_user(local_db);
+        NOVA_LOG_INFO("Removing root access...");
+        remove_remote_root_access(local_db);
+        NOVA_LOG_INFO("Creating admin user...");
+        create_admin_user(local_db, admin_password);
+        NOVA_LOG_INFO("Flushing privileges");
+        local_db.get_connection()->flush_privileges();
+        local_db.get_connection()->close();
 
-    NOVA_LOG_INFO("Generating root password...");
-    generate_root_password(local_db);
-    NOVA_LOG_INFO("Removing anonymous users...");
-    remove_anonymous_user(local_db);
-    NOVA_LOG_INFO("Removing root access...");
-    remove_remote_root_access(local_db);
-    NOVA_LOG_INFO("Creating admin user...");
-    create_admin_user(local_db, admin_password);
-    NOVA_LOG_INFO("Flushing privileges");
-    local_db.get_connection()->flush_privileges();
-    local_db.get_connection()->close();
+        internal_stop_mysql();
+        write_mycnf(apt, memory_mb, admin_password);
+        start_mysql();
 
-    internal_stop_mysql();
-    write_mycnf(apt, memory_mb, admin_password);
-    start_mysql();
-
-    status->end_install_or_restart();
-    NOVA_LOG_INFO("Dbaas preparation complete.");
+        status->end_install_or_restart();
+        NOVA_LOG_INFO("Dbaas preparation complete.");
+    } catch(const std::exception & e) {
+        NOVA_LOG_ERROR2("Error installing MySQL!: %s", e.what());
+        status->end_failed_install();
+        throw;
+    }
 }
 
 void MySqlApp::install_mysql(AptGuest & apt) {

@@ -71,6 +71,10 @@ namespace nova { namespace guest { namespace mysql {
             /* Called before restarting MYSQL. */
             void begin_mysql_restart();
 
+            /* Called when MySQL failed to install. Updates Nova DB to
+             * FAILED. */
+            void end_failed_install();
+
             /* Called after MySQL is installed or restarted. Updates the Nova
              * DB with the actual MySQL status. */
             void end_install_or_restart();

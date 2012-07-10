@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE(When_row_is_in_build_state) {
 
 BOOST_AUTO_TEST_CASE(When_row_is_in_fail_state) {
     CHECK_POINT();
-    updater.set_status(MySqlAppStatus::FAILED);
+    updater.end_failed_install();
 
     BOOST_CHECK_EQUAL(updater.is_mysql_installed(), false);
     BOOST_CHECK_EQUAL(!updater.get_status_from_nova_db(), false);
@@ -166,6 +166,9 @@ BOOST_AUTO_TEST_CASE(When_row_is_in_fail_state) {
 }
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_pingable) {
+    // This class mocks MySQL being pingable and working, by making
+    // "on_execute" not throw anything. So this simulates what happens in
+    // the code when MySQL can be pinged.
     struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual void on_execute(std::stringstream & out, int call_number)
         const {
@@ -190,7 +193,10 @@ BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_pingable) {
 
 BOOST_AUTO_TEST_CASE(After_mysql_is_marked_as_installed_and_mysql_blocked) {
     updater.begin_mysql_install(); // Just to be different.
-
+    // This class mocks MySQL being pingable and working for the first call,
+    // but the second time throws an exception. This is simulates what happens
+    // when MySQL is "blocked" - the first ping fails, but the second
+    // process calls work.
     struct Mock : public virtual MySqlAppStatusDefaultTestContext {
         virtual void on_execute(std::stringstream & out, int call_number) const
         {

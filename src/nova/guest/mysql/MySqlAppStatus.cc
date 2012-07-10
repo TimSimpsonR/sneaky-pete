@@ -105,6 +105,12 @@ optional<string> MySqlAppStatus::find_mysql_pid_file() const {
     return rtn;
 }
 
+void MySqlAppStatus::end_failed_install() {
+    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    this->restart_mode = false;
+    this->set_status(FAILED);
+}
+
 void MySqlAppStatus::end_install_or_restart() {
     boost::lock_guard<boost::mutex> lock(nova_db_mutex);
     this->restart_mode = false;

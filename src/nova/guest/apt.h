@@ -19,8 +19,7 @@ namespace nova { namespace guest { namespace apt {
              * "self_update_time_out" - The time waited after the update call
              * before the assumption is made that the command was executed
              * incorrectly. */
-            AptGuest(bool with_sudo, const char * guest_config_package,
-                     const char * self_package_name,
+            AptGuest(bool with_sudo, const char * self_package_name,
                      int self_update_time_out);
 
             /** Attempts to fix apt. */
@@ -51,7 +50,6 @@ namespace nova { namespace guest { namespace apt {
 
             pid_t _install_new_self();
 
-            std::string guest_config_package;
             std::string self_package_name;
             int self_update_time_out;
             bool with_sudo;

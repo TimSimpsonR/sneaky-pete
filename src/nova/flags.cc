@@ -253,10 +253,6 @@ const char * FlagValues::apt_self_package_name() const {
     return map->get("apt_self_package_name", "nova-guest");
 }
 
-const char * FlagValues::apt_guest_config_package() const {
-    return map->get("apt_guest_config_package", "reddwarf-config");
-}
-
 int FlagValues::apt_self_update_time_out() const {
     return get_flag_value<int>(*map, "apt_self_update_time_out", 1 * 60);
 }

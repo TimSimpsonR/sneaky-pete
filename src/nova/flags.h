@@ -93,8 +93,6 @@ class FlagValues {
 
         const char * apt_self_package_name() const;
 
-        const char * apt_guest_config_package() const;
-
         int apt_self_update_time_out() const;
 
         const char * control_exchange() const;

@@ -78,11 +78,9 @@ namespace {
 } // end anonymous namespace
 
 
-AptGuest::AptGuest(bool with_sudo, const char * guest_config_package,
-                   const char * self_package_name,
+AptGuest::AptGuest(bool with_sudo, const char * self_package_name,
                    int self_update_time_out)
-: guest_config_package(guest_config_package),
-  self_package_name(self_package_name),
+: self_package_name(self_package_name),
   self_update_time_out(self_update_time_out), with_sudo(with_sudo)
 {
 }
@@ -240,7 +238,7 @@ pid_t AptGuest::_install_new_self() {
     }
     setenv("DEBIAN_FRONTEND", "noninteractive", 1);
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
-            guest_config_package.c_str(), self_package_name.c_str();
+            self_package_name.c_str();
     try {
         return Process::execute_and_abandon(cmds);
     } catch(const ProcessException & pe) {

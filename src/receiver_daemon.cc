@@ -161,7 +161,6 @@ void initialize_and_run(FlagValues & flags) {
 
     /* Create Apt Guest */
     AptGuest apt_worker(flags.apt_use_sudo(),
-                        flags.apt_guest_config_package(),
                         flags.apt_self_package_name(),
                         flags.apt_self_update_time_out());
     MessageHandlerPtr handler_apt(new AptMessageHandler(&apt_worker));

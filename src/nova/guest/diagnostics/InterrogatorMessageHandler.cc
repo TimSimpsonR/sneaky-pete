@@ -47,6 +47,16 @@ namespace {
         out << "}";
         return out.str();
     }
+
+    string hwinfo_to_stream(const HwInfoPtr hwinfo) {
+        stringstream out;
+        out << "{";
+        out << JsonData::json_string("mem_total") << ": " << hwinfo->mem_total;
+        out << ",";
+        out << JsonData::json_string("num_cpus") << ": " << hwinfo->num_cpus;
+        out << "}";
+        return out.str();
+    }
 } // end of anonymous namespace
 
 InterrogatorMessageHandler::InterrogatorMessageHandler(const Interrogator & interrogator)
@@ -68,13 +78,25 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
         } else {
             return JsonData::from_null();
         }
-    } if (input.method_name == "get_filesystem_stats") {
+    } else if (input.method_name == "get_filesystem_stats") {
         NOVA_LOG_DEBUG("handling the get_filesystem_stats method");
         string fs_path = input.args->get_string("fs_path");
         FileSystemStatsPtr fs_stats = interrogator.get_filesystem_stats(fs_path);
         string json = fs_stats_to_stream(fs_stats);
         JsonDataPtr rtn(new JsonObject(json.c_str()));
         return rtn;
+    } else if (input.method_name == "get_hwinfo") {
+        NOVA_LOG_DEBUG("handling the get_hwinfo method");
+        HwInfoPtr hwinfo = interrogator.get_hwinfo();
+        NOVA_LOG_DEBUG("returned from get_hwinfo");
+        if (hwinfo.get() != 0) {
+            string output = hwinfo_to_stream(hwinfo);
+            NOVA_LOG_DEBUG2("output = %s", output.c_str());
+            JsonDataPtr rtn(new JsonObject(output.c_str()));
+            return rtn;
+        } else {
+            return JsonData::from_null();
+        }
     } else {
         return JsonDataPtr();
     }

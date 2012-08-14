@@ -31,6 +31,12 @@ namespace nova { namespace guest { namespace diagnostics {
         unsigned long used;
     };
 
+    struct HwInfo {
+        int mem_total;
+        int num_cpus;
+    };
+
+    typedef std::auto_ptr<const HwInfo> HwInfoPtr;
     typedef std::auto_ptr<const DiagInfo> DiagInfoPtr;
     typedef boost::shared_ptr<FileSystemStats> FileSystemStatsPtr;
 
@@ -44,6 +50,15 @@ namespace nova { namespace guest { namespace diagnostics {
 
             /** Retrieves the File System stats for a given volume/device. */
             static FileSystemStatsPtr get_filesystem_stats(std::string fs);
+
+            /** Get hardware information */
+            static HwInfoPtr get_hwinfo();
+
+            /** Get the total memory from /proc/meminfo. */
+            static int get_mem_total();
+
+            /** Get the total number of CPUs from /proc/cpuinfo. */
+            static int get_num_cpus();
     };
 
     class InterrogatorException : public std::exception {

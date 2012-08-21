@@ -1,10 +1,7 @@
-BUILD_DIR=/home/vagrant
-
-# Add rabbit debian repo
-echo "deb http://www.rabbitmq.com/debian/ testing main"  | sudo tee -a /etc/apt/sources.list
-wget http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
-sudo apt-key add rabbitmq-signing-key-public.asc
-sudo apt-get update
+#!/usr/bin/env bash
+##########################################################################
+# Setup Dependencies required for sneaky-pete
+##########################################################################
 
 # Bail on errors.
 set -e
@@ -23,7 +20,8 @@ pkg_install mercurial \
  libboost-thread-dev libconfuse-dev libgc1c2 make \
  libmysqlclient-dev # rabbitmq-server #<-- Reddwarf CI script will install this
 
-mkdir $BUILD_DIR/build
+rm -rf $BUILD_DIR
+mkdir -p $BUILD_DIR
 
 # Installing Rabbit
 cd $BUILD_DIR
@@ -36,19 +34,19 @@ git submodule init
 git submodule update
 
 autoreconf -i
+ls
 ./configure
 # Alter librabbitmq/amqp_connection.c, line 416 / 417 to include the flag
 # MSG_NOSIGNAL. I'm having trouble ginoring the SIGPIPE signal in Sneaky-Pete
 # so this is just a temporary kludge.
 # res = send(state->sockfd, out_frame,
 #            out_frame_len + HEADER_SIZE + FOOTER_SIZE, MSG_NOSIGNAL);
-sed -i.bac 's/FOOTER_SIZE, 0);/FOOTER_SIZE, MSG_NOSIGNAL);/g' /home/vagrant/build/rabbitmq-c/librabbitmq/amqp_connection.c
+sed -i.bac 's/FOOTER_SIZE, 0);/FOOTER_SIZE, MSG_NOSIGNAL);/g' $BUILD_DIR/rabbitmq-c/librabbitmq/amqp_connection.c
 make
 sudo make install
 
-
 # Install json stuff
-cd $BUILD_DIR/build
+cd $BUILD_DIR
 git clone https://github.com/jehiah/json-c.git
 cd json-c
 sh autogen.sh

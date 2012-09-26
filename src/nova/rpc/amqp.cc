@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 
 namespace nova { namespace rpc {
@@ -142,9 +143,22 @@ void AmqpConnection::check_references(AmqpConnection * ref) {
 }
 
 void AmqpConnection::close() {
-    amqp_check(amqp_connection_close(connection, AMQP_REPLY_SUCCESS),
-               AmqpException::CLOSE_CONNECTION_FAILED);
-    if (amqp_destroy_connection(connection) < 0) {
+    const amqp_rpc_reply_t reply = amqp_connection_close(connection,
+                                                         AMQP_REPLY_SUCCESS);
+    if (AMQP_RESPONSE_NORMAL != reply.reply_type) {
+        // Not sure why this is a two step process, but don't throw if the
+        // connection won't close, or it'll leak.
+        NOVA_LOG_ERROR("Error closing the connection!");
+    }
+
+    // Don't throw if we can't close the connection. Destroy it first.
+    if (0 > amqp_destroy_connection(connection)) {
+        NOVA_LOG_ERROR("Error destroying the AMQP connection!");
+        NOVA_LOG_ERROR("DANGER: Will attempt to destroy the socket manually.");
+        // Before throwing, try to kill the socket.
+        if (0 > ::close(sockfd)) {
+            NOVA_LOG_ERROR("Error destroying the socket!");
+        }
         throw AmqpException(AmqpException::DESTROY_CONNECTION);
     }
 }

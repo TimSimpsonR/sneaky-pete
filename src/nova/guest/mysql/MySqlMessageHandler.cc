@@ -338,8 +338,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         return JsonData::from_null();
     } else if (input.method_name == "stop_mysql") {
         NOVA_LOG_INFO("Calling stop...");
+        bool do_not_start_on_reboot =
+            input.args->get_optional_bool("do_not_start_on_reboot")
+            .get_value_or(false);
         MySqlAppPtr app = this->create_mysql_app();
-        app->stop_mysql();
+        app->stop_mysql(do_not_start_on_reboot);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

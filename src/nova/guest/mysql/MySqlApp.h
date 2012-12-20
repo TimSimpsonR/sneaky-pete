@@ -30,7 +30,7 @@ class MySqlApp {
                                            int updated_memory_mb);
 
         /** Stops MySQL on this host. */
-        void stop_mysql();
+        void stop_mysql(bool do_not_start_on_reboot=false);
 
 
     private:

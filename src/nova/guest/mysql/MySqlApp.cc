@@ -42,6 +42,17 @@ namespace {
     const char * TMP_MYCNF = "/tmp/my.cnf.tmp";
     const char * DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM";
 
+    void enable_starting_mysql_on_boot(bool enabled=true) {
+        // update-rc.d is typically fast and will return exit code 0 normally,
+        // even if it is enabling or disabling mysql twice in a row.
+        Process::execute(list_of("/usr/bin/sudo")("update-rc.d")("mysql")
+                                (enabled ? "enable" : "disable"));
+    }
+
+    void disable_starting_mysql_on_boot() {
+        enable_starting_mysql_on_boot(false);
+    }
+
     /** If there is a file at template_path, back up the current file to a new
      *  file ending with today's date, and then copy the template file over
      *  it. */
@@ -259,6 +270,8 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
 
 void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
+    // As a precaution, make sure MySQL will run on boot.
+    enable_starting_mysql_on_boot();
     Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"));
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
@@ -284,7 +297,10 @@ void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
     start_mysql(true);
 }
 
-void MySqlApp::stop_mysql() {
+void MySqlApp::stop_mysql(bool do_not_start_on_reboot) {
+    if (do_not_start_on_reboot) {
+        disable_starting_mysql_on_boot();
+    }
     internal_stop_mysql(true);
 }
 

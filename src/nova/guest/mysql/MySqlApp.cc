@@ -11,6 +11,7 @@
 #include "nova/guest/mysql/MySqlGuestException.h"
 #include <boost/optional.hpp>
 #include "nova/process.h"
+#include <sstream>
 #include "nova/guest/utils.h"
 
 using nova::guest::apt::AptGuest;
@@ -45,8 +46,11 @@ namespace {
     void enable_starting_mysql_on_boot(bool enabled=true) {
         // update-rc.d is typically fast and will return exit code 0 normally,
         // even if it is enabling or disabling mysql twice in a row.
-        Process::execute(list_of("/usr/bin/sudo")("update-rc.d")("mysql")
-                                (enabled ? "enable" : "disable"));
+        stringstream output;
+        Process::CommandList cmds = list_of("/usr/bin/sudo")
+            ("update-rc.d")("mysql")(enabled ? "enable" : "disable");
+        Process::execute(output, cmds);
+        NOVA_LOG_INFO(output.str().c_str());
     }
 
     void disable_starting_mysql_on_boot() {

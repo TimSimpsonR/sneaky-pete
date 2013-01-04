@@ -43,18 +43,42 @@ namespace {
     const char * TMP_MYCNF = "/tmp/my.cnf.tmp";
     const char * DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM";
 
-    void enable_starting_mysql_on_boot(bool enabled=true) {
+    void call_update_rc(bool enabled, bool throw_on_bad_exit_code)
+    {
         // update-rc.d is typically fast and will return exit code 0 normally,
         // even if it is enabling or disabling mysql twice in a row.
+        // UPDATE: Nope, turns out this is only on my box. Sometimes it
+        //         returns something else.
         stringstream output;
         Process::CommandList cmds = list_of("/usr/bin/sudo")
             ("update-rc.d")("mysql")(enabled ? "enable" : "disable");
-        Process::execute(output, cmds);
+        try {
+            Process::execute(output, cmds);
+        } catch(const ProcessException & pe) {
+            NOVA_LOG_ERROR("Exception running process!");
+            NOVA_LOG_ERROR(pe.what());
+            if (throw_on_bad_exit_code) {
+                NOVA_LOG_ERROR(output.str().c_str());
+                throw;
+            }
+        }
         NOVA_LOG_INFO(output.str().c_str());
     }
 
+    void enable_starting_mysql_on_boot() {
+        // Enable MySQL on boot, don't throw if something goes wrong.
+        call_update_rc(true, false);
+    }
+
+    void guarantee_enable_starting_mysql_on_boot() {
+        // Enable MySQL on boot, throw if anything is awry.
+        call_update_rc(true, true);
+    }
+
     void disable_starting_mysql_on_boot() {
-        enable_starting_mysql_on_boot(false);
+        // Always throw if the exit code is bad, since disabling this on
+        // start up might be needed in case of a reboot.
+        call_update_rc(false, true);
     }
 
     /** If there is a file at template_path, back up the current file to a new
@@ -262,6 +286,7 @@ void MySqlApp::restart() {
         }
     } restarter(status);
     internal_stop_mysql();
+    enable_starting_mysql_on_boot();
     start_mysql();
 }
 
@@ -269,13 +294,13 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
     NOVA_LOG_INFO("Restarting mysql...");
     internal_stop_mysql();
     wipe_ib_logfiles();
+    enable_starting_mysql_on_boot();
     start_mysql();
 }
 
 void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
     // As a precaution, make sure MySQL will run on boot.
-    enable_starting_mysql_on_boot();
     Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"));
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
@@ -299,6 +324,7 @@ void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
     apt.update(TIME_OUT);
     write_mycnf(apt, updated_memory_mb, boost::none);
     start_mysql(true);
+    guarantee_enable_starting_mysql_on_boot();
 }
 
 void MySqlApp::stop_mysql(bool do_not_start_on_reboot) {

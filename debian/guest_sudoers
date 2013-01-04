@@ -8,7 +8,8 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /usr/sbin/mysqld,     \
                       /etc/init.d/mysql,    \
                       /usr/bin/mysqladmin,  \
-                      /bin/ps
+                      /bin/ps,              \
+                      /usr/sbin/update-rc.d
 
 nova ALL=(root) NOPASSWD: SETENV: NOVACMDS
 

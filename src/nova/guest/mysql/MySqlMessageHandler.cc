@@ -76,6 +76,13 @@ namespace {
         return user;
     }
 
+    MySqlUserPtr user_update_from_obj(JsonObjectPtr obj) {
+        MySqlUserPtr user(new MySqlUser());
+        user->set_name(obj->get_string("name"));
+        user->set_password(obj->get_optional_string("password"));
+        return user;
+    }
+
     void user_to_stream(stringstream & out, MySqlUserPtr user) {
         out << "{\"_name\":" << JsonData::json_string(user->get_name().c_str())
             << ", \"_password\":";
@@ -104,6 +111,27 @@ namespace {
             out << "null";
         }
         out << " }";
+    }
+
+    void dbs_to_stream(stringstream & out, MySqlDatabaseListPtr dbs) {
+            std::stringstream db_stream;
+            db_stream << "[";
+            bool once = false;
+            BOOST_FOREACH(MySqlDatabasePtr & database, *dbs) {
+                NOVA_LOG_INFO2("dbs_to_stream: %s", database->get_name().c_str());
+                if (once) {
+                    db_stream << ", ";
+                }
+                once = true;
+                db_stream << "{ \"_name\":"
+                          << JsonData::json_string(database->get_name())
+                          << ", \"_collate\": \"\""
+                          << ", \"_character_set\": \"\""
+                          << " }";
+            }
+            db_stream << "]";
+            NOVA_LOG_INFO2("returning: %s", db_stream.str().c_str());
+            out << db_stream.str().c_str();
     }
 
     JsonDataPtr _create_database(MySqlAdminPtr sql, JsonObjectPtr args) {
@@ -243,6 +271,67 @@ namespace {
         return JsonData::from_boolean(enabled);
     }
 
+    JSON_METHOD(change_passwords) {
+        MySqlAdminPtr sql = guest->sql_admin();
+        MySqlUserListPtr users(new MySqlUserList());
+        JsonArrayPtr array = args->get_array("users");
+        for (int i = 0; i < array->get_length(); i ++) {
+            users->push_back(user_update_from_obj(array->get_object(i)));
+        };
+        sql->change_passwords(users);
+        return JsonData::from_null();
+    }
+
+    JSON_METHOD(get_user){
+        MySqlAdminPtr sql = guest->sql_admin();
+        string username = args->get_string("username");
+        MySqlUserPtr user = sql->find_user(username);
+        std::stringstream json;
+        user_to_stream(json, user);
+        JsonDataPtr rtn(new JsonObject(json.str().c_str()));
+        return rtn;
+    }
+
+    JSON_METHOD(list_access){
+        MySqlAdminPtr sql = guest->sql_admin();
+        string username = args->get_string("username");
+        MySqlUserPtr user = sql->find_user(username);
+
+        MySqlDatabaseListPtr dbs = user->get_databases();
+        std::stringstream json;
+        dbs_to_stream(json, dbs);
+        NOVA_LOG_INFO2("list access: %s", json.str().c_str());
+        JsonDataPtr rtn(new JsonArray(json.str().c_str()));
+        return rtn;
+
+    }
+
+    JSON_METHOD(grant_access){
+        MySqlAdminPtr sql = guest->sql_admin();
+        string username = args->get_string("username");
+        JsonArrayPtr db_array = args->get_array("databases");
+        MySqlDatabaseListPtr dbs(new MySqlDatabaseList());
+        for (int i = 0; i < db_array->get_length(); i ++) {
+            std::string db_name = db_array->get_string(i);
+            MySqlDatabasePtr db(new MySqlDatabase());
+            db->set_name(db_name);
+            db->set_character_set("");
+            db->set_collation("");
+            dbs->push_back((db));
+        };
+        sql->grant_access(username, dbs);
+        return JsonData::from_null();
+               
+    }
+
+    JSON_METHOD(revoke_access){
+        MySqlAdminPtr sql = guest->sql_admin();
+        string username = args->get_string("username");
+        string database = args->get_string("database");
+        sql->revoke_access(username, database);
+        return JsonData::from_null();
+    }
+
     struct MethodEntry {
         const char * const name;
         const MySqlMessageHandler::MethodPtr ptr;
@@ -253,14 +342,19 @@ namespace {
 MySqlMessageHandler::MySqlMessageHandler()
 {
     const MethodEntry static_method_entries [] = {
+        REGISTER(change_passwords),
         REGISTER(create_database),
         REGISTER(create_user),
         REGISTER(delete_database),
         REGISTER(delete_user),
         REGISTER(enable_root),
+        REGISTER(get_user),
+        REGISTER(grant_access),
         REGISTER(is_root_enabled),
+        REGISTER(list_access),
         REGISTER(list_databases),
         REGISTER(list_users),
+        REGISTER(revoke_access),
         {0, 0}
     };
     const MethodEntry * itr = static_method_entries;

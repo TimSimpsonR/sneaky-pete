@@ -98,12 +98,18 @@ namespace nova { namespace db { namespace mysql {
             static void get_auth_from_config(std::string & user,
                                              std::string & password);
 
+            void grant_privileges(const char * privs,
+                                  const char * database,
+                                  const char * username,
+                                  const char * host);
+
             void grant_all_privileges(const char * username,
                                       const char * host);
 
-            void revoke_privileges(const char * username,
-                                   const char * host,
-                                   const char * privs);
+            void revoke_privileges(const char * privs,
+                                   const char * database,
+                                   const char * username,
+                                   const char * host);
 
             void init();
 

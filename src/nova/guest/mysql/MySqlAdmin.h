@@ -23,6 +23,8 @@ namespace nova { namespace guest { namespace mysql {
 
             ~MySqlAdmin();
 
+            void change_passwords(MySqlUserListPtr);
+
             void create_database(MySqlDatabaseListPtr databases);
 
             void create_user(MySqlUserPtr, const char * host="%");
@@ -35,9 +37,13 @@ namespace nova { namespace guest { namespace mysql {
 
             MySqlUserPtr enable_root();
 
+            MySqlUserPtr find_user(const std::string & user_name);
+
             inline nova::db::mysql::MySqlConnectionPtr get_connection() {
                 return con;
             }
+
+            void grant_access(const std::string & user_name, MySqlDatabaseListPtr databases);
 
             boost::tuple<MySqlDatabaseListPtr, boost::optional<std::string> >
                 list_databases(unsigned int limit,
@@ -50,6 +56,10 @@ namespace nova { namespace guest { namespace mysql {
                            bool include_marker = false);
 
             bool is_root_enabled();
+
+            MySqlDatabaseListPtr list_access(const std::string & user_name);
+
+            void revoke_access(const std::string & user_name, const std::string & database_name);
 
             void set_password(const char * username, const char * password);
 

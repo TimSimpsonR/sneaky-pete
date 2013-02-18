@@ -554,23 +554,61 @@ void MySqlConnection::get_auth_from_config(string & user, string & password) {
     regfree(&regex);
 }
 
-void MySqlConnection::grant_all_privileges(const char * username,
-                                      const char * host) {
+void MySqlConnection::grant_privileges(const char * privs,
+                                       const char * database,
+                                       const char * username,
+                                       const char * host){
     //TODO(tim.simpson): Fix this to use parameters.
-    string text = str(format(
-        "GRANT ALL PRIVILEGES ON *.* TO '%s'@'%s' WITH GRANT OPTION;")
-        % escape_string(username) % escape_string(host));
+    string text;
+    string dbname(database);
+    if(dbname == "*"){
+        text = str(format(
+            "GRANT %s ON *.* TO '%s'@'%s' WITH GRANT OPTION;")
+            % escape_string(privs)
+            % escape_string(username)
+            % escape_string(host));
+    }
+    else {
+        text = str(format(
+            "GRANT %s ON `%s`.* TO '%s'@'%s' WITH GRANT OPTION;")
+            % escape_string(privs)
+            % escape_string(database)
+            % escape_string(username)
+            % escape_string(host));
+    }
     MySqlPreparedStatementPtr stmt = prepare_statement(text.c_str());
     stmt->execute();
     stmt->close();
 }
 
-void MySqlConnection::revoke_privileges(const char * username,
-                                        const char * host,
-                                        const char * privs) {
-    string text = str(format("REVOKE %s ON *.* FROM '%s'@'%s';")
-                      % escape_string(privs) % escape_string(username)
-                      % escape_string(host));
+
+void MySqlConnection::grant_all_privileges(const char * username,
+                                           const char * host) {
+    grant_privileges("ALL PRIVILEGES", "*", username, host);
+}
+
+void MySqlConnection::revoke_privileges(const char * privs,
+                                        const char * database,
+                                        const char * username,
+                                        const char * host) {
+    string text;
+    string dbname(database);
+    if(dbname == "*"){
+        text = str(format(
+            "REVOKE %s ON *.* FROM '%s'@'%s';")
+            % escape_string(privs)
+            % escape_string(username)
+            % escape_string(host));
+    }
+    else {
+        text = str(format(
+            "REVOKE %s ON `%s`.* FROM '%s'@'%s';")
+            % escape_string(privs)
+            % escape_string(database)
+            % escape_string(username)
+            % escape_string(host));
+    }
+
     MySqlPreparedStatementPtr stmt = prepare_statement(text.c_str());
     stmt->execute();
     stmt->close();

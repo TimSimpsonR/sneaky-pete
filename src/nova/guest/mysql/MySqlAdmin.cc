@@ -69,6 +69,12 @@ MySqlAdmin::MySqlAdmin(MySqlConnectionPtr con)
 MySqlAdmin::~MySqlAdmin() {
 }
 
+void MySqlAdmin::change_passwords(MySqlUserListPtr users){
+    BOOST_FOREACH(MySqlUserPtr & user, *users) {
+        set_password(user->get_name().c_str(), user->get_password().get().c_str());
+    }
+}
+
 void MySqlAdmin::create_database(MySqlDatabaseListPtr databases) {
     BOOST_FOREACH(MySqlDatabasePtr & db, *databases) {
         string text = str(format(
@@ -92,7 +98,6 @@ void MySqlAdmin::create_user(MySqlUserPtr user, const char * host) {
     }
     string text = str(format(
         "GRANT USAGE ON *.* TO '%s'@\"%s\" IDENTIFIED BY '%s'")
-        //"CREATE USER `%s`@`%s` IDENTIFIED BY '%s'")
         % con->escape_string(user->get_name().c_str())
         % con->escape_string(host)
         % con->escape_string(user->get_password().get().c_str()));
@@ -139,11 +144,60 @@ MySqlUserPtr MySqlAdmin::enable_root() {
     }
     set_password("root", root_user->get_password().get().c_str());
     con->grant_all_privileges("root", "%");
-    con->revoke_privileges("root", "%", "FILE");
+    con->revoke_privileges("FILE", "*", "root", "%");
     con->flush_privileges();
     return root_user;
 }
 
+MySqlUserPtr MySqlAdmin::find_user(const std::string & user_name) {
+    string query = str(format(" SELECT"
+                         "   User, Password"
+                         " FROM"
+                         "   mysql.user"
+                         " WHERE"
+                         "   Host != 'localhost'"
+                         " AND"
+                         "   User = '%s'"
+                         " ORDER BY 1")
+                         % con->escape_string(user_name.c_str()));
+
+    MySqlResultSetPtr res = con->query(query.c_str());
+    optional<string> next_marker;
+    if (!res->next()) {
+        NOVA_LOG_ERROR2("Could not find a user named %s", user_name.c_str());
+        throw MySqlGuestException(MySqlGuestException::GENERAL);
+        }
+        
+    MySqlUserPtr user(new MySqlUser);
+    user->set_name(res->get_string(0).get());
+    user->set_password(res->get_string(1).get());
+
+    // Get the list of users and their associated databases
+    MySqlResultSetPtr userDbRes = con->query(
+                "SELECT grantee, table_schema "
+                "FROM information_schema.SCHEMA_PRIVILEGES "
+                "WHERE privilege_type != 'USAGE' "
+                "GROUP BY grantee, table_schema;");
+    while(userDbRes->next()) {
+        string username = extract_user(userDbRes->get_string(0).get());
+        if (user_name == username) {
+            MySqlDatabasePtr database(new MySqlDatabase());
+            database->set_name(userDbRes->get_string(1).get());
+            user->get_databases()->push_back(database);
+        }
+    }
+    userDbRes->close();
+
+    return user;
+}
+
+void MySqlAdmin::grant_access(const std::string & user_name, MySqlDatabaseListPtr databases) {
+    MySqlUserPtr user = find_user(user_name);
+    BOOST_FOREACH(const MySqlDatabasePtr & db, *databases) {
+        con->grant_privileges("ALL", db->get_name().c_str(), user->get_name().c_str(), "%");
+    }
+    con->flush_privileges();
+}
 
 tuple<MySqlDatabaseListPtr, optional<string> >
 MySqlAdmin::list_databases(unsigned int limit, optional<string> marker,
@@ -266,6 +320,17 @@ bool MySqlAdmin::is_root_enabled() {
     size_t row_count = res->get_row_count();
     res->close();
     return row_count != 0;
+}
+
+MySqlDatabaseListPtr MySqlAdmin::list_access(const std::string & user_name){
+    MySqlUserPtr user = find_user(user_name);
+    return user->get_databases();
+}
+
+void MySqlAdmin::revoke_access(const std::string & user_name, const std::string & database_name){
+    MySqlUserPtr user = find_user(user_name);
+    con->revoke_privileges("ALL", database_name.c_str(), user_name.c_str(), "%");
+    con->flush_privileges();
 }
 
 void MySqlAdmin::set_password(const char * username, const char * password) {

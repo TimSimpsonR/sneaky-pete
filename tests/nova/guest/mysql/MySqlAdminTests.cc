@@ -31,3 +31,9 @@ BOOST_AUTO_TEST_CASE(extract_user_test)
     string user = nova::guest::mysql::extract_user("'test'@'%'");
     BOOST_CHECK_EQUAL(user, "test");
 }
+
+BOOST_AUTO_TEST_CASE(extract_host_test)
+{
+    string user = nova::guest::mysql::extract_host("'test'@'%'");
+    BOOST_CHECK_EQUAL(user, "%");
+}

@@ -151,13 +151,14 @@ void MySqlApp::create_admin_user(MySqlAdmin & db,
                                  const string & password) {
     MySqlUserPtr user(new MySqlUser());
     user->set_name(ADMIN_USER_NAME);
+    user->set_host("localhost");
     user->set_password(password);
-    db.create_user(user, "localhost");
+    db.create_user(user);
     db.get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
 }
 
 void MySqlApp::generate_root_password(MySqlAdmin & db) {
-    db.set_password("root", mysql::generate_password().c_str());
+    db.set_password("root", "%", mysql::generate_password().c_str());
 }
 
 void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,

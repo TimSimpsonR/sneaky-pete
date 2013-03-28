@@ -70,6 +70,7 @@ namespace {
     MySqlUserPtr user_from_obj(JsonObjectPtr obj) {
         MySqlUserPtr user(new MySqlUser());
         user->set_name(obj->get_string("_name"));
+        user->set_host(obj->get_string("_host"));
         user->set_password(obj->get_optional_string("_password"));
         JsonArrayPtr db_array = obj->get_array("_databases");
         db_list_from_array(user->get_databases(), db_array);
@@ -79,12 +80,14 @@ namespace {
     MySqlUserPtr user_update_from_obj(JsonObjectPtr obj) {
         MySqlUserPtr user(new MySqlUser());
         user->set_name(obj->get_string("name"));
+        user->set_host(obj->get_string("host"));
         user->set_password(obj->get_optional_string("password"));
         return user;
     }
 
     void user_to_stream(stringstream & out, MySqlUserPtr user) {
         out << "{\"_name\":" << JsonData::json_string(user->get_name().c_str())
+            << ", \"_host\":" << JsonData::json_string(user->get_host().c_str())
             << ", \"_password\":";
         if (user->get_password()) {
             out << JsonData::json_string(user->get_password().get().c_str());
@@ -203,7 +206,7 @@ namespace {
     JSON_METHOD(delete_user) {
         MySqlAdminPtr sql = guest->sql_admin();
         MySqlUserPtr user = user_from_obj(args->get_object("user"));
-        sql->delete_user(user->get_name());
+        sql->delete_user(user->get_name(), user->get_host());
         return JsonData::from_null();
     }
 
@@ -285,7 +288,8 @@ namespace {
     JSON_METHOD(get_user){
         MySqlAdminPtr sql = guest->sql_admin();
         string username = args->get_string("username");
-        MySqlUserPtr user = sql->find_user(username);
+        string hostname = args->get_optional_string("hostname").get_value_or("%");
+        MySqlUserPtr user = sql->find_user(username, hostname);
         std::stringstream json;
         user_to_stream(json, user);
         JsonDataPtr rtn(new JsonObject(json.str().c_str()));
@@ -295,7 +299,8 @@ namespace {
     JSON_METHOD(list_access){
         MySqlAdminPtr sql = guest->sql_admin();
         string username = args->get_string("username");
-        MySqlUserPtr user = sql->find_user(username);
+        string hostname = args->get_optional_string("hostname").get_value_or("%");
+        MySqlUserPtr user = sql->find_user(username, hostname);
 
         MySqlDatabaseListPtr dbs = user->get_databases();
         std::stringstream json;
@@ -309,6 +314,7 @@ namespace {
     JSON_METHOD(grant_access){
         MySqlAdminPtr sql = guest->sql_admin();
         string username = args->get_string("username");
+        string hostname = args->get_optional_string("hostname").get_value_or("%");
         JsonArrayPtr db_array = args->get_array("databases");
         MySqlDatabaseListPtr dbs(new MySqlDatabaseList());
         for (int i = 0; i < db_array->get_length(); i ++) {
@@ -319,7 +325,7 @@ namespace {
             db->set_collation("");
             dbs->push_back((db));
         };
-        sql->grant_access(username, dbs);
+        sql->grant_access(username, hostname, dbs);
         return JsonData::from_null();
                
     }
@@ -327,8 +333,9 @@ namespace {
     JSON_METHOD(revoke_access){
         MySqlAdminPtr sql = guest->sql_admin();
         string username = args->get_string("username");
+        string hostname = args->get_optional_string("hostname").get_value_or("%");
         string database = args->get_string("database");
-        sql->revoke_access(username, database);
+        sql->revoke_access(username, hostname, database);
         return JsonData::from_null();
     }
 

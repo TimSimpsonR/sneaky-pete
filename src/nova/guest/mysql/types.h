@@ -56,6 +56,10 @@ namespace nova { namespace guest { namespace mysql {
             return name;
         }
 
+        inline const std::string & get_host() const {
+            return host;
+        }
+
         const boost::optional<std::string> get_password() const {
             return password;
         }
@@ -66,10 +70,13 @@ namespace nova { namespace guest { namespace mysql {
 
         void set_name(const std::string & value);
 
+        void set_host(const std::string & value);
+
         void set_password(const boost::optional<std::string> & value);
 
     private:
         std::string name;
+        std::string host;
         boost::optional<std::string> password;
         MySqlDatabaseListPtr databases;
     };

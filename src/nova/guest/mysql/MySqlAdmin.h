@@ -14,6 +14,7 @@
 namespace nova { namespace guest { namespace mysql {
 
     std::string extract_user(const std::string & user);
+    std::string extract_host(const std::string & user);
     std::string generate_password();
 
     class MySqlAdmin {
@@ -27,23 +28,23 @@ namespace nova { namespace guest { namespace mysql {
 
             void create_database(MySqlDatabaseListPtr databases);
 
-            void create_user(MySqlUserPtr, const char * host="%");
+            void create_user(MySqlUserPtr);
 
             void create_users(MySqlUserListPtr);
 
             void delete_database(const std::string & database_name);
 
-            void delete_user(const std::string & username);
+            void delete_user(const std::string & username, const std::string & hostname);
 
             MySqlUserPtr enable_root();
 
-            MySqlUserPtr find_user(const std::string & user_name);
+            MySqlUserPtr find_user(const std::string & username, const std::string & hostname);
 
             inline nova::db::mysql::MySqlConnectionPtr get_connection() {
                 return con;
             }
 
-            void grant_access(const std::string & user_name, MySqlDatabaseListPtr databases);
+            void grant_access(const std::string & user_name, const std::string & host_name, MySqlDatabaseListPtr databases);
 
             boost::tuple<MySqlDatabaseListPtr, boost::optional<std::string> >
                 list_databases(unsigned int limit,
@@ -57,11 +58,11 @@ namespace nova { namespace guest { namespace mysql {
 
             bool is_root_enabled();
 
-            MySqlDatabaseListPtr list_access(const std::string & user_name);
+            MySqlDatabaseListPtr list_access(const std::string & user_name, const std::string & host_name);
 
-            void revoke_access(const std::string & user_name, const std::string & database_name);
+            void revoke_access(const std::string & user_name, const std::string & host_name, const std::string & database_name);
 
-            void set_password(const char * username, const char * password);
+            void set_password(const char * username, const char * hostname, const char * password);
 
         private:
             MySqlAdmin(const MySqlAdmin & other);

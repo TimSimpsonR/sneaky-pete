@@ -9,12 +9,16 @@ namespace nova { namespace guest { namespace mysql {
 
 
 MySqlUser::MySqlUser()
-: name(""), password(boost::none), databases(new MySqlDatabaseList())
+: name(""), host("%"), password(boost::none), databases(new MySqlDatabaseList())
 {
 }
 
 void MySqlUser::set_name(const string & value) {
     this->name = value;
+}
+
+void MySqlUser::set_host(const string & value) {
+    this->host = value;
 }
 
 void MySqlUser::set_password(const optional<string> & value) {

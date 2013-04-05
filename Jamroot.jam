@@ -38,6 +38,9 @@ import os ;
 using testing ;
 
 
+SKIP_SNEAKY_TESTS = [ os.environ SKIP_SNEAKY_TESTS ] ;
+
+
 ###############################################################################
 #       Project Settings
 ###############################################################################
@@ -151,7 +154,7 @@ hpp nova_guest_version : src/nova/guest/version.th ;
 local rule unit ( name : sources * : dependencies * : test-sources *
                   :  test-properties * : env-vars * : main-properties * )
 {
-    if $(test-sources) > []
+    if ! $(SKIP_SNEAKY_TESTS) && $(test-sources) > []
     {
         obj __unit_test_obj_$(name) : $(sources)
             : $(test-properties) $(main-properties) ;
@@ -624,7 +627,8 @@ exe nova-guest
         # "-pthread" makes the thread stuff get brought in without specifying
         # libraries.
 
-        <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread " #-static -lpthread -lz " #" -static-libgcc " #static-libstdc++"
+        <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread "
+        #-static -lpthread -lz " #" -static-libgcc " #static-libstdc++"
 
 	;
 

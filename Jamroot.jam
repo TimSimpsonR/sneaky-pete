@@ -568,15 +568,6 @@ exe nova_process_fd_demo
     :   <linkflags>"-pthread "
     ;
 
-exe MySqlAppStatus_demo
-    :   u_nova_guest_utils
-        u_nova_flags
-        u_nova_guest_mysql_MySqlAppStatus
-        u_nova_guest_mysql_MySqlGuestException
-        tests/nova/guest/mysql/MySqlAppStatus_demo.cc
-    :   <linkflags>"-pthread "
-    ;
-
 exe apt_install
     :   u_nova_Log
         u_nova_guest_apt_apt
@@ -632,13 +623,13 @@ exe nova-guest
 
 	;
 
-exe sender
-	:	dependencies
-		guest_lib
-		src/test_sender.cc
-	:   #<link>shared:<dependency>sql_guest_tests
-	    #<link>shared:<dependency>memory_tests
-	;
+#exe sender
+#	:	dependencies
+#		guest_lib
+#		src/test_sender.cc
+#	:   #<link>shared:<dependency>sql_guest_tests
+#	    #<link>shared:<dependency>memory_tests
+#	;
 
 # Run this in Valgrind to find possible leaks.
 exe leak_tester
@@ -648,5 +639,15 @@ exe leak_tester
 	:   #<link>shared:<dependency>sql_guest_tests
 	    #<link>shared:<dependency>memory_tests
 	;
+
+# Run this to find out how much memory is availble in the container
+exe greedy_pete
+    :
+        u_nova_guest_diagnostics_Interrogator
+        src/greedy_pete.cc
+    :
+        <linkflags>" -static-libgcc -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread "
+    ;
+
 explicit leak_tester ;
 

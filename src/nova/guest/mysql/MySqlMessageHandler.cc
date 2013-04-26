@@ -70,7 +70,7 @@ namespace {
     MySqlUserPtr user_from_obj(JsonObjectPtr obj) {
         MySqlUserPtr user(new MySqlUser());
         user->set_name(obj->get_string("_name"));
-        user->set_host(obj->get_string("_host"));
+        user->set_host(obj->get_optional_string("_host").get_value_or("%"));
         user->set_password(obj->get_optional_string("_password"));
         JsonArrayPtr db_array = obj->get_array("_databases");
         db_list_from_array(user->get_databases(), db_array);
@@ -80,7 +80,7 @@ namespace {
     MySqlUserPtr user_update_from_obj(JsonObjectPtr obj) {
         MySqlUserPtr user(new MySqlUser());
         user->set_name(obj->get_string("name"));
-        user->set_host(obj->get_string("host"));
+        user->set_host(obj->get_optional_string("host").get_value_or("%"));
         user->set_password(obj->get_optional_string("password"));
         return user;
     }

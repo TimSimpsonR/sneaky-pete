@@ -554,27 +554,37 @@ void MySqlConnection::get_auth_from_config(string & user, string & password) {
     regfree(&regex);
 }
 
-void MySqlConnection::grant_privileges(const char * privs,
+void MySqlConnection::grant_privileges_with_option(const char * privs,
                                        const char * database,
                                        const char * username,
                                        const char * host){
+    grant_privileges(privs, database, username, host, true);
+}
+
+void MySqlConnection::grant_privileges(const char * privs,
+                                       const char * database,
+                                       const char * username,
+                                       const char * host,
+                                       bool grant_option){
     //TODO(tim.simpson): Fix this to use parameters.
     string text;
     string dbname(database);
     if(dbname == "*"){
         text = str(format(
-            "GRANT %s ON *.* TO '%s'@'%s' WITH GRANT OPTION;")
+            "GRANT %s ON *.* TO '%s'@'%s'%s")
             % escape_string(privs)
             % escape_string(username)
-            % escape_string(host));
+            % escape_string(host)
+            % (grant_option ? " WITH GRANT OPTION;" : ";"));
     }
     else {
         text = str(format(
-            "GRANT %s ON `%s`.* TO '%s'@'%s' WITH GRANT OPTION;")
+            "GRANT %s ON `%s`.* TO '%s'@'%s'%s")
             % escape_string(privs)
             % escape_string(database)
             % escape_string(username)
-            % escape_string(host));
+            % escape_string(host)
+            % (grant_option ? " WITH GRANT OPTION;" : ";"));
     }
     MySqlPreparedStatementPtr stmt = prepare_statement(text.c_str());
     stmt->execute();
@@ -584,7 +594,7 @@ void MySqlConnection::grant_privileges(const char * privs,
 
 void MySqlConnection::grant_all_privileges(const char * username,
                                            const char * host) {
-    grant_privileges("ALL PRIVILEGES", "*", username, host);
+    grant_privileges_with_option("ALL PRIVILEGES", "*", username, host);
 }
 
 void MySqlConnection::revoke_privileges(const char * privs,
@@ -610,6 +620,23 @@ void MySqlConnection::revoke_privileges(const char * privs,
     }
 
     MySqlPreparedStatementPtr stmt = prepare_statement(text.c_str());
+    stmt->execute();
+    stmt->close();
+
+    text = str(format("UPDATE mysql.user "
+                      "SET Grant_priv = 'N' "
+                      "WHERE User = '%s' "
+                      "AND Host = '%s' "
+                      "AND User != 'root' "
+                      "AND Host != 'localhost';")
+                % escape_string(username)
+                % escape_string(host));
+    stmt = prepare_statement(text.c_str());
+    stmt->execute();
+    stmt->close();
+
+    text = "FLUSH PRIVILEGES;";
+    stmt = prepare_statement(text.c_str());
     stmt->execute();
     stmt->close();
 }

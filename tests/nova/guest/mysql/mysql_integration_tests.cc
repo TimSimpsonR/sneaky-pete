@@ -274,7 +274,7 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
     }
 
     { // Change JohnDoe's password.
-        guest->set_password("JohnDoe", "ReMiFaSo");
+        guest->set_password("JohnDoe", "%", "ReMiFaSo");
         // Logging in as the old password should fail...
         MySqlConnectionPtr old_doe = create_connection("JohnDoe", "password");
         ASSERT_ACCESS_DENIED({
@@ -285,8 +285,30 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
         new_doe->init();
     }
 
+    { // Give grant and revoke some exercise.
+        MySqlDatabasePtr granttest(new MySqlDatabase());
+        granttest->set_name("granttest");
+        granttest->set_character_set("utf8");
+        granttest->set_collation("utf8_general_ci");
+        MySqlDatabaseListPtr db_list = new MySqlUserListPtr();
+        db_list.push_back(granttest);
+        // Grant JohnDoe access to a new database, and then revoke it.
+        guest->grant_privileges("JohnDoe", "%", db_list);
+        guest->revoke("JohnDoe", "%", granttest);
+        // Make sure JohnDoe can't even use the db now.
+        MySqlConnectionPtr doe = create_connection("JohnDoe", "ReMiFaSo");
+        CHECK_EXCEPTION({ execute_query(doe, "USE granttest;"); }, QUERY_FAILED);
+        // Try a "show databases."
+        MySqlResultSetPtr res = doe->query("SHOW DATABASES;");
+        while(res->next()){
+            string msg = res->get_string(0).get();
+            if (msg.find("granttest") != string::npos)
+                BOOST_FAIL("JohnDoe should not see db granttest.");
+        }
+    }
+
     { // Time to say good-bye to Mr. John Doe.
-        guest->delete_user("JohnDoe");
+        guest->delete_user("JohnDoe", "%");
         sleep(1);
         BOOST_REQUIRE_EQUAL(initial_user_count, count_users(guest));
         MySqlUserListPtr user_list = guest->list_users();
@@ -309,6 +331,12 @@ void mysql_guest_tests(MySqlGuestPtr guest, const int initial_user_count) {
         MySqlConnectionPtr rudy = create_connection(
             "root", root_user->get_password().c_str());
         rudy->init();
+        // Check that root has GRANT OPTION.
+        int count = count_query_results(rudy,
+            "SELECT Grant_priv FROM mysql.user WHERE User='root' and Host='%' AND Grant_priv='Y';");
+        if(count != 1){
+            BOOST_FAIL("Root should have GRANT OPTION.");
+        }
 
         // It should also now tell us it is in fact enabled.
         BOOST_REQUIRE(guest->is_root_enabled());

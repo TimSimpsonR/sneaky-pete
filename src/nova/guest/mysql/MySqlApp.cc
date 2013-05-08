@@ -304,7 +304,7 @@ void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
     // As a precaution, make sure MySQL will run on boot.
     Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"),
-                     thist->state_change_wait_time);
+                     this->state_change_wait_time);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");

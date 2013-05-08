@@ -252,7 +252,8 @@ void MySqlApp::install_mysql(AptGuest & apt) {
 
 void MySqlApp::internal_stop_mysql(bool update_db) {
     NOVA_LOG_INFO("Stopping mysql...");
-    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"));
+    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"),
+                     this->state_change_wait_time);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::SHUTDOWN, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Could not stop MySQL!");
@@ -302,7 +303,8 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
 void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
     // As a precaution, make sure MySQL will run on boot.
-    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"));
+    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"),
+                     thist->state_change_wait_time);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");

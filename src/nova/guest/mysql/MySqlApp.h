@@ -26,11 +26,11 @@ class MySqlApp {
         /** Restarts MySQL on this host. */
         void restart();
 
-        void start_mysql_with_conf_changes(nova::guest::apt::AptGuest & apt,
-                                           int updated_memory_mb);
+        void start_db_with_conf_changes(nova::guest::apt::AptGuest & apt,
+                                        int updated_memory_mb);
 
         /** Stops MySQL on this host. */
-        void stop_mysql(bool do_not_start_on_reboot=false);
+        void stop_db(bool do_not_start_on_reboot=false);
 
 
     private:

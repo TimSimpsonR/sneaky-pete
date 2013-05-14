@@ -156,21 +156,29 @@ GuestInput Receiver::next_message() {
             NOVA_LOG_ERROR2("Message was not JSON! %s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
+        JsonObjectPtr msg;
         try {
-            last_msg_id = raw->get_string("_msg_id");
-        } catch(const JsonException & je) {
-            last_msg_id = boost::none;
-        }
-        try {
-
-            GuestInput input;
-            input.method_name = raw->get_string("method");
-            input.args = raw->get_object_or_empty("args");
-            return input;
-        } catch(const JsonException & je) {
-            NOVA_LOG_ERROR2("Json message was malformed:", raw->to_string());
+            msg.reset(new JsonObject(raw->get_string("oslo.message")));
+        } catch (const JsonException & je) {
+            NOVA_LOG_ERROR("Oslo message could not be converted to dictionary.");
+            NOVA_LOG_ERROR2("%s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
+        try {
+            last_msg_id = msg->get_string("_msg_id");
+         } catch(const JsonException & je) {
+             last_msg_id = boost::none;
+         }
+         try {
+ 
+             GuestInput input;
+            input.method_name = msg->get_string("method");
+            input.args = msg->get_object_or_empty("args");
+             return input;
+         } catch(const JsonException & je) {
+            NOVA_LOG_ERROR2("Json message was malformed:", msg->to_string());
+             throw GuestException(GuestException::MALFORMED_INPUT);
+         }
     }
 }
 

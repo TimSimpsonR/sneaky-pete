@@ -313,12 +313,12 @@ void MySqlApp::start_mysql(bool update_db) {
     }
 }
 
-void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
+void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
                                              int updated_memory_mb) {
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
     if (status->is_mysql_running()) {
-        NOVA_LOG_ERROR2("Cannot execute start_mysql_with_conf_changes because "
+        NOVA_LOG_ERROR2("Cannot execute start_db_with_conf_changes because "
             "MySQL state == %s!", status->get_current_status_string());
         throw MySqlGuestException(MySqlGuestException::MYSQL_NOT_STOPPED);
     }
@@ -330,12 +330,13 @@ void MySqlApp::start_mysql_with_conf_changes(AptGuest & apt,
     guarantee_enable_starting_mysql_on_boot();
 }
 
-void MySqlApp::stop_mysql(bool do_not_start_on_reboot) {
+void MySqlApp::stop_db(bool do_not_start_on_reboot) {
     if (do_not_start_on_reboot) {
         disable_starting_mysql_on_boot();
     }
     internal_stop_mysql(true);
 }
+
 
 void MySqlApp::wipe_ib_logfiles() {
     const char * MYSQL_BASE_DIR = "/var/lib/mysql";

@@ -430,20 +430,20 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         MySqlAppPtr app = this->create_mysql_app();
         app->restart();
         return JsonData::from_null();
-    } else if (input.method_name == "start_mysql_with_conf_changes") {
+    } else if (input.method_name == "start_db_with_conf_changes") {
         NOVA_LOG_INFO("Calling start with conf changes...");
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("updated_memory_size");
-        app->start_mysql_with_conf_changes(this->apt,
+        app->start_db_with_conf_changes(this->apt,
                                            memory_mb);
         return JsonData::from_null();
-    } else if (input.method_name == "stop_mysql") {
+    } else if (input.method_name == "stop_db") {
         NOVA_LOG_INFO("Calling stop...");
         bool do_not_start_on_reboot =
             input.args->get_optional_bool("do_not_start_on_reboot")
             .get_value_or(false);
         MySqlAppPtr app = this->create_mysql_app();
-        app->stop_mysql(do_not_start_on_reboot);
+        app->stop_db(do_not_start_on_reboot);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

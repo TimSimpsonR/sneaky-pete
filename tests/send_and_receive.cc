@@ -84,10 +84,13 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
     CHECK_POINT();
     NOVA_LOG_INFO("TEST - Created sender");
     CHECK_POINT();
+
+    // As of 2013-05-15, the incoming message is a dictionary with
+    // "oslo.message" as one key, whose value is a *string*, not a dict, which
+    // can be converted to a dict.
     const char MESSAGE_ONE [] =
-    "{"
-    "    'method':'list_users'"
-    "}";
+        "{ \"oslo.message\":\" {\\\"method\\\":\\\"list_users\\\" } \" }";
+
     CHECK_POINT();
     JsonObject input(MESSAGE_ONE);
     CHECK_POINT();

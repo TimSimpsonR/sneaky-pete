@@ -20,6 +20,18 @@ using namespace std;
 
 namespace nova { namespace guest { namespace diagnostics {
 
+ProcStatus ProcStatus::operator - (const ProcStatus & rhs) const
+{
+    return ProcStatus {
+        fd_size - rhs.fd_size,
+        vm_size - rhs.vm_size,
+        vm_peak - rhs.vm_peak,
+        vm_rss - rhs.vm_rss ,
+        vm_hwm - rhs.vm_hwm ,
+        threads - rhs.threads
+    };
+}
+
 /**---------------------------------------------------------------------------
  *- Interrogator
  *---------------------------------------------------------------------------*/

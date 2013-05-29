@@ -53,6 +53,7 @@ project
 		<variant>debug:<define>_DEBUG
         # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
+        <cxxflags>" -std=c++0x"
         ;
 
 

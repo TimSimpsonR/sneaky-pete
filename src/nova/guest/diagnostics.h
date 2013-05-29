@@ -16,6 +16,8 @@ namespace nova { namespace guest { namespace diagnostics {
         int vm_rss;
         int vm_hwm;
         int threads;
+
+        ProcStatus operator - (const ProcStatus & rhs) const;
     };
 
     struct DiagInfo : public ProcStatus {

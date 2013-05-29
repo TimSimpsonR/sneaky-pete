@@ -7,6 +7,7 @@
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
 #include "nova/guest/backup.h"
+#include "nova/guest/monitoring/monitoring.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/GuestException.h"
 #include "nova/guest/HeartBeat.h"
@@ -52,6 +53,7 @@ using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
 using namespace nova::guest::diagnostics;
+using namespace nova::guest::monitoring;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using namespace nova::guest::backup;
@@ -194,9 +196,18 @@ void initialize_and_run(FlagValues & flags) {
     MessageHandlerPtr handler_mysql(new MySqlMessageHandler());
     handlers.push_back(handler_mysql);
 
+    Monitoring monitoring(flags.guest_id(),
+                          flags.monitoring_agent_package_name(),
+                          flags.monitoring_agent_config_file(),
+                          flags.monitoring_agent_install_timeout());
+    MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
+        monitoring));
+    handlers.push_back(handler_monitoring_app);
+
     MessageHandlerPtr handler_mysql_app(new MySqlAppMessageHandler(
         apt_worker, mysql_status_updater,
-        flags.mysql_state_change_wait_time()));
+        flags.mysql_state_change_wait_time(),
+        monitoring));
     handlers.push_back(handler_mysql_app);
 
     /* Create the Interrogator for the guest. */

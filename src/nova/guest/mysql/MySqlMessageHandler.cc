@@ -7,6 +7,7 @@
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/guest/mysql/MySqlApp.h"
+#include "nova/guest/monitoring/monitoring.h"
 #include <boost/optional.hpp>
 #include <sstream>
 #include <boost/tuple/tuple.hpp>
@@ -23,6 +24,7 @@ using namespace nova::db::mysql;
 using boost::optional;
 using namespace std;
 using boost::tie;
+using namespace nova::guest::monitoring;
 
 
 
@@ -327,7 +329,6 @@ namespace {
         };
         sql->grant_access(username, hostname, dbs);
         return JsonData::from_null();
-               
     }
 
     JSON_METHOD(revoke_access){
@@ -402,10 +403,12 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() {
 MySqlAppMessageHandler::MySqlAppMessageHandler(
     nova::guest::apt::AptGuest & apt,
     MySqlAppStatusPtr status,
-    int state_change_wait_time)
+    int state_change_wait_time,
+    nova::guest::monitoring::Monitoring & monitoring)
 : apt(apt),
   status(status),
-  state_change_wait_time(state_change_wait_time)
+  state_change_wait_time(state_change_wait_time),
+  monitoring(monitoring)
 {
 }
 
@@ -417,13 +420,21 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
-        int memory_mb = input.args->get_int("memory_mb");;
+        int memory_mb = input.args->get_int("memory_mb");
         app->install_and_secure(this->apt, memory_mb);
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases and users following successful prepare");
         _create_database(MySqlMessageHandler::sql_admin(), input.args);
         _create_user(MySqlMessageHandler::sql_admin(), input.args);
+
+        // installation of monitoring
+        NOVA_LOG_INFO("Installing Monitoring Agent following successful prepare");
+        const auto  monitoring_token = input.args->get_string("monitoring_token");
+        const auto  monitoring_endpoints = input.args->get_string("monitoring_endpoints");
+        monitoring.install_and_configure_monitoring_agent(this->apt,
+                                                           monitoring_token,
+                                                           monitoring_endpoints);
         return JsonData::from_null();
     } else if (input.method_name == "restart") {
         NOVA_LOG_INFO("Calling restart...");

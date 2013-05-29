@@ -79,9 +79,10 @@ namespace {
 
 
 AptGuest::AptGuest(bool with_sudo, const char * self_package_name,
-                   int self_update_time_out)
+                   int self_update_time_out, bool with_purge)
 : self_package_name(self_package_name),
-  self_update_time_out(self_update_time_out), with_sudo(with_sudo)
+  self_update_time_out(self_update_time_out), with_sudo(with_sudo),
+  with_purge(with_purge)
 {
 }
 
@@ -264,12 +265,19 @@ void AptGuest::install_self_update() {
 
 
 OperationResult _remove(bool with_sudo, const char * package_name,
-                        double time_out) {
+                        double time_out, bool with_purge) {
     Process::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
-    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "remove", package_name;
+    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
+    if (with_purge) {
+        cmds += "purge";
+    }
+    else {
+        cmds += "remove";
+    }
+    cmds += package_name;
     Process process(cmds, false);
 
     vector<string> patterns;
@@ -334,14 +342,14 @@ OperationResult _remove(bool with_sudo, const char * package_name,
 }
 
 void AptGuest::remove(const char * package_name, const double time_out) {
-    OperationResult result = _remove(with_sudo, package_name, time_out);
+    OperationResult result = _remove(with_sudo, package_name, time_out, with_purge);
     if (result != OK) {
         if (result == REINSTALL_FIRST) {
             _install(with_sudo, package_name, time_out);
         } else if (result == RUN_DPKG_FIRST) {
             fix(time_out);
         }
-        result = _remove(with_sudo, package_name, time_out);
+        result = _remove(with_sudo, package_name, time_out, with_purge);
         if (result != OK) {
             throw AptException(AptException::PACKAGE_STATE_ERROR);
         }

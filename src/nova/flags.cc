@@ -327,6 +327,19 @@ optional<const char *> FlagValues::message() const {
     return get_flag_value<const char *>(*map, "message");
 }
 
+const char * FlagValues::monitoring_agent_config_file() const {
+    return map->get("monitoring_agent_config_file", "/etc/rackspace-monitoring-agent.cfg");
+}
+
+const char * FlagValues::monitoring_agent_package_name() const {
+    return map->get("monitoring_agent_package_name", "rackspace-monitoring-agent");
+
+}
+
+double FlagValues::monitoring_agent_install_timeout() const {
+    return get_flag_value<int>(*map, "monitoring_agent_install_timeout", 2 * 60);
+}
+
 int FlagValues::mysql_state_change_wait_time() const {
     return get_flag_value<int>(*map, "mysql_state_change_wait_time", 2 * 60);
 }

@@ -209,6 +209,20 @@ local rule unit ( name : sources * : dependencies * : test-sources *
 # We make a unique object file if we compile the test version differently.
 
 
+obj u_nova_Log_limited
+    : src/nova/Log.cc
+    ;
+
+unit u_nova_Log
+    : u_nova_Log_limited
+      src/nova/Log_rotate_files.cc
+    : u_nova_guest_utils
+      u_nova_utils_io
+      lib_boost_thread
+    : tests/log_tests.cc
+      u_nova_utils_regex
+    ;
+
 unit u_nova_guest_GuestException
     :   src/nova/guest/GuestException.cc
     ;
@@ -260,20 +274,6 @@ unit u_nova_utils_swift
       u_nova_utils_Md5
       u_nova_Log
     : tests/nova/utils/swift_tests.cc
-    ;
-
-obj u_nova_Log_limited
-    : src/nova/Log.cc
-    ;
-
-unit u_nova_Log
-    : u_nova_Log_limited
-      src/nova/Log_rotate_files.cc
-    : u_nova_guest_utils
-      u_nova_utils_io
-      lib_boost_thread
-    : tests/log_tests.cc
-      u_nova_utils_regex
     ;
 
 unit u_nova_db_mysql
@@ -402,17 +402,6 @@ unit u_nova_guest_mysql_MySqlApp
         u_nova_guest_mysql_MySqlAppStatus
     ;
 
-unit u_nova_guest_mysql_MySqlMessageHandler
-    :   src/nova/guest/mysql/MySqlMessageHandler.cc
-    :   u_nova_guest_apt_apt
-        u_nova_guest_apt_AptException
-        u_nova_json
-        u_nova_db_mysql
-        u_nova_guest_mysql_MySqlAdmin
-        u_nova_guest_mysql_MySqlAppStatus
-        u_nova_guest_mysql_MySqlApp
-    ;
-
 unit u_nova_guest_diagnostics_Interrogator
     :   src/nova/guest/diagnostics/Interrogator.cc
     :   u_nova_Log
@@ -460,6 +449,40 @@ unit u_nova_guest_backup_BackupMessageHandler
     :   src/nova/guest/backup/BackupMessageHandler.cc
     :   # lib_json # <-- this should be automatic...
         u_nova_guest_diagnostics_Interrogator
+    :
+    :
+    :
+    :   <implicit-dependency>nova_guest_version
+    ;
+
+unit u_nova_guest_monitoring_Status
+    :   src/nova/guest/monitoring/status.cc
+    :   u_nova_Log
+    ;
+
+unit u_nova_guest_monitoring_Monitoring
+    :   src/nova/guest/monitoring/Monitoring.cc
+    :   u_nova_Log
+        u_nova_guest_apt_apt
+        u_nova_guest_monitoring_MonitoringException
+        u_nova_utils_io
+        u_nova_utils_regex
+    :   #tests/nova/guest/diag_tests.cc
+    :
+    :
+    :   <implicit-dependency>nova_guest_version
+    ;
+
+unit u_nova_guest_monitoring_MonitoringException
+    :   src/nova/guest/monitoring/MonitoringException.cc
+    :   u_nova_guest_GuestException
+    ;
+
+unit u_nova_guest_monitoring_MonitoringMessageHandler
+    :   src/nova/guest/monitoring/MonitoringMessageHandler.cc
+    :   # lib_json # <-- this should be automatic...
+        u_nova_guest_monitoring_Monitoring
+        u_nova_guest_monitoring_Status
         u_nova_guest_GuestException
         u_nova_json
         u_nova_Log
@@ -467,6 +490,18 @@ unit u_nova_guest_backup_BackupMessageHandler
     :
     :
     :   <implicit-dependency>nova_guest_version
+    ;
+
+unit u_nova_guest_mysql_MySqlMessageHandler
+    :   src/nova/guest/mysql/MySqlMessageHandler.cc
+    :   u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_json
+        u_nova_db_mysql
+        u_nova_guest_mysql_MySqlAdmin
+        u_nova_guest_mysql_MySqlAppStatus
+        u_nova_guest_mysql_MySqlApp
+        u_nova_guest_monitoring_Monitoring
     ;
 
 alias guest_lib
@@ -483,6 +518,10 @@ alias guest_lib
         u_nova_guest_backup_BackupException
         u_nova_guest_backup_BackupMessageHandler
         u_nova_utils_swift
+        u_nova_guest_monitoring_Status
+        u_nova_guest_monitoring_Monitoring
+        u_nova_guest_monitoring_MonitoringException
+        u_nova_guest_monitoring_MonitoringMessageHandler
         u_nova_guest_utils
         u_nova_json
         u_nova_Log
@@ -725,4 +764,15 @@ exe download_file
         u_nova_utils_Md5
         u_nova_Log
     :   <linkflags>" -lpthread "
+    ;
+
+# Run this to manually test the monitoring calls
+exe centi-pete
+    :   static_dependencies
+        u_nova_guest_monitoring_Status
+        u_nova_guest_monitoring_Monitoring
+        u_nova_process
+        src/centi_pete.cc
+    :
+        <linkflags>" -static-libgcc -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread "
     ;

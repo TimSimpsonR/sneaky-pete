@@ -127,6 +127,12 @@ class FlagValues {
 
         boost::optional<const char *> message() const;
 
+        const char * monitoring_agent_config_file() const;
+
+        const char * monitoring_agent_package_name() const;
+
+        double monitoring_agent_install_timeout() const;
+
         /** Time MySQL we'll wait for the MySQL app to change from running to
          *  stopped, or vice-versa. */
         int mysql_state_change_wait_time() const;

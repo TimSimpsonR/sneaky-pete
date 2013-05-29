@@ -20,7 +20,7 @@ namespace nova { namespace guest { namespace apt {
              * before the assumption is made that the command was executed
              * incorrectly. */
             AptGuest(bool with_sudo, const char * self_package_name,
-                     int self_update_time_out);
+                     int self_update_time_out, bool with_purge=false);
 
             /** Attempts to fix apt. */
             void fix(double time_out);
@@ -53,6 +53,7 @@ namespace nova { namespace guest { namespace apt {
             std::string self_package_name;
             int self_update_time_out;
             bool with_sudo;
+            bool with_purge;
     };
 
     class AptException : public std::exception {

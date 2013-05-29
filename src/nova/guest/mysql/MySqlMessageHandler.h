@@ -6,6 +6,7 @@
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/guest/mysql/MySqlApp.h"
+#include "nova/guest/monitoring/monitoring.h"
 #include <string>
 
 
@@ -40,8 +41,9 @@ namespace nova { namespace guest { namespace mysql {
 
         public:
             MySqlAppMessageHandler(nova::guest::apt::AptGuest & apt,
-                                   MySqlAppStatusPtr status,
-                                   int state_change_wait_time);
+                           MySqlAppStatusPtr status,
+                           int state_change_wait_time,
+                           nova::guest::monitoring::Monitoring & monitoring);
 
             virtual ~MySqlAppMessageHandler();
 
@@ -53,6 +55,7 @@ namespace nova { namespace guest { namespace mysql {
             nova::guest::apt::AptGuest & apt;
             MySqlAppStatusPtr status;
             int state_change_wait_time;
+            nova::guest::monitoring::Monitoring & monitoring;
     };
 
 } } }

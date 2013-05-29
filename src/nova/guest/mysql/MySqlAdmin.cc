@@ -182,7 +182,7 @@ MySqlUserPtr MySqlAdmin::find_user(const std::string & username, const std::stri
         NOVA_LOG_ERROR2("Could not find a user named %s@%s", username.c_str(), hostname.c_str());
         throw MySqlGuestException(MySqlGuestException::GENERAL);
         }
-        
+
     MySqlUserPtr user(new MySqlUser);
     user->set_name(res->get_string(0).get());
     user->set_host(res->get_string(1).get());
@@ -216,7 +216,7 @@ void MySqlAdmin::grant_access(const std::string & user_name, const std::string &
     con->flush_privileges();
 }
 
-tuple<MySqlDatabaseListPtr, optional<string> >
+boost::tuple<MySqlDatabaseListPtr, boost::optional<string> >
 MySqlAdmin::list_databases(unsigned int limit, optional<string> marker,
                            bool include_marker)
 {
@@ -267,10 +267,10 @@ MySqlAdmin::list_databases(unsigned int limit, optional<string> marker,
         databases->push_back(database);
     }
     res->close();
-    return make_tuple(databases, next_marker);
+    return boost::make_tuple(databases, next_marker);
 }
 
-tuple<MySqlUserListPtr, optional<string> >
+boost::tuple<MySqlUserListPtr, boost::optional<string> >
 MySqlAdmin::list_users(unsigned int limit, optional<string> marker,
                        bool include_marker)
 {
@@ -334,7 +334,7 @@ MySqlAdmin::list_users(unsigned int limit, optional<string> marker,
     }
     userDbRes->close();
 
-    return make_tuple(users, next_marker);
+    return boost::make_tuple(users, next_marker);
 }
 
 bool MySqlAdmin::is_root_enabled() {

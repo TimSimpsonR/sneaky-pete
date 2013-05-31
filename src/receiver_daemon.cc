@@ -19,6 +19,7 @@
 #include "nova/Log.h"
 #include <sstream>
 #include <boost/thread.hpp>
+#include "nova/utils/threads.h"
 #include "nova/guest/utils.h"
 #include <vector>
 
@@ -52,6 +53,7 @@ using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using namespace nova::rpc;
 using std::string;
+using nova::utils::Thread;
 using std::vector;
 
 // Begin anonymous namespace.
@@ -74,23 +76,26 @@ static const bool quit = false;
  * Sends updates back to Reddwarf regarding the status of both
  * Sneaky Pete and the MySQL application.
  */
-class PeriodicTasker {
+class PeriodicTasker : public Thread::Runner {
 
 private:
     HeartBeat & heart_beat;
-    JsonObject message;
-    MySqlConnectionWithDefaultDbPtr nova_db;
+    const unsigned long periodic_interval;
+    const unsigned long report_interval;
     MySqlAppStatusPtr status_updater;
 
 public:
-    PeriodicTasker(HeartBeat & heart_beat, MySqlAppStatusPtr status_updater)
+    PeriodicTasker(HeartBeat & heart_beat, MySqlAppStatusPtr status_updater,
+                   unsigned long periodic_interval,
+                   unsigned long report_interval)
       : heart_beat(heart_beat),
-        message(PERIODIC_MESSAGE),
+        periodic_interval(periodic_interval),
+        report_interval(report_interval),
         status_updater(status_updater)
     {
     }
 
-    void loop(unsigned long periodic_interval, unsigned long report_interval) {
+    virtual void operator()() {
         unsigned long next_periodic_task = periodic_interval;
         unsigned long next_reporting = report_interval;
         while(!quit) {
@@ -194,16 +199,15 @@ void initialize_and_run(FlagValues & flags) {
     /* Create HeartBeat. */
     HeartBeat heart_beat(nova_db, flags.guest_id());
 
-    /* Create tasker. */
-    PeriodicTasker tasker(heart_beat, mysql_status_updater);
 
     /* Create AMQP connection. */
     string topic = str(format("guestagent.%s") % flags.guest_id());
 
-    // This starts the thread.
-    boost::thread workerThread(&PeriodicTasker::loop, &tasker,
-                                   flags.periodic_interval(),
-                                   flags.report_interval());
+    // Start the status thread.
+    PeriodicTasker tasker(heart_beat, mysql_status_updater,
+                          flags.periodic_interval(), flags.report_interval());
+    Thread workerThread(flags.status_thread_stack_size(), tasker);
+
     // Before we go any further, lets all just chill out and take a nap.
     // TODO(tim.simpson) For reasons I can only assume relate to an even
     // worse bug I have been able to uncover, sleeping here keeps Sneaky

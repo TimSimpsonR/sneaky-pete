@@ -149,6 +149,8 @@ class FlagValues {
 
         unsigned long report_interval() const;
 
+        size_t status_thread_stack_size() const;
+
         bool use_syslog() const;
 
     private:

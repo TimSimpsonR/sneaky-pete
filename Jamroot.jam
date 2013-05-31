@@ -263,6 +263,12 @@ unit u_nova_guest_utils
     : u_nova_guest_GuestException
     ;
 
+unit u_nova_utils_threads
+    : src/nova/utils/threads.cc
+    :
+    :
+    ;
+
 unit u_nova_guest_HeartBeat
     :   src/nova/guest/HeartBeat.cc
     :   u_nova_db_mysql
@@ -429,6 +435,7 @@ alias guest_lib
         u_nova_rpc_Receiver
         u_nova_utils_regex
         u_nova_rpc_Sender
+        u_nova_utils_threads
     ;
 
 

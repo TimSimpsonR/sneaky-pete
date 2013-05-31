@@ -29,7 +29,7 @@ void max_out() {
         size_t sum = 0;
         Segment * current = 0;
         while (sum <= MB * 8048) {
-            size_t size = 1024;
+            size_t size = MB;
             void * next = ::operator new(size);
             char * chars = reinterpret_cast<char *>(next); //::operator new(size);
             for (size_t i = 0; i < size; i ++) {

@@ -12,6 +12,8 @@ namespace nova { namespace guest {
     struct GuestInput {
         nova::JsonObjectPtr args;
         std::string method_name;
+        std::string tenant;
+        std::string token;
     };
 
     struct GuestOutput {

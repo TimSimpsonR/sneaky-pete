@@ -3,11 +3,12 @@
 
 #include <functional>
 #include <pthread.h>
+#include <boost/utility.hpp>
 
 
 namespace nova { namespace utils {
 
-class Thread
+class Thread : boost::noncopyable
 {
 public:
 

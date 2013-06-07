@@ -1,10 +1,12 @@
 #include "nova/rpc/amqp.h"
 #include "nova/guest/apt.h"
 #include "nova/ConfigFile.h"
+#include "nova/utils/Curl.h"
 #include "nova/flags.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
+#include "nova/guest/backup.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/GuestException.h"
 #include "nova/guest/HeartBeat.h"
@@ -43,6 +45,7 @@
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptMessageHandler;
 using std::auto_ptr;
+using nova::utils::CurlScope;
 using boost::format;
 using boost::optional;
 using namespace nova;
@@ -51,6 +54,7 @@ using namespace nova::guest;
 using namespace nova::guest::diagnostics;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
+using namespace nova::guest::backup;
 using namespace nova::rpc;
 using std::string;
 using nova::utils::Thread;
@@ -64,6 +68,12 @@ const char PERIODIC_MESSAGE [] =
     "    'method':'periodic_tasks',"
     "    'args':{}"
     "}";
+
+/* Runs a single method. */
+GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input);
+
+/* Runs a single method using a JSON string as input. */
+void run_json_method(vector<MessageHandlerPtr> & handlers, const char * msg);
 
 /* Handles receiving and processing messages. */
 void message_loop(ResilentReceiver & receiver,
@@ -154,6 +164,9 @@ void initialize_and_run(FlagValues & flags) {
     // threads.
     MySqlApiScope mysql_api_scope;
 
+    // Initialize curl.
+    CurlScope scope;
+
     /* Create connection to Nova database. */
     MySqlConnectionWithDefaultDbPtr nova_db(
         new MySqlConnectionWithDefaultDb(
@@ -192,6 +205,17 @@ void initialize_and_run(FlagValues & flags) {
         new InterrogatorMessageHandler(interrogator));
     handlers.push_back(handler_interrogator);
 
+    /* Backup task */
+    Backup backup(nova_db,
+                  flags.backup_chunk_size(),
+                  flags.backup_segment_max_size(),
+                  flags.backup_swift_container(),
+                  flags.backup_use_gzip_compression(),
+                  flags.swift_url(),
+                  flags.backup_timeout());
+    MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
+    handlers.push_back(handler_backup);
+
     /* Set host value. */
     string actual_host = nova::guest::utils::get_host_name();
     string host = flags.host().get_value_or(actual_host.c_str());
@@ -215,14 +239,65 @@ void initialize_and_run(FlagValues & flags) {
     // increase).
     boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-    NOVA_LOG_INFO("Creating listener...");
+    // If a "message" is specified we just run it and quit. Otherwise,
+    // it's Rabbit time.
+    optional<const char *> message = flags.message();
+    if (message) {
+        run_json_method(handlers, message.get());
+    } else {
+        NOVA_LOG_INFO("Creating listener...");
 
-    ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
-                flags.rabbit_userid(), flags.rabbit_password(),
-                flags.rabbit_client_memory(), topic.c_str(),
-                flags.control_exchange(),  flags.rabbit_reconnect_wait_time());
+        ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
+                    flags.rabbit_userid(), flags.rabbit_password(),
+                    flags.rabbit_client_memory(), topic.c_str(),
+                    flags.control_exchange(),
+                    flags.rabbit_reconnect_wait_time());
 
-    message_loop(receiver, handlers);
+        message_loop(receiver, handlers);
+    }
+}
+
+void run_json_method(vector<MessageHandlerPtr> & handlers,
+                     const char * msg) {
+    JsonObject obj(msg);
+    GuestInput input;
+    Receiver::init_input_with_json(input, obj);
+    run_method(handlers, input);
+    NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+    NOVA_LOG_INFO(" ^           ^ ^                             ^");
+    NOVA_LOG_INFO(" ^           -  -   < Good bye.)             ^");
+    NOVA_LOG_INFO(" ^        /==/`-'\\                           ^");
+    NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+}
+
+GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input) {
+    GuestOutput output;
+
+    #ifdef CATCH_RPC_METHOD_ERRORS
+    try {
+    #endif
+        BOOST_FOREACH(MessageHandlerPtr & handler, handlers) {
+            output.result = handler->handle_message(input);
+            if (output.result) {
+                break;
+            }
+        }
+        if (!output.result) {
+            NOVA_LOG_ERROR("No method found!")
+            throw GuestException(GuestException::NO_SUCH_METHOD);
+        }
+        output.failure = boost::none;
+    #ifdef CATCH_RPC_METHOD_ERRORS
+    } catch(const std::exception & e) {
+        NOVA_LOG_ERROR2("Error running method %s : %s",
+                   input.method_name.c_str(), e.what());
+        NOVA_LOG_ERROR(e.what());
+        output.result.reset();
+        output.failure = e.what();
+    }
+    #endif
+
+    return output;
 }
 
 void message_loop(ResilentReceiver & receiver,
@@ -231,31 +306,7 @@ void message_loop(ResilentReceiver & receiver,
         GuestInput input = receiver.next_message();
         NOVA_LOG_INFO2("method=%s", input.method_name.c_str());
 
-        GuestOutput output;
-
-        #ifdef CATCH_RPC_METHOD_ERRORS
-        try {
-        #endif
-            BOOST_FOREACH(MessageHandlerPtr & handler, handlers) {
-                output.result = handler->handle_message(input);
-                if (output.result) {
-                    break;
-                }
-            }
-            if (!output.result) {
-                NOVA_LOG_ERROR("No method found!")
-                throw GuestException(GuestException::NO_SUCH_METHOD);
-            }
-            output.failure = boost::none;
-        #ifdef CATCH_RPC_METHOD_ERRORS
-        } catch(const std::exception & e) {
-            NOVA_LOG_ERROR2("Error running method %s : %s",
-                       input.method_name.c_str(), e.what());
-            NOVA_LOG_ERROR(e.what());
-            output.result.reset();
-            output.failure = e.what();
-        }
-        #endif
+        GuestOutput output(run_method(handlers, input));
 
         receiver.finish_message(output);
     }

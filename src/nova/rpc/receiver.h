@@ -8,11 +8,12 @@
 #include <memory>
 #include <boost/optional.hpp>
 #include <string>
+#include <boost/utility.hpp>
 
 
 namespace nova { namespace rpc {
 
-    class Receiver {
+    class Receiver : boost::noncopyable  {
 
     public:
         Receiver(AmqpConnectionPtr connection, const char * topic,
@@ -21,7 +22,7 @@ namespace nova { namespace rpc {
         ~Receiver();
 
         /** Finishes a message. */
-        void finish_message(const nova::guest::GuestOutput & output);
+        void finish_message(const nova::guest::GuestOutput & output)
 
         /** Grabs the next message. */
         nova::guest::GuestInput next_message();

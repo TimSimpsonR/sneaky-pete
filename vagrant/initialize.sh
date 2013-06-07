@@ -58,6 +58,16 @@ sudo make install
 sudo cp /usr/local/lib/libjson* /usr/lib/
 sudo cp /usr/local/lib/librabbit* /usr/lib/
 
+
+# Install curl.
+# cd $BUILD_DIR
+# git clone git://github.com/bagder/curl.git
+# cd curl
+# ./buildconf
+# ./configure
+# make
+#sudo make install
+
 # Needed for static compile magic.
 cd $BUILD_DIR
 ln -s `g++ -print-file-name=libstdc++.a`

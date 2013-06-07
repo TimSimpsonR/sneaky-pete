@@ -5,13 +5,14 @@
 #include <sys/select.h>
 #include <signal.h>
 #include <time.h>
+#include <boost/utility.hpp>
 
 namespace nova { namespace utils { namespace io {
 
 /**
  * Create this to cause select_with_throw to throw TimeOutExceptions.
  */
-class Timer {
+class Timer : boost::noncopyable {
     public:
         Timer(double seconds);
 

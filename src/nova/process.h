@@ -75,6 +75,8 @@ class Process : private boost::noncopyable {
          * is encountered the eof property is set to true. */
         size_t read_into(std::stringstream & std_out,
                          const boost::optional<double> seconds=boost::none);
+        size_t read_into(char * buffer, const size_t length,
+                         const boost::optional<double> seconds=boost::none);
 
         /* Reads from the process's stdout into the string stream until
          * stdout does not have any data for the given number of seconds.

@@ -4,6 +4,7 @@
 #include <boost/smart_ptr.hpp>
 #include <regex.h>
 #include <string>
+#include <boost/utility.hpp>
 
 
 namespace nova { namespace utils {
@@ -11,7 +12,7 @@ namespace nova { namespace utils {
 class RegexMatches;
 typedef boost::shared_ptr<RegexMatches> RegexMatchesPtr;
 
-class Regex {
+class Regex : boost::noncopyable {
     public:
         Regex(const char * pattern);
         ~Regex();
@@ -25,7 +26,7 @@ class Regex {
         regex_t regex;
 };
 
-class RegexMatches {
+class RegexMatches : boost::noncopyable {
     public:
         RegexMatches(const char * line, regmatch_t * matches, size_t size);
         ~RegexMatches();

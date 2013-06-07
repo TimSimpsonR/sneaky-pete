@@ -57,7 +57,7 @@ namespace nova {
         static LogOptions simple();
     };
 
-    class LogApiScope {
+    class LogApiScope : boost::noncopyable  {
         public:
             LogApiScope(const LogOptions & options);
             ~LogApiScope();
@@ -74,7 +74,7 @@ namespace nova {
 
     typedef std::auto_ptr<LogLine> LogLinePtr;
 
-    class Log {
+    class Log : boost::noncopyable  {
         friend void intrusive_ptr_add_ref(Log * ref);
         friend void intrusive_ptr_release(Log * ref);
         friend class LogLine;
@@ -121,8 +121,6 @@ namespace nova {
             ~Log();
 
         private:
-            Log(const Log &);
-            Log & operator = (const Log &);
 
             void close_file();
 

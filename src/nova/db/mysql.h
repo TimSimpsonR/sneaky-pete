@@ -7,6 +7,7 @@
 #include <boost/smart_ptr.hpp>
 #include <string>
 #include <vector>
+#include <boost/utility.hpp>
 
 
 namespace nova { namespace db { namespace mysql {
@@ -55,7 +56,7 @@ namespace nova { namespace db { namespace mysql {
 
     /* Toss an instance of this in your main, or anywhere else you'll need to
      * use the MySQL API, before any connections are open. */
-    class MySqlApiScope {
+    class MySqlApiScope : boost::noncopyable  {
         public:
             // MySQL allocates some global memory it keeps up with as it runs.
             MySqlApiScope();
@@ -76,7 +77,7 @@ namespace nova { namespace db { namespace mysql {
 
     typedef boost::shared_ptr<MySqlConnection> MySqlConnectionPtr;
 
-    class MySqlConnection {
+    class MySqlConnection : boost::noncopyable  {
         public:
             MySqlConnection(const char * uri, const char * user,
                             const char * password);
@@ -160,7 +161,7 @@ namespace nova { namespace db { namespace mysql {
     typedef boost::shared_ptr<MySqlConnectionWithDefaultDb>
         MySqlConnectionWithDefaultDbPtr;
 
-    class MySqlResultSet {
+    class MySqlResultSet : boost::noncopyable  {
         public:
             virtual ~MySqlResultSet();
 
@@ -181,7 +182,7 @@ namespace nova { namespace db { namespace mysql {
             virtual bool next() = 0;
     };
 
-    class MySqlPreparedStatement {
+    class MySqlPreparedStatement : boost::noncopyable  {
         public:
             virtual ~MySqlPreparedStatement();
             virtual void close() = 0;

@@ -1,10 +1,4 @@
-*.o
-send
-sender
-receive
-receiver
-a.out
 bin/*
-debian/*.debhelper
-debian/tmp
-vagrant/.vagrant
+*.pyc
+debian/*
+parrot/*

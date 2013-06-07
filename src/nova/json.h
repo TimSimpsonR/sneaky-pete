@@ -4,6 +4,7 @@
 #include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
+#include <boost/utility.hpp>
 
 
 struct json_object;
@@ -54,7 +55,7 @@ namespace nova {
     typedef boost::shared_ptr<JsonObject> JsonObjectPtr;
 
 
-    class JsonData {
+    class JsonData : boost::noncopyable  {
 
         public:
             JsonData(json_object * obj);

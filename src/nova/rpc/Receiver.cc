@@ -170,10 +170,9 @@ GuestInput Receiver::next_message() {
              last_msg_id = boost::none;
          }
          try {
- 
              GuestInput input;
-            input.method_name = msg->get_string("method");
-            input.args = msg->get_object_or_empty("args");
+             input.method_name = msg->get_string("method");
+             input.args = msg->get_object_or_empty("args");
              return input;
          } catch(const JsonException & je) {
             NOVA_LOG_ERROR2("Json message was malformed:", msg->to_string());

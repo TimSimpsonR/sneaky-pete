@@ -4,10 +4,11 @@
 #include "nova/rpc/amqp_ptr.h"
 #include <json/json.h>
 #include "nova/Log.h"
+#include <boost/utility.hpp>
 
 namespace nova { namespace rpc {
 
-    class Sender {
+    class Sender : boost::noncopyable  {
         public:
             Sender(AmqpConnectionPtr connection, const char * topic);
 

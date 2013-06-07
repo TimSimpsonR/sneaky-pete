@@ -52,7 +52,7 @@ namespace nova { namespace rpc {
                            const AmqpException::Code & code);
 
     /** Manages a connection to Amqp as well as all open channels. */
-    class AmqpConnection {
+    class AmqpConnection : boost::noncopyable  {
         friend class AmqpChannel;
         friend void intrusive_ptr_add_ref(AmqpConnection * ref);
         friend void intrusive_ptr_release(AmqpConnection * ref);
@@ -132,7 +132,7 @@ namespace nova { namespace rpc {
     typedef boost::shared_ptr<AmqpQueueMessage> AmqpQueueMessagePtr;
 
     /** Manages a channel to amqp. */
-    class AmqpChannel {
+    class AmqpChannel : boost::noncopyable  {
         friend void intrusive_ptr_add_ref(AmqpChannel * ref);
         friend void intrusive_ptr_release(AmqpChannel * ref);
         friend class AmqpConnection;

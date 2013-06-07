@@ -91,9 +91,17 @@ lib lib_m : : <name>m ;
 lib lib_stdc++ : : <name>stdc++ ;
 
 lib lib_z : : <file>/usr/lib/libz.so.1 ;
+# ubuntu specific
+#lib lib_z : : <file>/lib/x86_64-linux-gnu/libz.so.1 ;
 lib lib_c : : <name>c ;
 
 lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
+
+# Note: In Ubuntu, use this:
+# lib lib_mysqlclient_r :
+#   : <file>/usr/lib/x86_64-linux-gnu/libmysqlclient_r.so.18.0.0 ;
+
+lib lib_curl : : <file>/usr/lib/libcurl.so.4.2.0 ;
 
 alias static_dependencies
 	:   dependencies
@@ -235,6 +243,23 @@ unit u_nova_json
     : src/nova/json.cc
     : lib_json
     : tests/nova/json_tests.cc
+    ;
+
+obj u_nova_utils_Md5
+    : src/nova/utils/Md5.cc
+    ;
+
+unit u_nova_utils_Curl
+    : src/nova/utils/Curl.cc
+    : lib_curl
+    ;
+
+unit u_nova_utils_swift
+    : src/nova/utils/swift.cc
+    : u_nova_utils_Curl
+      u_nova_utils_Md5
+      u_nova_Log
+    : tests/nova/utils/swift_tests.cc
     ;
 
 obj u_nova_Log_limited
@@ -418,6 +443,32 @@ unit u_nova_guest_diagnostics_InterrogatorMessageHandler
     :   <implicit-dependency>nova_guest_version
     ;
 
+unit u_nova_guest_backup_Backup
+    :   src/nova/guest/backup/Backup.cc
+    :   u_nova_Log
+        u_nova_guest_backup_BackupException
+        u_nova_utils_io
+        u_nova_utils_regex
+    ;
+
+unit u_nova_guest_backup_BackupException
+    :   src/nova/guest/backup/BackupException.cc
+    :   u_nova_guest_GuestException
+    ;
+
+unit u_nova_guest_backup_BackupMessageHandler
+    :   src/nova/guest/backup/BackupMessageHandler.cc
+    :   # lib_json # <-- this should be automatic...
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_guest_GuestException
+        u_nova_json
+        u_nova_Log
+    :
+    :
+    :
+    :   <implicit-dependency>nova_guest_version
+    ;
+
 alias guest_lib
     :   u_nova_guest_HeartBeat
         u_nova_configfile
@@ -428,6 +479,10 @@ alias guest_lib
         u_nova_guest_diagnostics_Interrogator
         u_nova_guest_diagnostics_InterrogatorException
         u_nova_guest_diagnostics_InterrogatorMessageHandler
+        u_nova_guest_backup_Backup
+        u_nova_guest_backup_BackupException
+        u_nova_guest_backup_BackupMessageHandler
+        u_nova_utils_swift
         u_nova_guest_utils
         u_nova_json
         u_nova_Log
@@ -493,7 +548,7 @@ unit-test int_tests_mysql
 explicit int_tests_mysql ;
 
 
-unit-test mysql_nova_updater_tests
+unit-test MySqlAppStatus_tests
     :   lib_boost_thread
         u_nova_flags
         u_nova_guest_mysql_MySqlGuestException
@@ -504,6 +559,8 @@ unit-test mysql_nova_updater_tests
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
 
+explicit MySqlAppStatus_tests ;
+
 
 unit-test HeartBeat_tests
     :   u_nova_flags
@@ -513,6 +570,7 @@ unit-test HeartBeat_tests
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
+
 explicit HeartBeat_tests ;
 
 
@@ -631,14 +689,6 @@ exe nova-guest
 
 	;
 
-#exe sender
-#	:	dependencies
-#		guest_lib
-#		src/test_sender.cc
-#	:   #<link>shared:<dependency>sql_guest_tests
-#	    #<link>shared:<dependency>memory_tests
-#	;
-
 # Run this in Valgrind to find possible leaks.
 exe leak_tester
 	:	dependencies
@@ -659,3 +709,20 @@ exe greedy_pete
 
 explicit leak_tester ;
 
+
+
+exe upload_file
+    :   tests/upload_file.cc
+        u_nova_utils_swift
+        u_nova_utils_Md5
+        u_nova_Log
+    :   <linkflags>" -lpthread "
+    ;
+
+exe download_file
+    :   tests/download_file.cc
+        u_nova_utils_swift
+        u_nova_utils_Md5
+        u_nova_Log
+    :   <linkflags>" -lpthread "
+    ;

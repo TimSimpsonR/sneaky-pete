@@ -300,26 +300,31 @@ bool Process::is_pid_alive(pid_t pid) {
 }
 
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
+    char buf[1048];
+    size_t count = read_into(buf, 1048, seconds);
+    buf[count] = 0;  // Have to do this or Valgrind fails.
+    std_out.write(buf, count);
+    LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());
+    return count;
+}
+
+size_t Process::read_into(char * buffer, const size_t length, const optional<double> seconds) {
     LOG_DEBUG2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (eof_flag == true) {
         throw ProcessException(ProcessException::PROGRAM_FINISHED);
     }
-    char buf[1048];
     if (!ready(std_out_pipe.in(), seconds)) {
         LOG_DEBUG("read_into: ready returned false, returning zero from read_into");
         return 0;
     }
-    size_t count = io::read_with_throw(std_out_pipe.in(), buf, 1047);
+    size_t count = io::read_with_throw(std_out_pipe.in(), buffer, length);
     if (count == 0) {
         LOG_DEBUG("read returned 0, EOF");
         set_eof();
         return 0; // eof
     }
     LOG_DEBUG("Writing.");
-    buf[count] = 0;  // Have to do this or Valgrind fails.
-    std_out.write(buf, count);
-    LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());
-    LOG_DEBUG2("OUTPUT:%s", buf);
+    LOG_DEBUG2("OUTPUT:%s", buffer);
     LOG_DEBUG("Exit read_into");
     return (size_t) count;
 }

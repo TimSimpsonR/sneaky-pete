@@ -200,6 +200,10 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
     wipe_ib_logfiles();
 }
 
+void MySqlApp::change_conf_file(AptGuest & apt, int updated_memory_mb) {
+    write_mycnf(apt, updated_memory_mb, boost::none);
+}
+
 void MySqlApp::install_and_secure(AptGuest & apt, int memory_mb) {
     // The MySqlAdmin class is lazy initialized, so we can create it before
     // the app exists.

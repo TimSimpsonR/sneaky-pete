@@ -29,6 +29,9 @@ class MySqlApp {
         void start_db_with_conf_changes(nova::guest::apt::AptGuest & apt,
                                         int updated_memory_mb);
 
+        void change_conf_file(nova::guest::apt::AptGuest & apt,
+                         int updated_memory_mb);
+
         /** Stops MySQL on this host. */
         void stop_db(bool do_not_start_on_reboot=false);
 

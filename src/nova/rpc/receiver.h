@@ -22,7 +22,10 @@ namespace nova { namespace rpc {
         ~Receiver();
 
         /** Finishes a message. */
-        void finish_message(const nova::guest::GuestOutput & output)
+        void finish_message(const nova::guest::GuestOutput & output);
+
+        static void init_input_with_json(nova::guest::GuestInput & input,
+                                         nova::JsonObject & msg);
 
         /** Grabs the next message. */
         nova::guest::GuestInput next_message();

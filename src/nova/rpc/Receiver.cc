@@ -147,6 +147,13 @@ JsonObjectPtr Receiver::_next_message() {
     return json_obj;
 }
 
+void Receiver::init_input_with_json(GuestInput & input, JsonObject & msg) {
+    input.method_name = msg.get_string("method");
+    input.tenant = msg.get_string("_context_tenant");
+    input.token = msg.get_string("_context_auth_token");
+    input.args = msg.get_object_or_empty("args");
+}
+
 GuestInput Receiver::next_message() {
     while(true) {
         JsonObjectPtr raw;
@@ -171,8 +178,7 @@ GuestInput Receiver::next_message() {
          }
          try {
              GuestInput input;
-             input.method_name = msg->get_string("method");
-             input.args = msg->get_object_or_empty("args");
+             init_input_with_json(input, *msg);
              return input;
          } catch(const JsonException & je) {
             NOVA_LOG_ERROR2("Json message was malformed:", msg->to_string());

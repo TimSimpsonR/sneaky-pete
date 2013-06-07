@@ -262,6 +262,27 @@ bool FlagValues::apt_use_sudo() const {
     return strncmp(value, "true", 4) == 0;
 }
 
+int FlagValues::backup_chunk_size() const {
+    return get_flag_value<int>(*map, "backup_chunk_size", 16 * 1024);
+}
+
+int FlagValues::backup_segment_max_size() const {
+    return get_flag_value<int>(*map, "backup_segment_max_size", 32 * 1024);
+}
+
+const char * FlagValues::backup_swift_container() const {
+    return map->get("backup_swift_container", "z_CLOUDDB_BACKUPS");
+}
+
+double FlagValues::backup_timeout() const {
+    return get_flag_value<double>(*map, "backup_timeout", 60.0);
+}
+
+bool FlagValues::backup_use_gzip_compression() const {
+    const char * value = map->get("backup_use_gzip_compression", "true");
+    return strncmp(value, "true", 4) == 0;
+}
+
 const char * FlagValues::control_exchange() const {
     return map->get("control_exchange", "reddwarf");
 }
@@ -300,6 +321,10 @@ bool FlagValues::log_show_trace() const {
 
 bool FlagValues::log_use_std_streams() const {
     return get_flag_value<bool>(*map, "log_use_std_streams", true);
+}
+
+optional<const char *> FlagValues::message() const {
+    return get_flag_value<const char *>(*map, "message");
 }
 
 int FlagValues::mysql_state_change_wait_time() const {
@@ -373,6 +398,10 @@ unsigned long FlagValues::report_interval() const {
 size_t FlagValues::status_thread_stack_size() const {
     return get_flag_value(*map, "status_thread_stack_size",
                           (size_t) 1024 * 1024);
+}
+
+const char * FlagValues::swift_url() const {
+    return map->get("swift_url", "http://overcome-by-events");
 }
 
 bool FlagValues::use_syslog() const {

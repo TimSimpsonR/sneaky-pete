@@ -13,4 +13,5 @@ Vcs-Bzr: http://bazaar.launchpad.net/~openstack-ubuntu-packagers/ubuntu/natty/no
 
 Package: nova-guest
 Architecture: all
+Depends: libcurl3 (>= 7.16.2-1)
 Description: Red Dwarf - Nova - Guest Configuration

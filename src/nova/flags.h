@@ -95,6 +95,16 @@ class FlagValues {
 
         int apt_self_update_time_out() const;
 
+        int backup_chunk_size() const;
+
+        int backup_segment_max_size() const;
+
+        const char * backup_swift_container() const;
+
+        double backup_timeout() const;
+
+        bool backup_use_gzip_compression() const;
+
         const char * control_exchange() const;
 
         const char * db_backend() const;
@@ -114,6 +124,8 @@ class FlagValues {
         bool log_show_trace() const;
 
         bool log_use_std_streams() const;
+
+        boost::optional<const char *> message() const;
 
         /** Time MySQL we'll wait for the MySQL app to change from running to
          *  stopped, or vice-versa. */
@@ -150,6 +162,8 @@ class FlagValues {
         unsigned long report_interval() const;
 
         size_t status_thread_stack_size() const;
+
+        const char * swift_url() const;
 
         bool use_syslog() const;
 

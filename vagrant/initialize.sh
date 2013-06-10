@@ -59,14 +59,27 @@ sudo cp /usr/local/lib/libjson* /usr/lib/
 sudo cp /usr/local/lib/librabbit* /usr/lib/
 
 
-# Install curl.
+sudo apt-get install libcurl4-openssl-dev
+sudo updatedb
+
+# # Alternative- use this if we ever need to build from source.
+# # Install curl.
+# # First, remove the installed one.
+# set +e
+# sudo -E DEBIAN_FRONTEND=noninteractive $HTTP_PROXY apt-get purge curl
+# set -e
+# # Now build the library Sneaky Pete will use from source.
 # cd $BUILD_DIR
 # git clone git://github.com/bagder/curl.git
 # cd curl
 # ./buildconf
 # ./configure
 # make
-#sudo make install
+# sudo make install
+# # Remove the binary file the above process creates as it won't work correctly.
+# sudo rm /usr/local/bin/curl
+# # Now reinstall.
+# sudo -E DEBIAN_FRONTEND=noninteractive $HTTP_PROXY apt-get install curl
 
 # Needed for static compile magic.
 cd $BUILD_DIR

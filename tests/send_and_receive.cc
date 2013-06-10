@@ -89,7 +89,12 @@ BOOST_AUTO_TEST_CASE(SendingAMessage)
     // "oslo.message" as one key, whose value is a *string*, not a dict, which
     // can be converted to a dict.
     const char MESSAGE_ONE [] =
-        "{ \"oslo.message\":\" {\\\"method\\\":\\\"list_users\\\" } \" }";
+        "{ \"oslo.message\":\" {\\\"method\\\":\\\"list_users\\\",           "
+        "                       \\\"_context_tenant\\\":\\\"TENANT\\\",      "
+        "                       \\\"_context_auth_token\\\":\\\"5-cents\\\", "
+        "                      } \"                                          "
+        "}                                                                   ";
+
 
     CHECK_POINT();
     JsonObject input(MESSAGE_ONE);

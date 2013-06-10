@@ -59,7 +59,7 @@ sudo cp /usr/local/lib/libjson* /usr/lib/
 sudo cp /usr/local/lib/librabbit* /usr/lib/
 
 
-sudo apt-get install libcurl4-openssl-dev
+sudo -E DEBIAN_FRONTEND=noninteractive $HTTP_PROXY apt-get install libcurl4-openssl-dev
 sudo updatedb
 
 # # Alternative- use this if we ever need to build from source.

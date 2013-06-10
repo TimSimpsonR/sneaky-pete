@@ -9,7 +9,7 @@
 #include <iostream>
 #include "nova/utils/Curl.h"
 #include <boost/format.hpp>
-#include "nova/utils/md5.h"
+#include "nova/utils/Md5.h"
 #include "nova/Log.h"
 #include <boost/utility.hpp>
 

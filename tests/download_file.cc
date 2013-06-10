@@ -6,7 +6,7 @@
 #include <iostream>
 #include "nova/utils/Curl.h"
 #include <boost/format.hpp>
-#include "nova/utils/md5.h"
+#include "nova/utils/Md5.h"
 #include "nova/Log.h"
 #include <boost/assign/list_of.hpp>
 #include "nova/utils/swift.h"

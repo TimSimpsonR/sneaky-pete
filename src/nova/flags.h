@@ -163,8 +163,6 @@ class FlagValues {
 
         size_t status_thread_stack_size() const;
 
-        const char * swift_url() const;
-
         bool use_syslog() const;
 
     private:

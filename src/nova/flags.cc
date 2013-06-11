@@ -400,10 +400,6 @@ size_t FlagValues::status_thread_stack_size() const {
                           (size_t) 1024 * 1024);
 }
 
-const char * FlagValues::swift_url() const {
-    return map->get("swift_url", "http://overcome-by-events");
-}
-
 bool FlagValues::use_syslog() const {
     return get_flag_value<bool>(*map, "use_syslog", false);
 }

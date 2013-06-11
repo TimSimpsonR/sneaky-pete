@@ -40,6 +40,9 @@ struct SwiftFileInfo {
     std::string manifest_url() const;
 
     std::string prefix_header() const;
+
+    /* Write the number of segments to the metadata */
+    std::string segment_header(int file_number) const;
 };
 
 
@@ -89,7 +92,7 @@ private:
     void reset_session();
     bool validate_segment(const std::string & url, const std::string checksum);
     void write_container();
-    void write_manifest();
+    void write_manifest(int file_number);
 
     /* Returns a MD5 checksum. */
     std::string write_segment(const std::string & url, Input & input);

@@ -211,7 +211,6 @@ void initialize_and_run(FlagValues & flags) {
                   flags.backup_segment_max_size(),
                   flags.backup_swift_container(),
                   flags.backup_use_gzip_compression(),
-                  flags.swift_url(),
                   flags.backup_timeout());
     MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
     handlers.push_back(handler_backup);

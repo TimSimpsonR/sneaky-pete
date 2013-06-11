@@ -46,13 +46,19 @@ BOOST_AUTO_TEST_CASE(formatted_url)
 BOOST_AUTO_TEST_CASE(manifest_url)
 {
     BOOST_CHECK_EQUAL(file.manifest_url(),
-                      "http://local.com/cloud/container/filename.xbstream.gz");
+                      "http://local.com/cloud/container/filename");
 }
 
 BOOST_AUTO_TEST_CASE(prefix_header)
 {
     BOOST_CHECK_EQUAL(file.prefix_header(),
                       "X-Object-Manifest: container/filename_");
+}
+
+BOOST_AUTO_TEST_CASE(segment_header)
+{
+    BOOST_CHECK_EQUAL(file.segment_header(36),
+                      "X-Object-Meta-Segments: 36");
 }
 
 BOOST_AUTO_TEST_SUITE_END();

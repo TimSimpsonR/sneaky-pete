@@ -73,14 +73,12 @@ Backup::Backup(MySqlConnectionWithDefaultDbPtr & infra_db,
                const int segment_max_size,
                const std::string swift_container,
                const bool use_gzip,
-               const std::string swift_url,
                const double time_out)
 :   infra_db(infra_db),
     chunk_size(chunk_size),
     segment_max_size(segment_max_size),
     swift_container(swift_container),
     use_gzip(use_gzip),
-    swift_url(swift_url),
     time_out(time_out)
 {
 }
@@ -88,7 +86,8 @@ Backup::Backup(MySqlConnectionWithDefaultDbPtr & infra_db,
 Backup::~Backup() {
 }
 
-void Backup::run_backup(const std::string & tenant,
+void Backup::run_backup(const std::string & swift_url,
+                        const std::string & tenant,
                         const std::string & token,
                         const std::string & backup_id) {
     NOVA_LOG_INFO2("Starting backup for tenant %s, backup_id=%d",
@@ -150,15 +149,14 @@ void BackupRunner::dump() {
     // cmds += "/usr/bin/sudo", "-E", "innobackupex";
     // cmds += "--stream=xbstream", "/var/lib/mysql";
     // cmds += "2>/tmp/innobackupex.log", "|", "gzip";
-    cmds += "/usr/bin/sudo", "-E", "mysqldump";
-    cmds += "--all-databases", "--opt";
+    cmds += "/usr/bin/sudo", "-E", "innobackupex";
+    cmds += "--stream=xbstream", "--compress", "/var/lib/mysql";
     // TODO: (rmyers) compress and record errors!
     //cmds += "2>/tmp/innobackupex.log";
     BackupProcessReader reader(cmds, time_out);
 
     // Setup SwiftClient
-    auto base_url = str(format("%s%s") % swift_url % tenant);
-    SwiftFileInfo file_info(base_url, swift_container, backup_id);
+    SwiftFileInfo file_info(swift_url, swift_container, backup_id);
     SwiftClient writer(token, segment_max_size, chunk_size, file_info);
 
     // Write the backup to swift

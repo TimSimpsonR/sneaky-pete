@@ -28,9 +28,10 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "create_backup") {
         NOVA_LOG_DEBUG("handling the create_backup method");
         const auto id = input.args->get_string("backup_id");
+        const auto swift_url = input.args->get_string("swift_url");
         const auto tenant = input.tenant;
         const auto token = input.token;
-        backup.run_backup(tenant, token, id);
+        backup.run_backup(swift_url, tenant, token, id);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

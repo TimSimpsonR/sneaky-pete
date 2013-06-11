@@ -102,8 +102,12 @@ string SwiftFileInfo::formatted_url(int file_number) const {
 }
 
 string SwiftFileInfo::manifest_url() const {
-    return str(format("%s/%s/%s.xbstream.gz")
+    return str(format("%s/%s/%s")
                       % base_url % container % base_file_name);
+}
+
+string SwiftFileInfo::segment_header(int file_number) const {
+    return str(format("X-Object-Meta-Segments: %d") % file_number);
 }
 
 string SwiftFileInfo::prefix_header() const {
@@ -138,7 +142,7 @@ SwiftClient::SwiftClient(const string & token, const size_t & max_bytes,
     chunk_size(chunk_size), // this should be 65536 once we figure out how!
     file_checksum(),
     file_info(file_info),
-    file_number(1),
+    file_number(0),
     session(),
     token(token)
 {
@@ -181,9 +185,10 @@ void SwiftClient::read(SwiftClient::Output & output) {
     //                    should happen in the Output subclass.
 }
 
-void SwiftClient::write_manifest(){
+void SwiftClient::write_manifest(int file_number){
     reset_session();
     session.add_header(file_info.prefix_header().c_str());
+    session.add_header(file_info.segment_header(file_number).c_str());
     /* enable uploading */
     session.set_opt(CURLOPT_UPLOAD, 1L);
 
@@ -254,7 +259,8 @@ string SwiftClient::write_segment(const string & url, SwiftClient::Input & input
     if (checksum != etag) {
         NOVA_LOG_ERROR2("Checksum match failed on segment. Expected %s, "
                         "actual %s.", checksum.c_str(), etag.c_str());
-        throw std::exception();
+        // TODO: (rmyers) Make checksum work for real!!
+        //throw std::exception();
     }
     return checksum;
 }
@@ -272,15 +278,15 @@ string SwiftClient::write(SwiftClient::Input & input){
     NOVA_SWIFT_LOG(format("Writing to Swift!"));
     write_container();
     while (!input.eof()) {
+        file_number += 1;
         const string url = file_info.formatted_url(file_number);
         NOVA_SWIFT_LOG(format("Time to write segment %d.") % file_number);
         string md5 = write_segment(url, input);
         // Head the file to check the checksum
         NOVA_SWIFT_LOG(format("checksum: %s") % md5);
-        file_number += 1;
     }
     NOVA_SWIFT_LOG(format("Finalizing files..."));
-    write_manifest();
+    write_manifest(file_number);
     return file_checksum.finish();
 }
 

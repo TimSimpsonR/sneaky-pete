@@ -21,13 +21,13 @@ namespace nova { namespace guest { namespace backup {
                    const int segment_max_size,
                    const std::string swift_container,
                    const bool use_gzip,
-                   const std::string swift_url,
                    const double time_out);
 
             ~Backup();
 
 
-            void run_backup(const std::string & tenant,
+            void run_backup(const std::string & swift_url,
+                            const std::string & tenant,
                             const std::string & token,
                             const std::string & backup_id);
 

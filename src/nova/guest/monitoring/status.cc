@@ -2,12 +2,15 @@
 #include <fstream>
 #include <string>
 #include <boost/format.hpp>
+#include "nova/utils/io.h"
 #include <sys/stat.h>
 #include "nova/Log.h"
 #include "nova/guest/apt.h"
 
 using nova::guest::apt::AptGuest;
 using namespace boost;
+using nova::utils::io::is_directory;
+using nova::utils::io::is_file;
 using namespace std;
 
 
@@ -17,79 +20,57 @@ namespace {
     const char * MONITORING_PID_FILE = "/var/run/rackspace-monitoring-agent.pid";
     const double TIME_OUT = 500;
     const char * PACKAGE_NAME = "rackspace-monitoring-agent";
+    const char * MONITORING_BIN_PATH = "/usr/bin/rackspace-monitoring-agent";
 }
 
 // Monitoring Status
-MonitoringStatus::MonitoringStatus(): status(boost::none){
+MonitoringStatus::MonitoringStatus() {
 
 }
 
-MonitoringInfoPtr MonitoringStatus::get_monitoring_status(AptGuest & apt){
-    MonitoringInfoPtr mon_ptr(new MonitoringStatusInfo());
-
-    mon_ptr->version = apt.version(PACKAGE_NAME, TIME_OUT);
-
-    // get the monitoring status
-    MonitoringStatus stats;
-    mon_ptr->status = stats.get_current_status_string(mon_ptr->version);
-
-    return mon_ptr;
-}
-
-const char * MonitoringStatus::get_current_status_string(optional<string> version) {
-    if(!version) {
-        status = REMOVED;
-    }
-    find_monitoring_agent_status();
-    if (status) {
-        return status_name(status.get());
+boost::optional<boost::tuple<std::string, MonitoringStatus::Status> >
+MonitoringStatus::get_monitoring_status(AptGuest & apt) {
+    auto version = apt.version(PACKAGE_NAME, TIME_OUT);
+    if (!version) {
+        return boost::none;
     } else {
-        return "none";
+        auto status = get_current_status();
+        return boost::make_tuple(version.get(), status);
     }
 }
 
-void MonitoringStatus::find_monitoring_agent_status() {
+MonitoringStatus::Status MonitoringStatus::get_current_status() {
     NOVA_LOG_INFO2("opening the pid file (%s)", MONITORING_PID_FILE);
+
+    if (!is_file(MONITORING_BIN_PATH)) {
+        return REMOVED;
+    }
+
     ifstream pid_file;
     pid_file.open(MONITORING_PID_FILE);
     string monitoring_agent_pid;
     // read the pid from pid_file
-    if (pid_file.is_open()) {
-        while (pid_file.good()) {
-            pid_file >> monitoring_agent_pid;
-            break;
-        }
-    }
-    else {
+    if (! (pid_file.is_open() && pid_file.good())) {
         // if file does not exist set status to SHUTDOWN
         NOVA_LOG_INFO("Did not get a monitoring pid setting status to: SHUTDOWN");
-        status = SHUTDOWN;
-        return;
+        return SHUTDOWN;
     }
+    pid_file >> monitoring_agent_pid;
     pid_file.close();
 
     // check if there was a pid
     if (monitoring_agent_pid.length() == 0){
         NOVA_LOG_INFO("Got a monitoring pid (empty) setting status to SHUTDOWN");
-        status = SHUTDOWN;
-        return;
+        return SHUTDOWN;
     }
     NOVA_LOG_INFO2("Got a monitoring pid of (%s)", monitoring_agent_pid.c_str());
 
     // it does? now does /proc/{pid} folder exist?
-    string monitoring_agent_pid_path = "/proc/"+monitoring_agent_pid;
-    const char * path = monitoring_agent_pid_path.c_str();
-    // C has multiple namespaces for structs and functions.
-    struct stat file_info;
-    if (0 != stat(path, &file_info)) {
-        NOVA_LOG_INFO("Filesystem is_directory check failed");
-    }
-    if (S_ISDIR(file_info.st_mode)) {
-        status = ACTIVE;
-        NOVA_LOG_INFO("monitoring directory found setting status to: ACTIVE");
+    string monitoring_agent_pid_path = "/proc/" + monitoring_agent_pid;
+    if (is_directory(monitoring_agent_pid_path.c_str())) {
+        return ACTIVE;
     } else {
-        status = SHUTDOWN;
-        NOVA_LOG_INFO("monitoring directory found setting status to: SHUTDOWN");
+        return SHUTDOWN;
     }
 }
 

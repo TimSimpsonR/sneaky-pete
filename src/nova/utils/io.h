@@ -34,6 +34,7 @@ class Timer : boost::noncopyable {
         timer_t id;
 };
 
+bool is_directory(const char * directory_path);
 
 bool is_file(const char * file_path);
 

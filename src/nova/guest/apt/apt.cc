@@ -79,10 +79,9 @@ namespace {
 
 
 AptGuest::AptGuest(bool with_sudo, const char * self_package_name,
-                   int self_update_time_out, bool with_purge)
+                   int self_update_time_out)
 : self_package_name(self_package_name),
-  self_update_time_out(self_update_time_out), with_sudo(with_sudo),
-  with_purge(with_purge)
+  self_update_time_out(self_update_time_out), with_sudo(with_sudo)
 {
 }
 
@@ -264,19 +263,14 @@ void AptGuest::install_self_update() {
 }
 
 
-OperationResult _remove(bool with_sudo, const char * package_name,
-                        double time_out, bool with_purge) {
+OperationResult _call_remove_or_purge(bool with_sudo, const char * package_name,
+                                      double time_out, bool use_purge) {
     Process::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
-    if (with_purge) {
-        cmds += "purge";
-    }
-    else {
-        cmds += "remove";
-    }
+    cmds += use_purge ? "purge" : "remove";
     cmds += package_name;
     Process process(cmds, false);
 
@@ -341,19 +335,31 @@ OperationResult _remove(bool with_sudo, const char * package_name,
     throw AptException(AptException::GENERAL);
 }
 
-void AptGuest::remove(const char * package_name, const double time_out) {
-    OperationResult result = _remove(with_sudo, package_name, time_out, with_purge);
+void AptGuest::resilient_remove_or_purge(const char * package_name,
+                                         const double time_out, bool use_purge) {
+    OperationResult result = _call_remove_or_purge(with_sudo, package_name,
+                                                   time_out, use_purge);
     if (result != OK) {
         if (result == REINSTALL_FIRST) {
             _install(with_sudo, package_name, time_out);
         } else if (result == RUN_DPKG_FIRST) {
             fix(time_out);
         }
-        result = _remove(with_sudo, package_name, time_out, with_purge);
+        result = _call_remove_or_purge(with_sudo, package_name, time_out,
+                                       use_purge);
         if (result != OK) {
             throw AptException(AptException::PACKAGE_STATE_ERROR);
         }
     }
+}
+
+
+void AptGuest::purge(const char * package_name, const double time_out) {
+    resilient_remove_or_purge(package_name, time_out, true);
+}
+
+void AptGuest::remove(const char * package_name, const double time_out) {
+    resilient_remove_or_purge(package_name, time_out, false);
 }
 
 void AptGuest::update(const double time_out) {

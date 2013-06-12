@@ -201,7 +201,7 @@ void initialize_and_run(FlagValues & flags) {
                           flags.monitoring_agent_config_file(),
                           flags.monitoring_agent_install_timeout());
     MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
-        monitoring));
+        apt_worker, monitoring));
     handlers.push_back(handler_monitoring_app);
 
     MessageHandlerPtr handler_mysql_app(new MySqlAppMessageHandler(

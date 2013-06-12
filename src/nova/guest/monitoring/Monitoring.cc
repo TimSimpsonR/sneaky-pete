@@ -3,11 +3,11 @@
 #include <fstream>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
+#include <boost/assign/list_of.hpp>
 #include "nova_guest_version.hpp"
 #include "nova/guest/apt.h"
 #include "nova/utils/regex.h"
 #include "nova/process.h"
-#include <boost/assign/list_of.hpp>
 #include "nova/Log.h"
 #include <sstream>
 #include <string>
@@ -52,7 +52,6 @@ void Monitoring::install_and_configure_monitoring_agent(
                 std::string monitoring_token,
                 std::string monitoring_endpoints) const {
     NOVA_LOG_DEBUG("install_and_configure_monitoring_agent call ");
-
     // Writing out the monitoring config file
     ofstream config;
     config.open(TMP_MON_CONF);

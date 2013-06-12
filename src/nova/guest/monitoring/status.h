@@ -8,20 +8,13 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <boost/tuple/tuple.hpp>
+#include <boost/utility.hpp>
 
-using namespace std;
 
 namespace nova { namespace guest { namespace monitoring { namespace status {
 
-    struct MonitoringStatusInfo
-    {
-        boost::optional<string> version;
-        boost::optional<string> status;
-    };
-
-    typedef boost::shared_ptr<MonitoringStatusInfo> MonitoringInfoPtr;
-
-    class MonitoringStatus {
+    class MonitoringStatus : boost::noncopyable {
         public:
             enum Status {
                 ACTIVE = 0x01, // Monitoring Agent is active.
@@ -33,25 +26,16 @@ namespace nova { namespace guest { namespace monitoring { namespace status {
 
             MonitoringStatus();
 
-            /** Grabs monitoring for this program. */
-            static MonitoringInfoPtr get_monitoring_status(
-                nova::guest::apt::AptGuest & apt);
+            /** Grabs the installed version info and the status.
+             *  Returns boost::none if the agent is not installed. */
+            boost::optional<boost::tuple<std::string, Status> >
+                get_monitoring_status(nova::guest::apt::AptGuest & apt);
 
-            /** Useful for diagnostics and logging. */
-            const char * get_current_status_string(boost::optional<string> version);
+            /** Gets the status for monitoring. */
+            Status get_current_status();
 
             /** Returns a readable string for each status enum. */
             static const char * status_name(Status status);
-
-        private:
-            MonitoringStatus(MonitoringStatus const &);
-            MonitoringStatus & operator = (const MonitoringStatus &);
-
-            void find_monitoring_agent_status();
-
-            boost::optional<Status> status;
-
-
     };
 
 } } } }  // end namespace

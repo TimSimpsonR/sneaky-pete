@@ -303,7 +303,10 @@ unit u_nova_guest_HeartBeat
 exe parrot_e
     :   u_nova_Log
         tests/nova/parrot.cc
+    :   <linkflags>"-pthread "
     ;
+
+
 install parrot : parrot_e/<link>shared ;
 unit u_nova_process
     :   src/nova/process.cc
@@ -654,6 +657,7 @@ exe nova_guest_diagnostics_interrogator_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/diag_demo.cc
+    :   <linkflags>"-pthread "
     ;
 
 exe nova_guest_utils_demo
@@ -661,6 +665,7 @@ exe nova_guest_utils_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/utils_demo.cc
+    :   <linkflags>"-pthread "
     ;
 
 exe nova_process_fd_demo

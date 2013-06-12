@@ -9,29 +9,29 @@
 
 using namespace nova;
 using namespace std;
-using nova::guest::monitoring::status::MonitoringInfoPtr;
 using nova::guest::monitoring::status::MonitoringStatus;
 using nova::guest::monitoring::Monitoring;
 using nova::guest::apt::AptGuest;
 
 
-void user_input() {
-    std::string unused_input;
-    std::cerr << "Hit enter to proceed.";
-    std::cin >> unused_input;
+void wait_for_enter_key() {
+    string unused_input;
+    cerr << "Hit enter to proceed.";
+    cin >> unused_input;
 }
 
 
 int main(int argc, char* argv[]) {
 
     if (argc < 2 || argc > 3) {
-        cout << "Usage: ./senti_pete [install|remove|status|start|stop|restart] [wait]" << endl;
+        cout << "Usage: " << (argc < 1 ? "./senti_pete" : argv[0])
+             << " [install|remove|status|start|stop|restart] [wait]" << endl;
         exit(1);
     }
 
-    const std::string action(argv[1]);
+    const string action(argv[1]);
     cout << "run the action for " << action << endl;
-    std::string wait = "";
+    string wait = "";
     if (argc > 2) {
          wait = argv[2];
     }
@@ -45,10 +45,10 @@ int main(int argc, char* argv[]) {
 
     const bool use_sudo = true;
     const double time_out = 500;
-    const std::string package_name = "rackspace-monitoring-agent";
-    const std::string monitoring_config = "/etc/rackspace-monitoring-agent.cfg";
-    const std::string monitoring_endpoints = "X";
-    const std::string instance_id = "test-1234-1234";
+    const string package_name = "rackspace-monitoring-agent";
+    const string monitoring_config = "/etc/rackspace-monitoring-agent.cfg";
+    const string monitoring_endpoints = "X";
+    const string instance_id = "test-1234-1234";
     AptGuest apt(use_sudo, package_name.c_str(), time_out);
     Monitoring mon(instance_id, package_name, monitoring_config, time_out);
 
@@ -69,11 +69,18 @@ int main(int argc, char* argv[]) {
         // Get information on the monitoring agent
         cout << "getting the status of the monitoring agent." << endl;
         MonitoringStatus status;
-        MonitoringInfoPtr mon_ptr = status.get_monitoring_status(apt);
-        cout << "package installed of rackspace-monitoring-agent is: " << endl;
-        cout << "version: " << mon_ptr->version.get_value_or("none") << endl;
-        cout << "status: " << mon_ptr->status.get_value_or("nothing") << endl;
-        cout << endl;
+        auto result = status.get_monitoring_status(apt);
+        if (!result) {
+            cout << "the rackspace-monitoring-agent is not installed." << endl;
+        } else {
+            string version;
+            MonitoringStatus::Status status;
+            boost::tie(version, status) = result.get();
+            cout << "package installed of rackspace-monitoring-agent is: " << endl;
+            cout << "version: " << result->get<0>() << endl;
+            cout << "status: " << result->get<1>() << endl;
+            cout << endl;
+        }
 
     }
     else if (action == "start"){
@@ -95,6 +102,6 @@ int main(int argc, char* argv[]) {
     }
 
     if (wait == "wait") {
-        user_input();
+        wait_for_enter_key();
     }
 }

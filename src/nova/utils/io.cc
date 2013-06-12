@@ -202,6 +202,15 @@ bool & Timer::time_out_occurred() {
  *- Helper Functions
  *---------------------------------------------------------------------------*/
 
+bool is_directory(const char * directory_path) {
+    struct stat file_info;
+    if (0 != stat(directory_path, &file_info)) {
+        NOVA_LOG_ERROR("Filesystem is_directory check failed.");
+        return false;
+    }
+    return S_ISDIR(file_info.st_mode);
+}
+
 bool is_file(const char * file_path) {
     return internal_is_file(file_path, true);
 }

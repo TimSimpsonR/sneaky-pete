@@ -61,7 +61,9 @@ void Monitoring::install_and_configure_monitoring_agent(
     }
     config << "monitoring_id " << guest_id << endl;
     config << "monitoring_token " << monitoring_token << endl;
-    config << "monitoring_endpoints " << monitoring_endpoints << endl;
+    if (monitoring_endpoints != "") {
+        config << "monitoring_endpoints " << monitoring_endpoints << endl;
+    }
     config.close();
 
     // Move the temp monitoring config file into place and restart agent

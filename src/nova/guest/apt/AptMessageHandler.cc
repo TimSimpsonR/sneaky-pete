@@ -16,7 +16,7 @@ using std::stringstream;
 
 namespace nova { namespace guest { namespace apt {
 
-AptMessageHandler::AptMessageHandler(AptGuest * apt_guest)
+AptMessageHandler::AptMessageHandler(AptGuestPtr apt_guest)
 : apt_guest(apt_guest) {
 }
 

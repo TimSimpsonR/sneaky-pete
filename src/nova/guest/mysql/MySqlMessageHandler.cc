@@ -401,7 +401,7 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() {
  *---------------------------------------------------------------------------*/
 
 MySqlAppMessageHandler::MySqlAppMessageHandler(
-    nova::guest::apt::AptGuest & apt,
+    nova::guest::apt::AptGuestPtr apt,
     MySqlAppStatusPtr status,
     int state_change_wait_time,
     nova::guest::monitoring::Monitoring & monitoring)
@@ -421,7 +421,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("memory_mb");
-        app->install_and_secure(this->apt, memory_mb);
+        app->install_and_secure(*this->apt, memory_mb);
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases and users following successful prepare");
@@ -432,9 +432,9 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Installing Monitoring Agent following successful prepare");
         const auto  monitoring_token = input.args->get_string("monitoring_token");
         const auto  monitoring_endpoints = input.args->get_string("monitoring_endpoints");
-        monitoring.install_and_configure_monitoring_agent(this->apt,
-                                                           monitoring_token,
-                                                           monitoring_endpoints);
+        monitoring.install_and_configure_monitoring_agent(*this->apt,
+                                                          monitoring_token,
+                                                          monitoring_endpoints);
         return JsonData::from_null();
     } else if (input.method_name == "restart") {
         NOVA_LOG_INFO("Calling restart...");
@@ -445,14 +445,14 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Calling start with conf changes...");
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("updated_memory_size");
-        app->start_db_with_conf_changes(this->apt,
-                                           memory_mb);
+        app->start_db_with_conf_changes(*this->apt,
+                                        memory_mb);
         return JsonData::from_null();
     } else if (input.method_name == "change_conf_file") {
         NOVA_LOG_INFO("Changing conf file...");
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("updated_memory_size");
-        app->change_conf_file(this->apt, memory_mb);
+        app->change_conf_file(*this->apt, memory_mb);
         return JsonData::from_null();
     } else if (input.method_name == "stop_db") {
         NOVA_LOG_INFO("Calling stop...");

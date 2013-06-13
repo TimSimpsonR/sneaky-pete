@@ -19,6 +19,7 @@ using nova::JsonObject;
 using nova::guest::GuestException;
 using nova::guest::monitoring::status::MonitoringStatus;
 using nova::guest::apt::AptGuest;
+using nova::guest::apt::AptGuestPtr;
 using boost::optional;
 using std::string;
 using std::stringstream;
@@ -43,7 +44,7 @@ namespace {
 
 } // end of anonymous namespace
 
-MonitoringMessageHandler::MonitoringMessageHandler(AptGuest & apt,
+MonitoringMessageHandler::MonitoringMessageHandler(AptGuestPtr apt,
                                                    Monitoring & monitoring)
 :   apt(apt),
     monitoring(monitoring)
@@ -56,11 +57,11 @@ JsonDataPtr MonitoringMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_DEBUG("handling the install_monitoring_agent method");
         const auto monitoring_token = input.args->get_string("monitoring_token");
         const auto monitoring_endpoints = input.args->get_string("monitoring_endpoints");
-        monitoring.install_and_configure_monitoring_agent(apt, monitoring_token, monitoring_endpoints);
+        monitoring.install_and_configure_monitoring_agent(*apt, monitoring_token, monitoring_endpoints);
         return JsonData::from_null();
     } else if (input.method_name == "remove_monitoring_agent") {
         NOVA_LOG_DEBUG("handling the remove_monitoring_agent method");
-        monitoring.remove_monitoring_agent(apt);
+        monitoring.remove_monitoring_agent(*apt);
         return JsonData::from_null();
     } else if (input.method_name == "start_monitoring_agent") {
         NOVA_LOG_DEBUG("handling the start_monitoring_agent method");
@@ -77,7 +78,7 @@ JsonDataPtr MonitoringMessageHandler::handle_message(const GuestInput & input) {
     } else if (input.method_name == "get_monitoring_status") {
         NOVA_LOG_DEBUG("handling the get_monitoring_status method");
         MonitoringStatus mon_status;
-        auto result = mon_status.get_monitoring_status(apt);
+        auto result = mon_status.get_monitoring_status(*apt);
         NOVA_LOG_DEBUG("formating data from get_monitoring_status");
         if (result) {
             string output = monitoring_status_to_string(result->get<0>(),

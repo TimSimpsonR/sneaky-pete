@@ -44,6 +44,7 @@
 // #endif
 
 using nova::guest::apt::AptGuest;
+using nova::guest::apt::AptGuestPtr;
 using nova::guest::apt::AptMessageHandler;
 using std::auto_ptr;
 using nova::utils::CurlScope;
@@ -180,10 +181,11 @@ void initialize_and_run(FlagValues & flags) {
     vector<MessageHandlerPtr> handlers;
 
     /* Create Apt Guest */
-    AptGuest apt_worker(flags.apt_use_sudo(),
-                        flags.apt_self_package_name(),
-                        flags.apt_self_update_time_out());
-    MessageHandlerPtr handler_apt(new AptMessageHandler(&apt_worker));
+    AptGuestPtr apt_worker(new AptGuest(
+        flags.apt_use_sudo(),
+        flags.apt_self_package_name(),
+        flags.apt_self_update_time_out()));
+    MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
     handlers.push_back(handler_apt);
 
     /* Create MySQL updater. */

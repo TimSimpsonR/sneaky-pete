@@ -71,13 +71,13 @@ namespace nova { namespace guest { namespace monitoring {
 
         public:
 
-            MonitoringMessageHandler(nova::guest::apt::AptGuest & apt,
+            MonitoringMessageHandler(nova::guest::apt::AptGuestPtr apt,
                                      Monitoring & monitoring);
 
             virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
         private:
-            nova::guest::apt::AptGuest & apt;
+            nova::guest::apt::AptGuestPtr apt;
             const Monitoring & monitoring;
     };
 

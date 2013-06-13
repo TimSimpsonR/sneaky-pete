@@ -3,6 +3,7 @@
 
 #include "guest.h"
 #include <boost/optional.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
 
 
@@ -61,6 +62,9 @@ namespace nova { namespace guest { namespace apt {
             bool with_sudo;
     };
 
+    typedef boost::shared_ptr<AptGuest> AptGuestPtr;
+
+
     class AptException : public std::exception {
 
         public:
@@ -91,7 +95,7 @@ namespace nova { namespace guest { namespace apt {
     class AptMessageHandler : public MessageHandler {
 
         public:
-          AptMessageHandler(AptGuest * apt_guest);
+          AptMessageHandler(AptGuestPtr apt_guest);
 
           virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
@@ -99,7 +103,7 @@ namespace nova { namespace guest { namespace apt {
           AptMessageHandler(const AptMessageHandler &);
           AptMessageHandler & operator = (const AptMessageHandler &);
 
-          AptGuest * apt_guest;
+          AptGuestPtr apt_guest;
     };
 
 } } }  // end namespace

@@ -267,7 +267,7 @@ int FlagValues::backup_chunk_size() const {
 }
 
 int FlagValues::backup_segment_max_size() const {
-    return get_flag_value<int>(*map, "backup_segment_max_size", 32 * 1024);
+    return get_flag_value<int>(*map, "backup_segment_max_size", 100 * 1024 * 1024);
 }
 
 const char * FlagValues::backup_swift_container() const {

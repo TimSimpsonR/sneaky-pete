@@ -1,8 +1,11 @@
 #include "nova/guest/apt.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
+#include "nova/process.h"
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
+#include <boost/assign/list_of.hpp>
+#include <boost/assign/std/list.hpp>
 #include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
@@ -12,6 +15,7 @@
 #include <sstream>
 #include <boost/tuple/tuple.hpp>
 
+using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
 using boost::format;
@@ -20,6 +24,8 @@ using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using nova::Process;
+using nova::ProcessException;
 using namespace nova::db::mysql;
 using boost::optional;
 using namespace std;
@@ -157,6 +163,19 @@ namespace {
         };
         sql->create_users(users);
         return JsonData::from_null();
+    }
+
+    void _restore_database(string token, string backup_url) {
+        Process::CommandList cmds;
+        cmds += "/usr/bin/sudo", "-E", "/var/lib/nova/restore";
+        cmds += token.c_str();
+        cmds += backup_url.c_str();
+        Process proc(cmds, true);
+        stringstream out;
+        proc.wait_for_eof(out, 60.0);
+        if (!proc.successful()) {
+           throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+        }
     }
 
     JSON_METHOD(create_database) {
@@ -422,6 +441,12 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("memory_mb");
         app->install_and_secure(*this->apt, memory_mb);
+        // Restore the database?
+        const auto token = input.token;
+        const auto backup_url = input.args->get_string("backup_url");
+        if (backup_url != "") {
+            _restore_database(token, backup_url);
+        }
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases and users following successful prepare");

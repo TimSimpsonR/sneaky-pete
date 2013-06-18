@@ -8,6 +8,8 @@ if [ "$1" = "configure" ]; then
     fi
     chown -R nova:root /var/lib/nova/ /var/log/nova/
     chmod 0440 /etc/sudoers.d/guest_sudoers
+    chmod 755 /var/lib/nova/backup
+    chmod 755 /var/lib/nova/restore
     if [ -e /etc/nova/guest.conf ]; then
     	chown nova:root /etc/nova/guest.conf
     fi

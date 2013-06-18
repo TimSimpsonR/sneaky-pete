@@ -49,6 +49,10 @@ namespace {
         virtual ~BackupProcessReader() {
         }
 
+        virtual bool successful() const {
+            return process.successful();
+        }
+
         virtual bool eof() const {
             return process.eof();
         }
@@ -149,8 +153,9 @@ void BackupRunner::dump() {
     // cmds += "/usr/bin/sudo", "-E", "innobackupex";
     // cmds += "--stream=xbstream", "/var/lib/mysql";
     // cmds += "2>/tmp/innobackupex.log", "|", "gzip";
-    cmds += "/usr/bin/sudo", "-E", "innobackupex";
-    cmds += "--stream=xbstream", "--compress", "/var/lib/mysql";
+    //cmds += "/usr/bin/sudo", "-E", "innobackupex";
+    //cmds += "--stream=xbstream", "/var/lib/mysql";
+    cmds += "/usr/bin/sudo", "-E", "/var/lib/nova/backup";
     // TODO: (rmyers) compress and record errors!
     //cmds += "2>/tmp/innobackupex.log";
     BackupProcessReader reader(cmds, time_out);
@@ -162,9 +167,14 @@ void BackupRunner::dump() {
     // Write the backup to swift
     auto checksum = writer.write(reader);
 
-    // TODO: (rmyers) Add in the file space used
-    // stats.used
-    update_backup(checksum, "xtrabackup_v1", file_info.manifest_url());
+    // check the process was successful
+    if (!reader.successful()) {
+        set_state("FAILED");
+    } else {
+        // TODO: (rmyers) Add in the file space used
+        // stats.used
+        update_backup(checksum, "xtrabackup_v1", file_info.manifest_url());
+    }
 }
 
 optional<string> BackupRunner::get_state() {

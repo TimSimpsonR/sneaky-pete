@@ -1,0 +1,79 @@
+#!/bin/sh
+set -e
+ulimit -s unlimited
+
+LOGFILE=/var/log/nova/guest.log
+PIDFILE=/var/run/mysqld/mysqld.pid
+HACKPASS=/tmp/hacker.sql
+MYSQLDIR=/var/lib/mysql
+RESTORE=$MYSQLDIR
+TOKEN=$1
+URL=$2
+
+if [ ! $URL ] || [ ! $TOKEN ]; then
+   exit "Missing url or token"
+fi
+
+# Stop MYSQL
+service mysql stop
+
+# Clean the existing files
+for LINE in `ls $RESTORE`
+do
+    # Remove all files/folders except the few we need
+    case $LINE in
+        'my.cnf'|'mysql_upgrade_info'|'debian-5.1.flag')
+            echo "[RESTORE] skipping removal of $LINE" >>$LOGFILE
+            ;;
+        ib*|xtrabackup*|mysql|lost*|backup-my.cnf)
+            echo "[RESTORE] removing $LINE" >>$LOGFILE
+            rm -rf $RESTORE/$LINE
+            ;;
+        *)
+            echo "[RESTORE] Error unknown file: $LINE" >>$LOGFILE
+    esac
+done
+
+
+# Extract all the files from the backup
+/usr/bin/curl -s -H "X-Auth-Token: $TOKEN" \
+   -G $URL | /usr/bin/xbstream -x -C $RESTORE 2>>$LOGFILE
+
+# Prepare the Database
+/usr/bin/innobackupex --apply-log $RESTORE \
+   --defaults-file=$RESTORE/backup-my.cnf \
+   --ibbackup xtrabackup 2>>$LOGFILE
+
+# first grab the passwords from the files
+PASSLINES=`awk '/password/{print $3}' /etc/mysql/my.cnf`
+OSADMIN=`echo $PASSLINES | awk '{print $1}'`
+PASSLINES=`awk '/password/{print $3}' /etc/mysql/debian.cnf`
+DEBSYS=`echo $PASSLINES | awk '{print $1}'`
+
+# Create the hacker sql file
+echo "UPDATE mysql.user SET Password=PASSWORD('$DEBSYS') WHERE User='debian-sys-maint';" > $HACKPASS
+echo "UPDATE mysql.user SET Password=PASSWORD('$OSADMIN') WHERE User='os_admin';" >> $HACKPASS
+echo "FLUSH PRIVILEGES;" >> $HACKPASS
+chmod 600 $HACKPASS
+chown mysql $HACKPASS
+
+echo "[RESTORE] starting mysql with auth off" >>$LOGFILE
+/usr/bin/mysqld_safe --init-file=$HACKPASS &
+
+sleep 5
+echo "[RESTORE] stopping mysql with auth off" >>$LOGFILE
+if [ -e $PIDFILE ]; then
+    /bin/kill `cat $PIDFILE`
+    rm $HACKPASS
+else
+    echo "[RESTORE] MYSQL not running." >>$LOGFILE
+fi
+
+# Wait a bit for it to stop
+sleep 5
+
+# Fix permissions
+chown -R mysql $MYSQLDIR
+
+# Start mysql up
+service mysql start

@@ -101,7 +101,10 @@ lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
 # lib lib_mysqlclient_r :
 #   : <file>/usr/lib/x86_64-linux-gnu/libmysqlclient_r.so.18.0.0 ;
 
-lib lib_curl : : <file>/usr/lib/libcurl.so.4.2.0 ;
+# This is expected to be installed by the initialize process.
+lib lib_curl : : <file>"/opt/sp-deps/libcurl/lib/libcurl.a"  ;
+
+lib lib_idn11 : : <name>idn ;
 
 alias static_dependencies
 	:   dependencies
@@ -266,6 +269,7 @@ obj u_nova_utils_Md5
 unit u_nova_utils_Curl
     : src/nova/utils/Curl.cc
     : lib_curl
+      lib_idn11
     ;
 
 unit u_nova_utils_swift

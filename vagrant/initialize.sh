@@ -3,6 +3,8 @@
 # Setup Dependencies required for sneaky-pete
 ##########################################################################
 
+set -o xtrace
+
 # Bail on errors.
 set -e
 
@@ -60,27 +62,31 @@ sudo cp /usr/local/lib/librabbit* /usr/lib/
 
 
 # Install Curl
-pkg_install libcurl4-openssl-dev
-sudo updatedb
+set +e
 
-# # Alternative- use this if we ever need to build from source.
-# # Install curl.
-# # First, remove the installed one.
-# set +e
-# sudo -E DEBIAN_FRONTEND=noninteractive $HTTP_PROXY apt-get purge curl
-# set -e
-# # Now build the library Sneaky Pete will use from source.
-# cd $BUILD_DIR
-# git clone git://github.com/bagder/curl.git
-# cd curl
-# ./buildconf
-# ./configure
-# make
-# sudo make install
-# # Remove the binary file the above process creates as it won't work correctly.
-# sudo rm /usr/local/bin/curl
-# # Now reinstall.
-# sudo -E DEBIAN_FRONTEND=noninteractive $HTTP_PROXY apt-get install curl
+pkg_install libssl-dev
+pkg_install libcrypto++-dev
+pkg_install libssh-dev
+pkg_install libgcrypt11-dev
+
+set -e
+
+mkdir -p /opt/sp-deps/libcurl
+
+# Now build the library Sneaky Pete will use from source.
+cd $BUILD_DIR
+git clone git://github.com/bagder/curl.git
+cd curl
+git reset --hard e305f5ec715f967bdfaa0c9bf8f102f9185b9aa2
+./buildconf
+# TODO(tim.simpson): Add SSL / SSH back... of course.
+./configure --disable-shared --enable-static --with-ssl=/usr/local/openssl \
+     --disable-ldap --disable-ldaps --without-zlib --without-ssl \
+     --without-gnutls --without-libssh2 --prefix=/opt/sp-deps/libcurl
+
+make LDFLAGS=-all-static
+make install
+
 
 # Needed for static compile magic.
 cd $BUILD_DIR

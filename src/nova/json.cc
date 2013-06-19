@@ -1,6 +1,5 @@
 #include "nova/json.h"
 #include <json/json.h>
-
 using boost::optional;
 using std::string;
 
@@ -143,6 +142,9 @@ const char * JsonException::what() const throw() {
  *- JsonData
  *---------------------------------------------------------------------------*/
 
+JsonData::Visitor::~Visitor() {
+}
+
 JsonData::JsonData()
 : object(0), root(0) {
 }
@@ -178,6 +180,7 @@ JsonData::JsonData(json_object * obj, int type_i)
     set_root(obj);
 }
 
+
 JsonData::~JsonData() {
     if (root != 0) {
         root->reference_count --;
@@ -204,6 +207,12 @@ void JsonData::check_initial_object(bool owned, json_object * obj,
         }
         throw JsonException(exception_code);
     }
+}
+
+JsonDataPtr JsonData::create_child(json_object * obj) const {
+    JsonDataPtr rtn(new JsonData());
+    rtn->initialize_child_no_check(obj, root);
+    return rtn;
 }
 
 std::string JsonData::json_string(const char * text) {
@@ -240,6 +249,10 @@ void JsonData::initialize_child(json_object * obj, int type_i,
                                 Root * root) {
     json_type type = (json_type) type_i;
     check_initial_object(false, obj, type, exception_code);
+    initialize_child_no_check(obj, root);
+}
+
+void JsonData::initialize_child_no_check(json_object * obj, Root * root) {
     this->root = root;
     root->reference_count ++;
     this->object = obj;
@@ -265,6 +278,48 @@ const char * JsonData::to_string() const {
         return "null";
     }
     return json_object_to_json_string(object);
+}
+
+
+void JsonData::visit(JsonData::Visitor & visitor) const {
+    // Strangely, json_object_get_type cannot safely be called with an
+    // argument that is null (even though other json.h functions will return
+    // null pointers). So we need to check for null explicitly first.
+    const json_type type = NULL == object ? json_type_null
+                                          : json_object_get_type(object);
+    switch(type) {
+        case json_type_boolean: {
+            visitor.for_boolean(0 != json_object_get_int(object));
+            break;
+        }
+        case json_type_double: {
+            visitor.for_double(json_object_get_double(object));
+            break;
+        }
+        case json_type_int: {
+            visitor.for_int(json_object_get_int(object));
+            break;
+        }
+        case json_type_object: {
+            JsonObjectPtr value(new JsonObject(object, root));
+            visitor.for_object(value);
+            break;
+        }
+        case json_type_array: {
+            JsonArrayPtr value(new JsonArray(object, root));
+            visitor.for_array(value);
+            break;
+        }
+        case json_type_string: {
+            const char * value = json_object_get_string(object);
+            visitor.for_string(value);
+            break;
+        }
+        case json_type_null:
+        default:
+            visitor.for_null();
+            break;
+    }
 }
 
 
@@ -313,6 +368,10 @@ json_object * JsonArray::get(int index) const {
     return json_object_array_get_idx(object, index);
 }
 
+JsonDataPtr JsonArray::get_any(const int index) const {
+    json_object * any_obj = get(index);
+    return create_child(any_obj);
+}
 
 JsonArrayPtr JsonArray::get_array(const int index) const {
     json_object * array_obj = get(index);
@@ -389,6 +448,12 @@ void JsonObject::check_initial_object(json_object * obj, bool owned) {
         throw JsonException(JsonException::CTOR_ARGUMENT_NOT_OBJECT);
     }
 }
+
+JsonDataPtr JsonObject::get_any(const char * key) const {
+    json_object * any_obj = json_object_object_get(object, key);
+    return create_child(any_obj);
+}
+
 
 JsonArrayPtr JsonObject::get_array(const char * key) const {
     json_object * array_obj = json_object_object_get(object, key);
@@ -479,6 +544,15 @@ const char * JsonObject::get_string_or_default(const char * key,
 bool JsonObject::has_item(const char * key) const {
     json_object * object_obj = json_object_object_get(object, key);
     return (object_obj != (json_object *)0);
+}
+
+void JsonObject::iterate(JsonObject::Iterator & itr) {
+    // This is a macro defined in the JSON lib we're using.
+    json_object_object_foreach(object, key_object, value_object) {
+        const char * key = key_object;
+        auto value = create_child(value_object);
+        itr.for_each(key, *value);
+    }
 }
 
 } // end namespace nova

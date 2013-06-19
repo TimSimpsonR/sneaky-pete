@@ -4,7 +4,11 @@
 
 
 #include "nova/json.h"
+#include <boost/assign/list_of.hpp>
+#include <boost/foreach.hpp>
+#include <boost/format.hpp>
 #include <json/json.h>
+#include <map>
 
 using nova::JsonArray;
 using nova::JsonArrayPtr;
@@ -13,7 +17,11 @@ using nova::JsonDataPtr;
 using nova::JsonException;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using std::map;
 using std::string;
+
+using namespace boost;
+using namespace boost::assign;
 
 
 #define CHECKPOINT() BOOST_CHECK_EQUAL(2,2);
@@ -282,4 +290,132 @@ BOOST_AUTO_TEST_CASE(get_bool_works)
                       boost::optional<bool>(true));
     BOOST_CHECK_EQUAL(object.get_optional_bool("eggs"),
                       boost::optional<bool>(false));
+}
+
+
+struct ItrVisitorTestResult {
+    const char * expected_to_string_value;
+    bool visitor_was_called;
+    bool iterator_was_called;
+
+    ItrVisitorTestResult()
+    :   expected_to_string_value(""),
+        visitor_was_called(false),
+        iterator_was_called(false)
+    {
+    }
+
+    ItrVisitorTestResult(const char * expected_to_string_value)
+    :   expected_to_string_value(expected_to_string_value),
+        visitor_was_called(false),
+        iterator_was_called(false)
+    {
+    }
+};
+
+BOOST_AUTO_TEST_CASE(iteration_over_an_object_and_visit_data)
+{
+    JsonObject object(json_tokener_parse(
+        "{ "
+            " 'bool': true,  "
+            " 'string': 'string_value', "
+            " 'double' : 47.3, "
+            " 'int' : 42, "
+            " 'null' : null, "
+            " 'array' : [ 1, 2, 3, 4, 5], "
+            " 'object' : { 'axe':'cop' } "
+        "}"));
+
+    // This map guides what keys the test should expect as well as their
+    // to_string values, so make sure it stays consistent with the JSON object
+    // string above.
+    typedef map<string, ItrVisitorTestResult> ResultMap;
+    ResultMap results;
+    results["bool"] = "true";
+    results["string"] = "\"string_value\"";  // Notice how it adds quotes...
+    results["double"] = "47.300000";  // As well as extra zeroes.
+    results["int"] = "42";
+    results["null"] = "null";
+    results["object"] = "{ \"axe\": \"cop\" }";
+    results["array"] = "[ 1, 2, 3, 4, 5 ]";
+
+
+    // Create a Visitor and Iterator class to test JsonData::visit and
+    // JsonObject::iterate.
+    // The test asserts take place in these classes.
+    // A final check following their definitions ensures all methods are called.
+
+    struct Visitor : public JsonData::Visitor {
+        ResultMap & results;
+
+        Visitor(ResultMap & results)
+        :   results(results)
+        {
+        }
+
+        void was_called(const char * value) {
+            results[value].visitor_was_called = true;
+        }
+
+        void for_boolean(bool value) {
+            was_called("bool");
+            BOOST_CHECK_EQUAL(value, true);
+        }
+        void for_string(const char * value) {
+            was_called("string");
+            BOOST_CHECK_EQUAL(value, "string_value");
+        }
+        void for_double(double value) {
+            was_called("double");
+            BOOST_CHECK_EQUAL(47.3, value);
+        }
+        void for_int(int value) {
+            was_called("int");
+            BOOST_CHECK_EQUAL(42, value);
+        }
+        void for_null() {
+            was_called("null");
+        }
+        void for_object(JsonObjectPtr object) {
+            was_called("object");
+            BOOST_CHECK_EQUAL("cop", object->get_string("axe"));
+        }
+        void for_array(JsonArrayPtr array) {
+            was_called("array");
+            BOOST_CHECK_EQUAL(5, array->get_length());
+            for (unsigned int i = 0; i < 5; i ++) {
+                BOOST_CHECK_EQUAL(i + 1, array->get_int(i));
+            }
+        }
+    } visitor(results);
+
+    struct Itr : public JsonObject::Iterator {
+        Visitor & visitor;
+        ResultMap & results;
+
+        Itr(Visitor & v, ResultMap & results)
+        :   visitor(v),
+            results(results) {
+        }
+
+        void for_each(const char * key, const JsonData & value) {
+            results[key].iterator_was_called = true;
+            value.visit(visitor);
+            auto actual_to_string = value.to_string();
+            BOOST_CHECK_EQUAL(results[key].expected_to_string_value,
+                              actual_to_string);
+        }
+    } itr(visitor, results);
+
+    // Actually run the code.
+    object.iterate(itr);
+
+    BOOST_FOREACH(ResultMap::value_type & element, results) {
+        string msg = str(format("Key \"%s\" was not visited.") % element.first);
+        BOOST_CHECK_MESSAGE(element.second.visitor_was_called, msg);
+
+        string msg2 = str(format("Key \"%s\" was not iterated.")
+                          % element.first);
+        BOOST_CHECK_MESSAGE(element.second.iterator_was_called, msg2);
+    }
 }

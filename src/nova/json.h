@@ -56,8 +56,19 @@ namespace nova {
 
 
     class JsonData : boost::noncopyable  {
-
         public:
+            class Visitor {
+            public:
+                virtual ~Visitor();
+                virtual void for_boolean(bool value) = 0;
+                virtual void for_string(const char * value) = 0;
+                virtual void for_double(double value) = 0;
+                virtual void for_int(int value) = 0;
+                virtual void for_null() = 0;
+                virtual void for_object(JsonObjectPtr object) = 0;
+                virtual void for_array(JsonArrayPtr array) = 0;
+            };
+
             JsonData(json_object * obj);
 
             virtual ~JsonData();
@@ -77,6 +88,8 @@ namespace nova {
                 return json_string((const char *) text.c_str());
             }
 
+            void visit(Visitor & visit) const;
+
             const char * to_string() const;
 
         protected:
@@ -87,12 +100,15 @@ namespace nova {
 
             JsonData();
 
+            JsonDataPtr create_child(json_object * obj) const;
+
             // Validates that json_object is of the given type and sets obj.
             // If anything fails it will *not* free the json_object and throw.
             // Sets root without validation.
-            void initialize_child(json_object * obj, int type,
-                                  JsonException::Code exception_code,
-                                  Root * root);
+            void initialize_child(
+                json_object * obj, int type,
+                JsonException::Code exception_code,
+                Root * root);
 
             // Validates that json_object is of the given type and sets root.
             // If anything fails it will free the json_object and throw.
@@ -108,16 +124,22 @@ namespace nova {
 
             JsonData(json_object * obj, int type);
 
+
             // Validates that obj is not null, is of the given type. If not it
             // frees it if "owned" is set to true and throws.
             void check_initial_object(bool owned, json_object * obj, int type,
                                       JsonException::Code exception_code);
+
+            // Sets this object's object and root fields to the given values,
+            // and increases the reference count on root.
+            void initialize_child_no_check(json_object * obj, Root * root);
 
             void set_root(json_object * obj);
     };
 
 
     class JsonArray : public JsonData {
+        friend class JsonData;
         friend class JsonObject;
 
         public:
@@ -126,6 +148,8 @@ namespace nova {
             JsonArray(json_object * obj);
 
             virtual ~JsonArray();
+
+            JsonDataPtr get_any(const int index) const;
 
             JsonArrayPtr get_array(const int index) const;
 
@@ -162,13 +186,22 @@ namespace nova {
      * exceptions if values aren't found. */
     class JsonObject : public JsonData {
         friend class JsonArray;
+        friend class JsonData;
 
         public:
+            class Iterator {
+            public:
+                virtual void for_each(const char * key,
+                                      const JsonData & value) = 0;
+            };
+
             JsonObject(const char * json_text);
 
             JsonObject(json_object * obj);
 
             virtual ~JsonObject();
+
+            JsonDataPtr get_any(const char * key) const;
 
             JsonArrayPtr get_array(const char * key) const;
 
@@ -200,6 +233,7 @@ namespace nova {
             /* NB: Also returns false if the value for the given key is present, but null. */
             bool has_item(const char * key) const;
 
+            void iterate(Iterator & itr);
         protected:
 
             JsonObject(json_object * obj, Root * root);

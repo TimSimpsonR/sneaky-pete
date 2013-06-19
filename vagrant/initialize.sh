@@ -65,6 +65,7 @@ sudo cp /usr/local/lib/librabbit* /usr/lib/
 set +e
 
 pkg_install libssl-dev
+pkg_install libidn11-dev
 pkg_install libcrypto++-dev
 pkg_install libssh-dev
 pkg_install libgcrypt11-dev

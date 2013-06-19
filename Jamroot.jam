@@ -49,6 +49,7 @@ project
 	:	requirements
 		<include>src
 		<include>/usr/include
+		<include>/opt/sp-deps/libcurl/include
 		<include>$(BOOST_ROOT)
 		<variant>debug:<define>_DEBUG
         # The line below makes the Process class print all output.

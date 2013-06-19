@@ -442,10 +442,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         int memory_mb = input.args->get_int("memory_mb");
         app->install_and_secure(*this->apt, memory_mb);
         // Restore the database?
-        const auto token = input.token;
-        const auto backup_url = input.args->get_string("backup_url");
-        if (backup_url != "") {
-            _restore_database(token, backup_url);
+        const auto backup_url = input.args->get_optional_string("backup_url");
+        if (backup_url && backup_url.get().length() > 0) {
+            NOVA_LOG_INFO("Calling Restore...")
+            const auto token = input.token;
+            _restore_database(token, backup_url.get());
         }
         // The argument signature is the same as create_database so just
         // forward the method.

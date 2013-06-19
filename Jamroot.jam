@@ -103,7 +103,9 @@ lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
 #   : <file>/usr/lib/x86_64-linux-gnu/libmysqlclient_r.so.18.0.0 ;
 
 # This is expected to be installed by the initialize process.
-lib lib_curl : : <file>"/opt/sp-deps/libcurl/lib/libcurl.a"  ;
+# TODO: (rmyers) make the statically linked curl work
+#lib lib_curl : : <file>"/opt/sp-deps/libcurl/lib/libcurl.a" ;
+lib lib_curl : : <file>"/usr/lib/libcurl.so.4.2.0"  ;
 
 lib lib_idn11 : : <name>idn ;
 

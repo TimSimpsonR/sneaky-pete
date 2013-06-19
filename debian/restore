@@ -57,23 +57,26 @@ echo "FLUSH PRIVILEGES;" >> $HACKPASS
 chmod 600 $HACKPASS
 chown mysql $HACKPASS
 
+# Fix permissions
+chown -R mysql $MYSQLDIR
+
 echo "[RESTORE] starting mysql with auth off" >>$LOGFILE
-/usr/bin/mysqld_safe --init-file=$HACKPASS &
+/usr/bin/mysqld_safe --init-file=$HACKPASS 2>>$LOGFILE &
 
 sleep 5
-echo "[RESTORE] stopping mysql with auth off" >>$LOGFILE
+echo "[RESTORE] stopping mysql" >>$LOGFILE
 if [ -e $PIDFILE ]; then
-    /bin/kill `cat $PIDFILE`
     rm $HACKPASS
+    /bin/kill `cat $PIDFILE`
 else
+    rm $HACKPASS
     echo "[RESTORE] MYSQL not running." >>$LOGFILE
+    exit 1
 fi
 
 # Wait a bit for it to stop
 sleep 5
 
-# Fix permissions
-chown -R mysql $MYSQLDIR
-
+echo "[RESTORE] starting mysql" >>$LOGFILE
 # Start mysql up
 service mysql start

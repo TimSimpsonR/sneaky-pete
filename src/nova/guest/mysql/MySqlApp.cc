@@ -200,7 +200,7 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
     wipe_ib_logfiles();
 }
 
-void MySqlApp::change_conf_file(AptGuest & apt, int updated_memory_mb) {
+void MySqlApp::reset_configuration(AptGuest & apt, int updated_memory_mb) {
     write_mycnf(apt, updated_memory_mb, boost::none);
 }
 

@@ -474,11 +474,12 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         app->start_db_with_conf_changes(*this->apt,
                                         memory_mb);
         return JsonData::from_null();
-    } else if (input.method_name == "change_conf_file") {
-        NOVA_LOG_INFO("Changing conf file...");
+    } else if (input.method_name == "reset_configuration") {
+        NOVA_LOG_INFO("Resetting config file...");
         MySqlAppPtr app = this->create_mysql_app();
-        int memory_mb = input.args->get_int("updated_memory_size");
-        app->change_conf_file(*this->apt, memory_mb);
+        JsonObjectPtr config = input.args->get_object("configuration");
+        int memory_mb = config->get_int("memory_mb");
+        app->reset_configuration(*this->apt, memory_mb);
         return JsonData::from_null();
     } else if (input.method_name == "stop_db") {
         NOVA_LOG_INFO("Calling stop...");

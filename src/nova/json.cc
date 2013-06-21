@@ -489,6 +489,17 @@ optional<bool> JsonObject::get_optional_bool(const char * key) const {
     }
 }
 
+JsonObjectPtr JsonObject::get_optional_object(const char * key) const {
+    json_object * object_obj = json_object_object_get(object, key);
+    if ((json_object *)0 == object_obj) {
+        return JsonObjectPtr();
+    } else {
+        validate_json_object(object_obj, JsonException::KEY_ERROR);
+        JsonObjectPtr rtn(new JsonObject(object_obj, root));
+        return rtn;
+    }
+}
+
 optional<string> JsonObject::get_optional_string(const char * key) const {
     json_object * string_obj = json_object_object_get(object, key);
     if (string_obj == (json_object *)0) {

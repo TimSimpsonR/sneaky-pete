@@ -262,6 +262,18 @@ BOOST_AUTO_TEST_CASE(getting_values_from_inside_an_object)
                      TYPE_ERROR_NOT_OBJECT);
 }
 
+BOOST_AUTO_TEST_CASE(getting_objects) {
+    JsonObject object(json_tokener_parse(
+        "{ 'type':'return', 'response':{'string':'abcde', 'int':42 }}"));
+
+    auto inner_object = object.get_optional_object("response");
+    BOOST_CHECK_EQUAL(!inner_object, false);
+    BOOST_CHECK_EQUAL(inner_object->get_string("string"), "abcde");
+
+    auto inner_object2 = object.get_optional_object("not_present");
+    BOOST_CHECK_EQUAL(!inner_object2, true);
+}
+
 BOOST_AUTO_TEST_CASE(has_item_works)
 {
     JsonObject object(json_tokener_parse(

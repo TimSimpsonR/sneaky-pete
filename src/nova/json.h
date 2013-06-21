@@ -215,6 +215,8 @@ namespace nova {
 
             boost::optional<bool> get_optional_bool(const char * key) const;
 
+            JsonObjectPtr get_optional_object(const char * key) const;
+
             boost::optional<std::string> get_optional_string(const char * key)
                 const;
 

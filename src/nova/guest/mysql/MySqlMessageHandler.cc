@@ -455,12 +455,18 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         _create_user(MySqlMessageHandler::sql_admin(), input.args);
 
         // installation of monitoring
-        NOVA_LOG_INFO("Installing Monitoring Agent following successful prepare");
-        const auto  monitoring_token = input.args->get_string("monitoring_token");
-        const auto  monitoring_endpoints = input.args->get_string("monitoring_endpoints");
-        monitoring.install_and_configure_monitoring_agent(*this->apt,
-                                                          monitoring_token,
-                                                          monitoring_endpoints);
+        const auto monitoring_info =
+            input.args->get_optional_object("monitoring_info");
+        if (monitoring_info) {
+            NOVA_LOG_INFO("Installing Monitoring Agent following successful prepare");
+            const auto token = monitoring_info->get_string("token");
+            const auto endpoints = monitoring_info->get_string("endpoints");
+            monitoring.install_and_configure_monitoring_agent(
+                *this->apt, token, endpoints);
+        } else {
+            NOVA_LOG_ERROR("Skipping Monitoring Agent as no endpoints were"
+                           "supplied.");
+        }
         return JsonData::from_null();
     } else if (input.method_name == "restart") {
         NOVA_LOG_INFO("Calling restart...");

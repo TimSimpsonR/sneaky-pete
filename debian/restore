@@ -43,8 +43,10 @@ done
 
 
 # Extract all the files from the backup
-/usr/bin/curl -s -H "X-Auth-Token: $TOKEN" \
-   -G $URL | /usr/bin/xbstream -x -C $RESTORE 2>>$LOGFILE
+/usr/bin/curl -s -H "X-Auth-Token: $TOKEN" -G $URL \
+   | /bin/gunzip - \
+   | /usr/bin/xbstream -x -C $RESTORE \
+   2>>$LOGFILE
 
 # Prepare the Database
 /usr/bin/innobackupex --apply-log $RESTORE \

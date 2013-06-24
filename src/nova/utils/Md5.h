@@ -2,6 +2,8 @@
 #define _NOVA_UTILS_MD5
 
 
+#include <exception>
+#include <openssl/md5.h>
 #include <string>
 
 
@@ -13,12 +15,21 @@ class Md5 {
 public:
     Md5();
 
-    void add(const char * buffer, size_t buffer_size);
-
     /* Close this object out and return Md5. No future additions will be
        possible. */
-    std::string finish();
+    std::string finalize();
 
+    void update(const char * buffer, size_t buffer_size);
+
+private:
+    MD5_CTX context;
+    bool finalized;
+};
+
+
+class Md5FinalizedException : public std::exception {
+    public:
+        virtual const char * what() const throw();
 };
 
 } } // end nova::utils

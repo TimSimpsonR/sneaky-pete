@@ -59,8 +59,8 @@ struct SwiftClient::SegmentInfo {
         }
         const auto bytes_read = this->input.read(buffer, buffer_size);
         this->bytes_read += bytes_read;
-        this->checksum.add(buffer, bytes_read);
-        this->file_checksum.add(buffer, bytes_read);
+        this->checksum.update(buffer, bytes_read);
+        this->file_checksum.update(buffer, bytes_read);
         NOVA_SWIFT_LOG(format("Curl upload call back.\n bytes_read=%d, "
                        "total bytes_read=%d") % bytes_read % this->bytes_read);
         return bytes_read;
@@ -254,7 +254,7 @@ string SwiftClient::write_segment(const string & url, SwiftClient::Input & input
     session.perform(list_of(201)(202));
 
     Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
-    const string checksum = info.checksum.finish();
+    const string checksum = info.checksum.finalize();
     string etag = (*headers)["etag"].substr(0, 32);
     NOVA_LOG_ERROR2("What was etag? %s", etag.c_str());
     if (checksum != etag) {
@@ -288,7 +288,7 @@ string SwiftClient::write(SwiftClient::Input & input){
     }
     NOVA_LOG_DEBUG("Finalizing files...");
     write_manifest(file_number);
-    return file_checksum.finish();
+    return file_checksum.finalize();
 }
 
 

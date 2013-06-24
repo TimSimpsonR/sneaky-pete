@@ -277,6 +277,8 @@ unit u_nova_json
 
 unit u_nova_utils_Md5
     : src/nova/utils/Md5.cc
+    : lib_ssl
+    : tests/nova/utils/Md5_tests.cc
     ;
 
 unit u_nova_utils_Curl

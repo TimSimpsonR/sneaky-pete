@@ -81,11 +81,11 @@ cd curl
 git reset --hard e305f5ec715f967bdfaa0c9bf8f102f9185b9aa2
 ./buildconf
 # TODO(tim.simpson): Add SSL / SSH back... of course.
-./configure --disable-shared --enable-static \
-     --disable-ldap --disable-ldaps --without-zlib \
+LIBS="-ldl" ./configure --disable-shared --enable-static \
+     --disable-ldap --disable-ldaps \
      --without-gnutls --without-libssh2 --prefix=/opt/sp-deps/libcurl
 
-make LDFLAGS=-all-static
+make LDFLAGS="-all-static -ldl"
 make install
 
 

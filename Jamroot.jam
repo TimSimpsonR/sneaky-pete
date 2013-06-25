@@ -102,10 +102,20 @@ lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
 # lib lib_mysqlclient_r :
 #   : <file>/usr/lib/x86_64-linux-gnu/libmysqlclient_r.so.18.0.0 ;
 
+lib lib_ssl : : <name>ssl ;
+
+# Needed for curl.
+lib lib_crypto : : <name>crypto ;
+# lib lib_dl : : <name>dl ;  # <-- NOT the way to include libdl, see below.
+
 # This is expected to be installed by the initialize process.
 # TODO: (rmyers) make the statically linked curl work
-#lib lib_curl : : <file>"/opt/sp-deps/libcurl/lib/libcurl.a" ;
-lib lib_curl : : <file>"/usr/lib/libcurl.so.4.2.0"  ;
+lib lib_curl : : <file>"/opt/sp-deps/libcurl/lib/libcurl.a" ;
+
+# Curl is a tricky dependency and will not compile statically unless it finds
+# all of its buddies. Additionally, -ldl must be specified last on the linker
+# line, so making it a lib target in Boost Build doesn't work.
+
 
 lib lib_idn11 : : <name>idn ;
 
@@ -273,6 +283,10 @@ unit u_nova_utils_Curl
     : src/nova/utils/Curl.cc
     : lib_curl
       lib_idn11
+      lib_crypto
+      lib_ssl
+      lib_z
+      #lib_dl
     ;
 
 unit u_nova_utils_swift
@@ -709,7 +723,7 @@ exe receiver
         obj_receiver_daemon
     :   #<dependency>sql_guest_tests
        # <dependency>memory_tests
-       <linkflags>"-pthread "
+       <linkflags>"-pthread -ldl"
     ;
 
 exe nova-guest
@@ -735,7 +749,7 @@ exe nova-guest
         # "-pthread" makes the thread stuff get brought in without specifying
         # libraries.
 
-        <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread "
+        <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread -ldl"
         #-static -lpthread -lz " #" -static-libgcc " #static-libstdc++"
 
 	;
@@ -767,7 +781,7 @@ exe upload_file
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
-    :   <linkflags>" -lpthread "
+    :   <linkflags>" -lpthread -ldl"
     ;
 
 exe download_file
@@ -775,7 +789,7 @@ exe download_file
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
-    :   <linkflags>" -lpthread "
+    :   <linkflags>" -lpthread -ldl"
     ;
 
 # Run this to manually test the monitoring calls

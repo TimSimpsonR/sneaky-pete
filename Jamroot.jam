@@ -58,6 +58,22 @@ project
         ;
 
 
+# A quick note about linking and the flags defined below.
+# First, some libraries are included via Boost Build, while others are stated
+# as flags to GCC directly. In the later case its because the given libraries
+# won't "just work" in any configuration, and to build statically we must
+# explicitly set them one way or another.
+#
+# These are pthread and dl.
+#
+# Next, statically linking the gcc lib is kind of tough. According to this:
+# http://www.trilithium.com/johan/2005/06/static-libstdc/
+# If gcc cannot find libgcc on the path, it will not statically link and
+# will quietly give you a bigger executable. Exciting!
+# The solution is "-static-libgcc" along with some of the stranger flags
+# seen below.
+local EXE_LINK_FLAGS = " -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread -ldl" ;
+
 ###############################################################################
 #       Dependencies
 ###############################################################################
@@ -324,7 +340,7 @@ unit u_nova_guest_HeartBeat
 exe parrot_e
     :   u_nova_Log
         tests/nova/parrot.cc
-    :   <linkflags>"-pthread "
+    :   <linkflags>$EXE_LINK_FLAGS
     ;
 
 
@@ -678,7 +694,7 @@ exe nova_guest_diagnostics_interrogator_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/diag_demo.cc
-    :   <linkflags>"-pthread "
+    :   <linkflags>$EXE_LINK_FLAGS
     ;
 
 exe nova_guest_utils_demo
@@ -686,7 +702,7 @@ exe nova_guest_utils_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/utils_demo.cc
-    :   <linkflags>"-pthread "
+    :   <linkflags>$EXE_LINK_FLAGS
     ;
 
 exe nova_process_fd_demo
@@ -696,7 +712,7 @@ exe nova_process_fd_demo
         u_nova_process
         lib_boost_thread
         tests/nova/process_fd_demo.cc
-    :   <linkflags>"-pthread "
+    :   <linkflags>$EXE_LINK_FLAGS
     ;
 
 exe apt_install
@@ -721,9 +737,7 @@ exe receiver
     :   dependencies
         guest_lib
         obj_receiver_daemon
-    :   #<dependency>sql_guest_tests
-       # <dependency>memory_tests
-       <linkflags>"-pthread -ldl"
+    :  <linkflags>$EXE_LINK_FLAGS
     ;
 
 exe nova-guest
@@ -733,25 +747,7 @@ exe nova-guest
         obj_receiver_daemon
         lib_m
         lib_c
-        #lib_pthread
-    :  #<dependency>sql_guest_tests
-	   # <dependency>memory_tests
-        #<linkflags>"-static -pthread -static-libgcc -L~/." #" -static-libgcc "
-
-        # Some explanation is in order.
-        # http://www.trilithium.com/johan/2005/06/static-libstdc/
-        # If it cannot find libgcc on the path, it will not statically link it
-        # and quietly give you a bigger executable. :D !!
-
-        # Adding "-static" should statically link in the pthread stuff but
-        # instead it makes an executable that won't load, which is also a neat
-        # feature.
-        # "-pthread" makes the thread stuff get brought in without specifying
-        # libraries.
-
-        <linkflags>" -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread -ldl"
-        #-static -lpthread -lz " #" -static-libgcc " #static-libstdc++"
-
+    :   <linkflags>$EXE_LINK_FLAGS
 	;
 
 # Run this in Valgrind to find possible leaks.
@@ -769,7 +765,7 @@ exe greedy_pete
         u_nova_guest_diagnostics_Interrogator
         src/greedy_pete.cc
     :
-        <linkflags>" -static-libgcc -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread "
+        <linkflags>$EXE_LINK_FLAGS
     ;
 
 explicit leak_tester ;
@@ -781,7 +777,7 @@ exe upload_file
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
-    :   <linkflags>" -lpthread -ldl"
+    :   <linkflags>$EXE_LINK_FLAGS
     ;
 
 exe download_file
@@ -789,7 +785,7 @@ exe download_file
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
-    :   <linkflags>" -lpthread -ldl"
+    :   <linkflags>$EXE_LINK_FLAGS
     ;
 
 # Run this to manually test the monitoring calls
@@ -800,5 +796,5 @@ exe centi-pete
         u_nova_process
         src/centi_pete.cc
     :
-        <linkflags>" -static-libgcc -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread "
+        <linkflags>$EXE_LINK_FLAGS
     ;

@@ -45,7 +45,7 @@ public:
                     const HttpCodeList & expected_http_codes);
 
     void perform(const Curl::HttpCodeList & expected_http_code,
-                 unsigned int num_retries = 0);
+                 signed int num_retries = 0);
 
     void reset();
 

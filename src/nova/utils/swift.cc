@@ -275,17 +275,17 @@ bool SwiftClient::validate_segment(const string & url, const string checksum){
 
 
 string SwiftClient::write(SwiftClient::Input & input){
-    NOVA_SWIFT_LOG(format("Writing to Swift!"));
+    NOVA_LOG_DEBUG("Writing to Swift!");
     write_container();
     while (!input.eof()) {
         file_number += 1;
         const string url = file_info.formatted_url(file_number);
-        NOVA_SWIFT_LOG(format("Time to write segment %d.") % file_number);
+        NOVA_LOG_DEBUG2("Time to write segment %d.", file_number);
         string md5 = write_segment(url, input);
         // Head the file to check the checksum
-        NOVA_SWIFT_LOG(format("checksum: %s") % md5);
+        NOVA_LOG_DEBUG2("checksum: %s", md5.c_str());
     }
-    NOVA_SWIFT_LOG(format("Finalizing files..."));
+    NOVA_LOG_DEBUG("Finalizing files...");
     write_manifest(file_number);
     return file_checksum.finish();
 }

@@ -170,6 +170,7 @@ void BackupRunner::dump() {
     // check the process was successful
     if (!reader.successful()) {
         set_state("FAILED");
+        NOVA_LOG_ERROR("Reader was unsuccessful! Setting backup to FAILED!");
     } else {
         // TODO: (rmyers) Add in the file space used
         // stats.used

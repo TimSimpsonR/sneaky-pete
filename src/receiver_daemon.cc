@@ -315,12 +315,22 @@ GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input)
 void message_loop(ResilentReceiver & receiver,
                   vector<MessageHandlerPtr> & handlers) {
     while(!quit) {
+#ifndef _DEBUG
+    try {
+#endif
         GuestInput input = receiver.next_message();
         NOVA_LOG_INFO2("method=%s", input.method_name.c_str());
 
         GuestOutput output(run_method(handlers, input));
 
         receiver.finish_message(output);
+#ifndef _DEBUG
+        } catch (const std::exception & e) {
+            NOVA_LOG_ERROR2("std::exception error: %s", e.what());
+        } catch (...) {
+            NOVA_LOG_ERROR("An exception ocurred of unknown origin!");
+        }
+#endif
     }
 }
 

@@ -1,6 +1,7 @@
 #include "nova/guest/apt.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
+#include "nova/guest/GuestException.h"
 #include "nova/process.h"
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
@@ -19,6 +20,7 @@ using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
 using boost::format;
+using nova::guest::GuestException;
 using nova::Log;
 using nova::JsonData;
 using nova::JsonDataPtr;
@@ -445,8 +447,12 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         const auto backup_url = input.args->get_optional_string("backup_url");
         if (backup_url && backup_url.get().length() > 0) {
             NOVA_LOG_INFO("Calling Restore...")
+            if (!input.token) {
+                NOVA_LOG_ERROR("No token given! Cannot do this restore!");
+                throw GuestException(GuestException::MALFORMED_INPUT);
+            }
             const auto token = input.token;
-            _restore_database(token, backup_url.get());
+            _restore_database(token.get(), backup_url.get());
         }
         // The argument signature is the same as create_database so just
         // forward the method.

@@ -149,8 +149,8 @@ JsonObjectPtr Receiver::_next_message() {
 
 void Receiver::init_input_with_json(GuestInput & input, JsonObject & msg) {
     input.method_name = msg.get_string("method");
-    input.tenant = msg.get_string("_context_tenant");
-    input.token = msg.get_string("_context_auth_token");
+    input.tenant = msg.get_optional_string("_context_tenant");
+    input.token = msg.get_optional_string("_context_auth_token");
     input.args = msg.get_object_or_empty("args");
 }
 

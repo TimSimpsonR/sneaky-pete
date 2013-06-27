@@ -29,8 +29,18 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_DEBUG("handling the create_backup method");
         const auto id = input.args->get_string("backup_id");
         const auto swift_url = input.args->get_string("swift_url");
-        const auto tenant = input.tenant;
-        const auto token = input.token;
+        if (!input.tenant) {
+            NOVA_LOG_ERROR("Tenant was not specified by this RPC call! "
+                           "Aborting...");
+            throw GuestException(GuestException::MALFORMED_INPUT);
+        }
+        if (!input.token) {
+            NOVA_LOG_ERROR("Token was not specified by this RPC call! "
+                           "Aborting...");
+            throw GuestException(GuestException::MALFORMED_INPUT);
+        }
+        const auto tenant = input.tenant.get();
+        const auto token = input.token.get();
         backup.run_backup(swift_url, tenant, token, id);
         return JsonData::from_null();
     } else {

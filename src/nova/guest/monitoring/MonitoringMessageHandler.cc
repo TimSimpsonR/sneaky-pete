@@ -53,8 +53,8 @@ MonitoringMessageHandler::MonitoringMessageHandler(AptGuestPtr apt,
 
 JsonDataPtr MonitoringMessageHandler::handle_message(const GuestInput & input) {
     NOVA_LOG_DEBUG("entering the Monitoring handle_message method now ");
-    if (input.method_name == "install_monitoring_agent") {
-        NOVA_LOG_DEBUG("handling the install_monitoring_agent method");
+    if (input.method_name == "install_and_configure_monitoring_agent") {
+        NOVA_LOG_DEBUG("handling the install_and_configure_monitoring_agent method");
         const auto monitoring_token = input.args->get_string("monitoring_token");
         const auto monitoring_endpoints = input.args->get_string("monitoring_endpoints");
         monitoring.install_and_configure_monitoring_agent(*apt, monitoring_token, monitoring_endpoints);

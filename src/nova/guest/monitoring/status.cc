@@ -79,16 +79,16 @@ const char * MonitoringStatus::status_name(MonitoringStatus::Status status) {
     // Make sure this matches nova.compute.power_state!
     switch(status) {
         case ACTIVE:
-            return "active";
+            return "ACTIVE";
         case REMOVED:
-            return "removed";
+            return "REMOVED";
         case SHUTDOWN:
-            return "shutdown";
+            return "SHUTDOWN";
         // this is not used yet. should it be?
         case BUILDING:
-            return "building";
+            return "BUILDING";
         case UNKNOWN:
-            return "unknown_case";
+            return "UNKNOWN";
         default:
             return "!invalid status code!";
     }

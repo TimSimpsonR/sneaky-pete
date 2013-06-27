@@ -71,15 +71,6 @@ void Monitoring::install_and_configure_monitoring_agent(
     Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MON_CONF)(agent_config_file.c_str()));
 
     apt.install(agent_package_name.c_str(), agent_install_timeout);
-
-    try{
-        NOVA_LOG_INFO("Restarting the monitoring agent");
-        restart_monitoring_agent();
-    }
-    catch (std::exception &e) {
-        NOVA_LOG_ERROR2("Problem restarting the monitoring agent: %s", e.what());
-        throw;
-    }
 }
 
 void Monitoring::remove_monitoring_agent(AptGuest & apt) const {

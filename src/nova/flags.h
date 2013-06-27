@@ -165,6 +165,8 @@ class FlagValues {
 
         const char * rabbit_userid() const;
 
+        bool register_dangerous_functions() const;
+
         unsigned long report_interval() const;
 
         size_t status_thread_stack_size() const;

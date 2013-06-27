@@ -24,6 +24,21 @@ namespace nova { namespace guest { namespace diagnostics {
         std::string version;
     };
 
+
+    class DiagnosticsMessageHandler : public MessageHandler {
+        public:
+          DiagnosticsMessageHandler(bool enabled);
+
+          virtual nova::JsonDataPtr handle_message(const GuestInput & input);
+
+        private:
+          DiagnosticsMessageHandler(const DiagnosticsMessageHandler &);
+          DiagnosticsMessageHandler & operator = (const DiagnosticsMessageHandler &);
+
+          bool enabled;
+    };
+
+
     struct FileSystemStats {
         unsigned long block_size;
         unsigned long total_blocks;
@@ -96,6 +111,7 @@ namespace nova { namespace guest { namespace diagnostics {
 
           const Interrogator & interrogator;
     };
+
 
 } } }  // end namespace
 

@@ -404,6 +404,10 @@ const char * FlagValues::rabbit_userid() const {
     return map->get("rabbit_userid", "guest");
 }
 
+bool FlagValues::register_dangerous_functions() const {
+    return get_flag_value<bool>(*map, "register_dangerous_functions", false);
+}
+
 unsigned long FlagValues::report_interval() const {
     return get_flag_value(*map, "report_interval", (unsigned long) 10);
 }

@@ -228,6 +228,13 @@ void initialize_and_run(FlagValues & flags) {
     MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
     handlers.push_back(handler_backup);
 
+    if (flags.register_dangerous_functions()) {
+        NOVA_LOG_INFO("WARNING! Dangerous functions will be callable!");
+        MessageHandlerPtr handler_diagnostics(
+            new DiagnosticsMessageHandler(true));
+        handlers.push_back(handler_diagnostics);
+    }
+
     /* Set host value. */
     string actual_host = nova::guest::utils::get_host_name();
     string host = flags.host().get_value_or(actual_host.c_str());

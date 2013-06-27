@@ -472,6 +472,10 @@ unit u_nova_guest_diagnostics_InterrogatorMessageHandler
     :   <implicit-dependency>nova_guest_version
     ;
 
+unit u_nova_guest_diagnostics_DiagnosticsMessageHandler
+    :   src/nova/guest/diagnostics/DiagnosticsMessageHandler.cc
+    ;
+
 unit u_nova_guest_backup_Backup
     :   src/nova/guest/backup/Backup.cc
     :   u_nova_Log
@@ -551,6 +555,7 @@ alias guest_lib
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
         u_nova_guest_apt_AptException
+        u_nova_guest_diagnostics_DiagnosticsMessageHandler
         u_nova_guest_diagnostics_Interrogator
         u_nova_guest_diagnostics_InterrogatorException
         u_nova_guest_diagnostics_InterrogatorMessageHandler

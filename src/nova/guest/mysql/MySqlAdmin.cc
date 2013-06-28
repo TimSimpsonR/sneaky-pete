@@ -180,8 +180,8 @@ MySqlUserPtr MySqlAdmin::find_user(const std::string & username, const std::stri
     MySqlResultSetPtr res = con->query(query.c_str());
     if (!res->next()) {
         NOVA_LOG_ERROR2("Could not find a user named %s@%s", username.c_str(), hostname.c_str());
-        throw MySqlGuestException(MySqlGuestException::GENERAL);
-        }
+        throw MySqlGuestException(MySqlGuestException::USER_NOT_FOUND);
+    }
 
     MySqlUserPtr user(new MySqlUser);
     user->set_name(res->get_string(0).get());

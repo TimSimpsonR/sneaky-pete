@@ -19,7 +19,8 @@ namespace nova { namespace guest { namespace mysql {
                 GUEST_INSTANCE_ID_NOT_FOUND,
                 INVALID_ZERO_LIMIT,
                 MYSQL_NOT_STOPPED,
-                NO_PASSWORD_FOR_CREATE_USER
+                NO_PASSWORD_FOR_CREATE_USER,
+                USER_NOT_FOUND
             };
 
             MySqlGuestException(Code code) throw();

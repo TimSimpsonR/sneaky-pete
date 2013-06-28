@@ -11,6 +11,7 @@
 #include "nova/guest/mysql/MySqlMessageHandler.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/guest/mysql/MySqlApp.h"
+#include "nova/guest/mysql/MySqlGuestException.h"
 #include "nova/guest/monitoring/monitoring.h"
 #include <boost/optional.hpp>
 #include <sstream>
@@ -26,6 +27,7 @@ using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using nova::guest::mysql::MySqlGuestException;
 using nova::Process;
 using nova::ProcessException;
 using namespace nova::db::mysql;
@@ -312,7 +314,17 @@ namespace {
         MySqlAdminPtr sql = guest->sql_admin();
         string username = args->get_string("username");
         string hostname = args->get_optional_string("hostname").get_value_or("%");
-        MySqlUserPtr user = sql->find_user(username, hostname);
+        MySqlUserPtr user;
+        try {
+            user = sql->find_user(username, hostname);
+        } catch(const MySqlGuestException & mse) {
+            if (mse.code == MySqlGuestException::USER_NOT_FOUND) {
+                return JsonData::from_null();
+            }
+            NOVA_LOG_ERROR("An unexpected error occurred when finding the user"
+                           " (possibly the user name or host was malformed).");
+            throw;
+        }
         std::stringstream json;
         user_to_stream(json, user);
         JsonDataPtr rtn(new JsonObject(json.str().c_str()));

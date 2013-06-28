@@ -38,6 +38,8 @@ const char *  MySqlGuestException::code_to_string(Code code) {
             return "MySQL was not stopped.";
         case NO_PASSWORD_FOR_CREATE_USER:
             return "Can't create user because no password was specified.";
+        case USER_NOT_FOUND:
+            return "User not found.";
         default:
             return "MySqlGuest failure.";
     }

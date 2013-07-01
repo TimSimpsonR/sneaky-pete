@@ -51,21 +51,21 @@ BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 BOOST_AUTO_TEST_CASE(not_real_package_returns_nothing)
 {
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     optional<string> version = guest.version("ghsdfhbsd", 30);
     BOOST_REQUIRE_EQUAL(version, boost::none);
 }
 
 BOOST_AUTO_TEST_CASE(real_uninstalled_package_returns_nothing)
 {
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     optional<string> version = guest.version("cowsay");
     BOOST_REQUIRE_EQUAL(version, boost::none);
 }
 
 BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 {
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     optional<string> version = guest.version("dpkg");
     BOOST_REQUIRE_EQUAL(!!version, true);
     Regex regex("(\\w+)\\.(\\w+)\\.(\\w+)\\.(\\w+)");
@@ -77,9 +77,10 @@ BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 
 BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)
 {
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     CHECK_APT_EXCEPTION(guest.version(""), UNEXPECTED_PROCESS_OUTPUT);
 }
+
 
 /**---------------------------------------------------------------------------
  *- Install / Remove Tests
@@ -88,14 +89,14 @@ BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)
 #define INVALID_PACKAGE_NAME "fake_package"
 
 BOOST_AUTO_TEST_CASE(install_should_throw_exceptions_with_invalid_packages) {
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     CHECK_APT_EXCEPTION(guest.install(INVALID_PACKAGE_NAME, 60),
                         PACKAGE_NOT_FOUND);
 }
 
 
 BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     CHECK_APT_EXCEPTION(guest.remove(INVALID_PACKAGE_NAME, 60),
                         PACKAGE_NOT_FOUND);
 }
@@ -112,7 +113,7 @@ bool cowsay_exists() {
  *  now its the best way to prove this code is working. */
 BOOST_AUTO_TEST_CASE(abuse_cowsay) {
 
-    apt::AptGuest guest(USE_SUDO, "reddwarf-config", "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
 
     const bool cowsay_originally_installed = cowsay_exists();
     if (cowsay_originally_installed) {
@@ -121,6 +122,9 @@ BOOST_AUTO_TEST_CASE(abuse_cowsay) {
 
     // At first it should not be installed.
     BOOST_REQUIRE_EQUAL(cowsay_exists(), false);
+
+    optional<string> version_fail = guest.version("cowsay");
+    BOOST_REQUIRE_EQUAL(version_fail, boost::none);
 
     // Can handle a second remove.
     guest.remove("cowsay", TIME_OUT);
@@ -145,13 +149,17 @@ BOOST_AUTO_TEST_CASE(abuse_cowsay) {
     guest.install("cowsay", TIME_OUT);
     BOOST_REQUIRE_EQUAL(cowsay_exists(), true);
 
+    optional<string> version = guest.version("cowsay");
+    BOOST_REQUIRE_EQUAL(!!version, true);
+    Regex regex("(\\w+)");
+    RegexMatchesPtr matches = regex.match(version.get().c_str(), 5);
+    BOOST_REQUIRE(!!matches);
+    BOOST_REQUIRE(matches->exists_at(0));
+
     // Can handle a second install.
     guest.install("cowsay", TIME_OUT);
     BOOST_REQUIRE_EQUAL(cowsay_exists(), true);
 
-    // Remove
-    guest.remove("cowsay", TIME_OUT);
-    BOOST_REQUIRE_EQUAL(cowsay_exists(), false);
 }
 
 

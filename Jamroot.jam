@@ -351,7 +351,7 @@ unit u_nova_process
         u_nova_Log
     :   tests/nova/process_tests.cc
     :   <dependency>parrot/<link>shared
-        #<define>_NOVA_PROCESS_VERBOSE
+        <define>_NOVA_PROCESS_VERBOSE
     :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
     ;
 

@@ -159,6 +159,8 @@ namespace {
         }
     }
 
+    size_t BUFFER_SIZE = 1048;
+
 }  // end anonymous namespace
 
 /**---------------------------------------------------------------------------
@@ -300,8 +302,8 @@ bool Process::is_pid_alive(pid_t pid) {
 }
 
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
-    char buf[1048];
-    size_t count = read_into(buf, 1048, seconds);
+    char buf[BUFFER_SIZE];
+    size_t count = read_into(buf, BUFFER_SIZE-1, seconds);
     buf[count] = 0;  // Have to do this or Valgrind fails.
     std_out.write(buf, count);
     LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());

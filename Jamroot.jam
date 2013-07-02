@@ -326,9 +326,9 @@ unit u_nova_guest_utils
     ;
 
 unit u_nova_utils_threads
-    : src/nova/utils/threads.cc
-    :
-    :
+    :   src/nova/utils/threads.cc
+    :   u_nova_Log
+    :   tests/nova/utils/threads_tests.cc
     ;
 
 unit u_nova_guest_HeartBeat

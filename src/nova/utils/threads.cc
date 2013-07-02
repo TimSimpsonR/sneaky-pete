@@ -97,5 +97,118 @@ const char * ThreadException::what() const throw() {
 }
 
 
+/**---------------------------------------------------------------------------
+ *- ThreadBasedJobRunner
+ *---------------------------------------------------------------------------*/
+
+ThreadBasedJobRunner::ThreadBasedJobRunner()
+:   condition(),
+    job(0),
+    mutex(),
+    shutdown_completed(false),
+    shutdown_requested(false)
+{
+}
+
+ThreadBasedJobRunner::~ThreadBasedJobRunner() {
+    if (0 != job) {
+        NOVA_LOG_ERROR("Destroying the job runner, but the last job was never "
+                       "finished!");
+        delete job;
+        job = 0;
+    }
+}
+
+void ThreadBasedJobRunner::execute_job() {
+    if (0 == job) {
+        NOVA_LOG_ERROR("Error- can't execute null job!");
+        return;
+    }
+    NOVA_LOG_INFO("Running job!");
+#ifndef _DEBUG
+    try {
+#endif
+        (*job)();
+        NOVA_LOG_INFO("Job finished successfully.");
+#ifndef _DEBUG
+    } catch (const std::exception & e) {
+        NOVA_LOG_ERROR2("Error running job!: %s", e.what());
+    }
+#endif
+    {
+        boost::lock_guard<boost::mutex> lock(mutex);
+        delete job;  // Kill job variable.
+        job = 0;
+    }
+}
+
+void ThreadBasedJobRunner::operator()() {
+    NOVA_LOG_INFO("Starting Job Runner thread...");
+    while(!is_shutdown_requested()) {
+        NOVA_LOG_INFO("Waiting for job...");
+        {
+            boost::unique_lock<boost::mutex> lock(mutex);
+            while (_is_idle() && !shutdown_requested) {
+                condition.wait(lock);
+            }
+        }
+        if (!is_shutdown_requested()) {
+            execute_job();
+        }
+    }
+    {
+        boost::lock_guard<boost::mutex> lock(mutex);
+        shutdown_completed = true;
+    }
+}
+
+bool ThreadBasedJobRunner::is_idle() {
+    boost::lock_guard<boost::mutex> lock(mutex);
+    return _is_idle();
+}
+
+bool ThreadBasedJobRunner::_is_idle() {
+    return 0 == job;
+}
+
+bool ThreadBasedJobRunner::is_shutdown_completed() {
+    boost::lock_guard<boost::mutex> lock(mutex);
+    return shutdown_completed;
+}
+
+bool ThreadBasedJobRunner::is_shutdown_requested() {
+    boost::lock_guard<boost::mutex> lock(mutex);
+    return shutdown_requested;
+}
+
+bool ThreadBasedJobRunner::run(const Job & job) {
+    {
+        boost::lock_guard<boost::mutex> lock(mutex);
+        if (!_is_idle()) {
+            NOVA_LOG_INFO("Can't run job because thread isn't idle.");
+            return false;
+        }
+        this->job = job.clone();
+    }
+    condition.notify_one();
+    return true;
+}
+
+void ThreadBasedJobRunner::shutdown() {
+    {
+        boost::lock_guard<boost::mutex> lock(mutex);
+        shutdown_requested = true;
+    }
+    while(is_shutdown_completed()) {
+        boost::posix_time::seconds time(1);
+        boost::this_thread::sleep(time);
+    }
+
+    {
+        boost::lock_guard<boost::mutex> lock(mutex);
+        shutdown_completed = true;
+    }
+}
+
 
 } } // end namespace nova::utils

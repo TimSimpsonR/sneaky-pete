@@ -417,6 +417,11 @@ size_t FlagValues::status_thread_stack_size() const {
                           (size_t) 1024 * 1024);
 }
 
+size_t FlagValues::worker_thread_stack_size() const {
+    return get_flag_value(*map, "worker_thread_stack_size",
+                          (size_t) 1024 * 1024);
+}
+
 bool FlagValues::use_syslog() const {
     return get_flag_value<bool>(*map, "use_syslog", false);
 }

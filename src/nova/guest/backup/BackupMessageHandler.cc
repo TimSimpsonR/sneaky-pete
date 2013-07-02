@@ -18,8 +18,8 @@ using namespace boost;
 
 namespace nova { namespace guest { namespace backup {
 
-BackupMessageHandler::BackupMessageHandler(Backup & backup)
-: backup(backup) {
+BackupMessageHandler::BackupMessageHandler(BackupManager & backup_manager)
+: backup_manager(backup_manager) {
 }
 
 
@@ -41,7 +41,7 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
         }
         const auto tenant = input.tenant.get();
         const auto token = input.token.get();
-        backup.run_backup(swift_url, tenant, token, id);
+        backup_manager.run_backup(swift_url, tenant, token, id);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

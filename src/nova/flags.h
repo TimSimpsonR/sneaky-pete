@@ -173,6 +173,8 @@ class FlagValues {
 
         bool use_syslog() const;
 
+        size_t worker_thread_stack_size() const;
+
     private:
 
         FlagMapPtr map;

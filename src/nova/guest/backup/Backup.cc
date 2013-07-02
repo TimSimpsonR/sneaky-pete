@@ -27,7 +27,8 @@ using namespace boost;
 using namespace std;
 using nova::utils::Curl;
 using nova::utils::CurlScope;
-
+using nova::utils::Job;
+using nova::utils::JobRunner;
 using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
 using nova::utils::swift::SwiftClient;
 using nova::utils::swift::SwiftFileInfo;
@@ -69,17 +70,20 @@ namespace {
 }
 
 /**---------------------------------------------------------------------------
- *- Backup
+ *- BackupManager
  *---------------------------------------------------------------------------*/
 
-Backup::Backup(MySqlConnectionWithDefaultDbPtr & infra_db,
-               const int chunk_size,
-               const int segment_max_size,
-               const std::string swift_container,
-               const bool use_gzip,
-               const double time_out)
+BackupManager::BackupManager(
+    MySqlConnectionWithDefaultDbPtr & infra_db,
+    JobRunner & runner,
+    const int chunk_size,
+    const int segment_max_size,
+    const std::string swift_container,
+    const bool use_gzip,
+    const double time_out)
 :   infra_db(infra_db),
     chunk_size(chunk_size),
+    runner(runner),
     segment_max_size(segment_max_size),
     swift_container(swift_container),
     use_gzip(use_gzip),
@@ -87,10 +91,10 @@ Backup::Backup(MySqlConnectionWithDefaultDbPtr & infra_db,
 {
 }
 
-Backup::~Backup() {
+BackupManager::~BackupManager() {
 }
 
-void Backup::run_backup(const std::string & swift_url,
+void BackupManager::run_backup(const std::string & swift_url,
                         const std::string & tenant,
                         const std::string & token,
                         const std::string & backup_id) {
@@ -100,18 +104,18 @@ void Backup::run_backup(const std::string & swift_url,
         NOVA_LOG_INFO2("Token = %s", token.c_str());
     #endif
 
-    BackupRunner runner(infra_db, chunk_size, segment_max_size, swift_container,
-                        swift_url, time_out, tenant, token, backup_id);
-    runner.run();
+    BackupJob job(infra_db, chunk_size, segment_max_size, swift_container,
+                  swift_url, time_out, tenant, token, backup_id);
+    runner.run(job);
 }
 
 
 /**---------------------------------------------------------------------------
- *- BackupRunner
+ *- BackupJob
  *---------------------------------------------------------------------------*/
 
 
-BackupRunner::BackupRunner(MySqlConnectionWithDefaultDbPtr infra_db,
+BackupJob::BackupJob(MySqlConnectionWithDefaultDbPtr infra_db,
                            const int & chunk_size,
                            const int & segment_max_size,
                            const std::string & swift_container,
@@ -132,11 +136,52 @@ BackupRunner::BackupRunner(MySqlConnectionWithDefaultDbPtr infra_db,
 {
 }
 
-BackupRunner::~BackupRunner() {
+BackupJob::BackupJob(const BackupJob & other)
+:   backup_id(other.backup_id),
+    infra_db(other.infra_db),
+    chunk_size(other.chunk_size),
+    segment_max_size(other.segment_max_size),
+    swift_container(other.swift_container),
+    swift_url(other.swift_url),
+    tenant(other.tenant),
+    time_out(other.time_out),
+    token(other.token)
+{
 }
 
+BackupJob::~BackupJob() {
+}
 
-void BackupRunner::dump() {
+void BackupJob::operator()() {
+    auto state = get_state();
+    if (!state || "NEW" != state.get()) {
+        NOVA_LOG_ERROR2("State was not NEW, but %s!",
+                        state.get_value_or("<not found>").c_str());
+        throw BackupException(BackupException::INVALID_STATE);
+    }
+
+    set_state("BUILDING");
+    NOVA_LOG_INFO("Starting backup...");
+    try {
+        // Start process
+        // As we read, write to Swift
+        dump();
+        NOVA_LOG_INFO("Backup comleted successfully!");
+    } catch(const std::exception & ex) {
+        NOVA_LOG_ERROR("Error running backup!");
+        NOVA_LOG_ERROR2("Exception: %s", ex.what());
+        set_state("FAILED");
+    } catch(...) {
+        NOVA_LOG_ERROR("Error running backup!");
+        set_state("FAILED");
+    }
+}
+
+Job * BackupJob::clone() const {
+    return new BackupJob(*this);
+}
+
+void BackupJob::dump() {
     // Record the filesystem stats before the backup is run
     Interrogator question;
     FileSystemStatsPtr stats = question.get_filesystem_stats("/var/lib/mysql");
@@ -178,7 +223,7 @@ void BackupRunner::dump() {
     }
 }
 
-optional<string> BackupRunner::get_state() {
+optional<string> BackupJob::get_state() {
     auto query = str(format("SELECT state FROM backups WHERE id='%s' "
                             "AND tenant_id='%s';") % backup_id % tenant);
     MySqlResultSetPtr result = infra_db->query(query.c_str());
@@ -191,28 +236,7 @@ optional<string> BackupRunner::get_state() {
     return boost::none;
 }
 
-
-void BackupRunner::run() {
-    auto state = get_state();
-    if (!state || "NEW" != state.get()) {
-        NOVA_LOG_ERROR2("State was not NEW, but %s!",
-                        state.get_value_or("<not found>").c_str());
-        throw BackupException(BackupException::INVALID_STATE);
-    }
-
-    set_state("BUILDING");
-
-    try {
-        // Start process
-        // As we read, write to Swift
-        dump();
-    } catch(...) {
-        set_state("FAILED");
-    }
-}
-
-
-void BackupRunner::set_state(const string & new_value) {
+void BackupJob::set_state(const string & new_value) {
     auto stmt = infra_db->prepare_statement(
         "UPDATE backups SET state=? WHERE id=? AND tenant_id=?");
     stmt->set_string(0, new_value.c_str());
@@ -223,7 +247,7 @@ void BackupRunner::set_state(const string & new_value) {
                                                       new_value.c_str());
 }
 
-void BackupRunner::update_backup(const string & checksum, const string & type,
+void BackupJob::update_backup(const string & checksum, const string & type,
                                  const string & location) {
     auto stmt = infra_db->prepare_statement(
         "UPDATE backups SET state=?, checksum=?, backup_type=?, location=? WHERE id=? AND tenant_id=?");

@@ -58,6 +58,7 @@ using namespace nova::guest::monitoring;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using namespace nova::guest::backup;
+using nova::utils::ThreadBasedJobRunner;
 using namespace nova::rpc;
 using std::string;
 using nova::utils::Thread;
@@ -218,8 +219,13 @@ void initialize_and_run(FlagValues & flags) {
         new InterrogatorMessageHandler(interrogator));
     handlers.push_back(handler_interrogator);
 
+    /* Create job runner, but don't start it's thread until much later. */
+    ThreadBasedJobRunner job_runner;
+
     /* Backup task */
-    Backup backup(nova_db,
+    BackupManager backup(
+                  nova_db,
+                  job_runner,
                   flags.backup_chunk_size(),
                   flags.backup_segment_max_size(),
                   flags.backup_swift_container(),
@@ -242,21 +248,16 @@ void initialize_and_run(FlagValues & flags) {
     /* Create HeartBeat. */
     HeartBeat heart_beat(nova_db, flags.guest_id());
 
-
     /* Create AMQP connection. */
     string topic = str(format("guestagent.%s") % flags.guest_id());
 
-    // Start the status thread.
+    NOVA_LOG_INFO("Starting status thread...");
     PeriodicTasker tasker(heart_beat, mysql_status_updater,
                           flags.periodic_interval(), flags.report_interval());
-    Thread workerThread(flags.status_thread_stack_size(), tasker);
+    Thread statusThread(flags.status_thread_stack_size(), tasker);
 
-    // Before we go any further, lets all just chill out and take a nap.
-    // TODO(tim.simpson) For reasons I can only assume relate to an even
-    // worse bug I have been able to uncover, sleeping here keeps Sneaky
-    // Pete from morphing into Fat Pete (inexplicable 60 MB virtual memory
-    // increase).
-    boost::this_thread::sleep(boost::posix_time::seconds(3));
+    NOVA_LOG_INFO("Starting job thread...");
+    Thread workerThread(flags.worker_thread_stack_size(), job_runner);
 
     // If a "message" is specified we just run it and quit. Otherwise,
     // it's Rabbit time.
@@ -264,7 +265,13 @@ void initialize_and_run(FlagValues & flags) {
     if (message) {
         run_json_method(handlers, message.get());
     } else {
-        NOVA_LOG_INFO("Creating listener...");
+        NOVA_LOG_INFO("Before we go further, lets chill out and take a nap.");
+        // Before we go any further, lets all just chill out and take a nap.
+        // TODO(tim.simpson) For reasons I can only assume relate to an even
+        // worse bug I have been able to uncover, sleeping here keeps Sneaky
+        // Pete from morphing into Fat Pete (inexplicable 60 MB virtual memory
+        // increase).
+        boost::this_thread::sleep(boost::posix_time::seconds(3));
 
         ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
                     flags.rabbit_userid(), flags.rabbit_password(),
@@ -274,6 +281,10 @@ void initialize_and_run(FlagValues & flags) {
 
         message_loop(receiver, handlers);
     }
+
+    // Gracefully kill the job runner.
+    NOVA_LOG_INFO("Shutting down Sneaky Pete. Killing job runner.");
+    job_runner.shutdown();
 }
 
 void run_json_method(vector<MessageHandlerPtr> & handlers,

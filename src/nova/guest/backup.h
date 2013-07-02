@@ -10,21 +10,23 @@
 #include <string>
 #include <curl/curl.h>
 #include "nova/utils/swift.h"
+#include "nova/utils/threads.h"
 #include <boost/utility.hpp>
 
 namespace nova { namespace guest { namespace backup {
 
-    class Backup : boost::noncopyable {
+    class BackupManager : boost::noncopyable {
         public:
-            Backup(nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,
+            BackupManager(
+                   nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,
+                   nova::utils::JobRunner & runner,
                    const int chunk_size,
                    const int segment_max_size,
                    const std::string swift_container,
                    const bool use_gzip,
                    const double time_out);
 
-            ~Backup();
-
+            ~BackupManager();
 
             void run_backup(const std::string & swift_url,
                             const std::string & tenant,
@@ -35,6 +37,7 @@ namespace nova { namespace guest { namespace backup {
         private:
             nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
             const int chunk_size;
+            nova::utils::JobRunner & runner;
             const int segment_max_size;
             const std::string swift_container;
             const bool use_gzip;
@@ -42,10 +45,11 @@ namespace nova { namespace guest { namespace backup {
             const double time_out;
     };
 
+
     /** Represents an instance of a in-flight backup. */
-    class BackupRunner : boost::noncopyable {
+    class BackupJob : public nova::utils::Job {
         public:
-            BackupRunner(
+            BackupJob(
                 nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db,
                 const int & chunk_size,
                 const int & segment_max_size,
@@ -56,11 +60,20 @@ namespace nova { namespace guest { namespace backup {
                 const std::string & token,
                 const std::string & backup_id);
 
-            ~BackupRunner();
+            // Copy constructor is designed mainly so we can pass instances
+            // from one thread to another.
+            BackupJob(const BackupJob & other);
 
-            void run();
+            ~BackupJob();
+
+            virtual void operator()();
+
+            virtual nova::utils::Job * clone() const;
 
         private:
+            // Don't allow this, despite the copy constructor above.
+            BackupJob & operator=(const BackupJob & rhs);
+
             const std::string backup_id;
             nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
             const int chunk_size;
@@ -102,7 +115,7 @@ namespace nova { namespace guest { namespace backup {
     class BackupMessageHandler : public MessageHandler {
 
         public:
-          BackupMessageHandler(Backup & backup);
+          BackupMessageHandler(BackupManager & backup_manager);
 
           virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
@@ -110,7 +123,7 @@ namespace nova { namespace guest { namespace backup {
           BackupMessageHandler(const BackupMessageHandler &);
           BackupMessageHandler & operator = (const BackupMessageHandler &);
 
-          Backup & backup;
+          BackupManager & backup_manager;
     };
 
 } } }  // end namespace

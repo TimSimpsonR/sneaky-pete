@@ -340,7 +340,7 @@ unit u_nova_guest_HeartBeat
 exe parrot_e
     :   u_nova_Log
         tests/nova/parrot.cc
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 
@@ -699,7 +699,7 @@ exe nova_guest_diagnostics_interrogator_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/diag_demo.cc
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe nova_guest_utils_demo
@@ -707,7 +707,7 @@ exe nova_guest_utils_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/utils_demo.cc
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe nova_process_fd_demo
@@ -717,7 +717,7 @@ exe nova_process_fd_demo
         u_nova_process
         lib_boost_thread
         tests/nova/process_fd_demo.cc
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe apt_install
@@ -742,7 +742,7 @@ exe receiver
     :   dependencies
         guest_lib
         obj_receiver_daemon
-    :  <linkflags>$EXE_LINK_FLAGS
+    :  <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe nova-guest
@@ -752,7 +752,7 @@ exe nova-guest
         obj_receiver_daemon
         lib_m
         lib_c
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
 	;
 
 # Run this in Valgrind to find possible leaks.
@@ -770,7 +770,7 @@ exe greedy_pete
         u_nova_guest_diagnostics_Interrogator
         src/greedy_pete.cc
     :
-        <linkflags>$EXE_LINK_FLAGS
+        <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 explicit leak_tester ;
@@ -782,7 +782,7 @@ exe upload_file
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe download_file
@@ -790,7 +790,7 @@ exe download_file
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
-    :   <linkflags>$EXE_LINK_FLAGS
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 # Run this to manually test the monitoring calls
@@ -801,5 +801,5 @@ exe centi-pete
         u_nova_process
         src/centi_pete.cc
     :
-        <linkflags>$EXE_LINK_FLAGS
+        <linkflags>$(EXE_LINK_FLAGS)
     ;

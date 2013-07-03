@@ -486,9 +486,16 @@ AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
         return rtn;
     }
     if (frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD) {
-        NOVA_LOG_ERROR2("Warning: amqp_simple_wait_frame returned frame whose "
-                        "id was not AMQP_BASIC_DELIVER_METHOD, but %d.",
-                        frame.payload.method.id);
+        if (frame.payload.method.id == AMQP_CONNECTION_CLOSE_METHOD) {
+            NOVA_LOG_ERROR("Warning: amqp_simple_wait_frame returned frame "
+                           "whose id was AMQP_CONNECTION_CLOSE_METHOD; this "
+                           "frame method is received when the current channel "
+                           "connection is closed.");
+        } else {
+            NOVA_LOG_ERROR2("Warning: amqp_simple_wait_frame returned frame whose "
+                            "id was not AMQP_BASIC_DELIVER_METHOD, but %d.",
+                            frame.payload.method.id);
+        }
         // I've seen in cases where an empty pointer is returned here that the
         // next message, when read, has a decoded pointer to 0x22 (not null,
         // but still garbage). So the best solution is throw an exception.

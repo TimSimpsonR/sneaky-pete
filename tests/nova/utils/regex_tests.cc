@@ -108,3 +108,39 @@ BOOST_AUTO_TEST_CASE(match_user_db_assoc1)
     BOOST_REQUIRE_EQUAL(!!matches, true);
     BOOST_REQUIRE_EQUAL(matches->get(1), "te@st@");
 }
+
+BOOST_AUTO_TEST_CASE(match_dpkg_output)
+{
+    Regex regex("(dpkg)\\s+(\\S*).*");
+    RegexMatchesPtr matches = regex.match("dpkg   1.15.8.1+debian2");
+    std::cout << "0=" << matches->get(0) << std::endl;
+    std::cout << "1=" << matches->get(1) << std::endl;
+    std::cout << "2=" << matches->get(2) << std::endl;
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "dpkg");
+    BOOST_REQUIRE_EQUAL(matches->get(2), "1.15.8.1+debian2");
+}
+
+BOOST_AUTO_TEST_CASE(match_dpkg_output_no_version)
+{
+    Regex regex("(dpkg)\\s+(\\S*).*");
+    RegexMatchesPtr matches = regex.match("dpkg   ");
+    std::cout << "0=" << matches->get(0) << std::endl;
+    std::cout << "1=" << matches->get(1) << std::endl;
+    std::cout << "2=" << matches->get(2) << std::endl;
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "dpkg");
+    BOOST_REQUIRE_EQUAL(matches->get(2), "");
+}
+
+BOOST_AUTO_TEST_CASE(match_dpkg_output_another_version)
+{
+    Regex regex("(dpkg)\\s+(\\S*).*");
+    RegexMatchesPtr matches = regex.match("dpkg 1.0~rc1");
+    std::cout << "0=" << matches->get(0) << std::endl;
+    std::cout << "1=" << matches->get(1) << std::endl;
+    std::cout << "2=" << matches->get(2) << std::endl;
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "dpkg");
+    BOOST_REQUIRE_EQUAL(matches->get(2), "1.0~rc1");
+}

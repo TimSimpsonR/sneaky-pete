@@ -384,15 +384,14 @@ typedef boost::optional<std::string> optional_string;
 optional<string> AptGuest::version(const char * package_name,
                                    const double time_out) {
     NOVA_LOG_DEBUG2("Getting version of %s", package_name);
-    Process process(list_of("/usr/bin/dpkg")("-l")(package_name), false);
+    Process process(list_of("/usr/bin/dpkg-query")("-W")(package_name), true);
 
     vector<string> patterns;
     // 0 = Not found
     patterns.push_back("No packages found matching (" PACKAGE_NAME_REGEX
                        ")\\.");
     // 1 = success
-    patterns.push_back("\n\\w\\w\\s+(" PACKAGE_NAME_REGEX
-                       ")\\s+(\\S+)\\s+(.*)$");
+    patterns.push_back("(" PACKAGE_NAME_REGEX ")\\s+(\\S*).*");
     optional<ProcessResult> result;
     try  {
         result = match_output(process, patterns, time_out);
@@ -402,19 +401,24 @@ optional<string> AptGuest::version(const char * package_name,
     if (!!result) {
         // 0 and 1 should return the package name as the first regex match.
         string output_package_name = result.get().matches->get(1);
+        NOVA_LOG_DEBUG2("Got the output_package_name: %s", output_package_name.c_str());
         if (result.get().matches->get(1) != package_name) {
             NOVA_LOG_ERROR2("dpkg called the package something different. "
                         "%s != %s", package_name, output_package_name.c_str());
             throw AptException(AptException::GENERAL);
         }
+        NOVA_LOG_DEBUG2("Got the result index: %d", result.get().index);
         if (result.get().index == 0) {
             return boost::none;
         }
         else if (result.get().index == 1) {
             string version = result.get().matches->get(2);
-            if (version == "<none>") {
+            NOVA_LOG_DEBUG2("Got the version: %s", version.c_str());
+            if (version == "<none>" || version.empty()) {
+                NOVA_LOG_DEBUG("No version found.");
                 return boost::none;
             } else {
+                NOVA_LOG_DEBUG2("Retruning version %s.", version.c_str());
                 return optional<string>(version);
             }
         }

@@ -340,9 +340,14 @@ void Process::kill(double initial_wait_time, optional<double> serious_wait_time)
 
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
     char buf[BUFFER_SIZE];
+    for (size_t i = 0; i < BUFFER_SIZE; ++i)
+    {
+        buf[i] = '~';
+    }
     size_t count = read_into(buf, BUFFER_SIZE-1, seconds);
     buf[count] = 0;  // Have to do this or Valgrind fails.
     std_out.write(buf, count);
+    LOG_DEBUG2("buffer output:%s", buf);
     LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());
     return count;
 }

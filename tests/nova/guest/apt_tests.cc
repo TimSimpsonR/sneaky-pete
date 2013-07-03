@@ -43,11 +43,26 @@ struct GlobalFixture {
 
 };
 
+
+bool cowsay_exists() {
+    ifstream file("/usr/games/cowsay");
+    //BOOST_REQUIRE_EQUAL(apt::version("cowsay") != boost::none, file.good());
+    return file.good();
+}
+
 BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 /**---------------------------------------------------------------------------
  *- version Tests
  *---------------------------------------------------------------------------*/
+
+BOOST_AUTO_TEST_CASE(remove_real_package_should_succeed) {
+    if (cowsay_exists()){
+        apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+        guest.remove("cowsay", 60);
+    }
+    BOOST_REQUIRE_EQUAL(cowsay_exists(), false);
+}
 
 BOOST_AUTO_TEST_CASE(not_real_package_returns_nothing)
 {
@@ -78,7 +93,9 @@ BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)
 {
     apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
-    CHECK_APT_EXCEPTION(guest.version(""), UNEXPECTED_PROCESS_OUTPUT);
+    // Wonder if this is could be a bug..
+    // CHECK_APT_EXCEPTION(guest.version(""), UNEXPECTED_PROCESS_OUTPUT);
+    CHECK_APT_EXCEPTION(guest.version(""), GENERAL);
 }
 
 
@@ -99,13 +116,6 @@ BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
     apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
     CHECK_APT_EXCEPTION(guest.remove(INVALID_PACKAGE_NAME, 60),
                         PACKAGE_NOT_FOUND);
-}
-
-
-bool cowsay_exists() {
-    ifstream file("/usr/games/cowsay");
-    //BOOST_REQUIRE_EQUAL(apt::version("cowsay") != boost::none, file.good());
-    return file.good();
 }
 
 /** This is taken from the original Python tests.
@@ -148,6 +158,12 @@ BOOST_AUTO_TEST_CASE(abuse_cowsay) {
     // one second is fast enough.
     guest.install("cowsay", TIME_OUT);
     BOOST_REQUIRE_EQUAL(cowsay_exists(), true);
+
+    apt::AptGuest mon_guest(USE_SUDO, "monitoring-agent", 1 * 60);
+    optional<string> version_dpkg = mon_guest.version("dpkg");
+    BOOST_REQUIRE_EQUAL(!!version_dpkg, true);
+    BOOST_REQUIRE(matches->exists_at(1));
+    BOOST_REQUIRE(matches->exists_at(2));
 
     optional<string> version = guest.version("cowsay");
     BOOST_REQUIRE_EQUAL(!!version, true);

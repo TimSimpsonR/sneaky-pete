@@ -74,6 +74,12 @@ namespace nova { namespace guest { namespace backup {
             // Don't allow this, despite the copy constructor above.
             BackupJob & operator=(const BackupJob & rhs);
 
+            struct DbInfo {
+                const std::string & checksum;
+                const std::string & type;
+                const std::string & location;
+            };
+
             const std::string backup_id;
             nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
             const int chunk_size;
@@ -88,10 +94,10 @@ namespace nova { namespace guest { namespace backup {
 
             boost::optional<std::string> get_state();
 
-            void set_state(const std::string & new_value);
-            void update_backup(const std::string & checksum,
-                               const std::string & type,
-                               const std::string & location);
+            void update_db(
+                const std::string & new_value,
+                const boost::optional<const DbInfo> & extra_info = boost::none
+            );
     };
 
 

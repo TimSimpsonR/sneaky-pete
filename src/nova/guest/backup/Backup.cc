@@ -15,6 +15,7 @@
 #include <sys/statvfs.h>
 #include <curl/curl.h>
 #include "nova/utils/swift.h"
+#include "nova/guest/utils.h"
 
 using namespace boost::assign;
 
@@ -27,6 +28,7 @@ using namespace boost;
 using namespace std;
 using nova::utils::Curl;
 using nova::utils::CurlScope;
+using nova::guest::utils::IsoDateTime;
 using nova::utils::Job;
 using nova::utils::JobRunner;
 using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
@@ -160,7 +162,7 @@ void BackupJob::operator()() {
         throw BackupException(BackupException::INVALID_STATE);
     }
 
-    set_state("BUILDING");
+    update_db("BUILDING");
     NOVA_LOG_INFO("Starting backup...");
     try {
         // Start process
@@ -170,10 +172,10 @@ void BackupJob::operator()() {
     } catch(const std::exception & ex) {
         NOVA_LOG_ERROR("Error running backup!");
         NOVA_LOG_ERROR2("Exception: %s", ex.what());
-        set_state("FAILED");
+        update_db("FAILED");
     } catch(...) {
         NOVA_LOG_ERROR("Error running backup!");
-        set_state("FAILED");
+        update_db("FAILED");
     }
 }
 
@@ -214,12 +216,13 @@ void BackupJob::dump() {
 
     // check the process was successful
     if (!reader.successful()) {
-        set_state("FAILED");
+        update_db("FAILED");
         NOVA_LOG_ERROR("Reader was unsuccessful! Setting backup to FAILED!");
     } else {
         // TODO: (rmyers) Add in the file space used
         // stats.used
-        update_backup(checksum, "xtrabackup_v1", file_info.manifest_url());
+        DbInfo info = { checksum, "xtrabackup_v1", file_info.manifest_url() };
+        update_db("COMPLETED", info);
     }
 }
 
@@ -236,29 +239,30 @@ optional<string> BackupJob::get_state() {
     return boost::none;
 }
 
-void BackupJob::set_state(const string & new_value) {
-    auto stmt = infra_db->prepare_statement(
-        "UPDATE backups SET state=? WHERE id=? AND tenant_id=?");
-    stmt->set_string(0, new_value.c_str());
-    stmt->set_string(1, backup_id.c_str());
-    stmt->set_string(2, tenant.c_str());
+void BackupJob::update_db(const string & state,
+                          const optional<const DbInfo> & extra_info) {
+    const char * text =
+        (!extra_info) ? "UPDATE backups SET updated=?, state=? "
+                        "WHERE id=? AND tenant_id=?"
+                      : "UPDATE backups SET updated=?, state=?, "
+                        "checksum=NULL, backup_type=?, location=? "
+                        "WHERE id=? AND tenant_id=?";
+    auto stmt = infra_db->prepare_statement(text);
+    IsoDateTime now;
+    unsigned int index = 0;
+    stmt->set_string(index ++, now.c_str());
+    stmt->set_string(index ++, state.c_str());
+    if (extra_info) {
+        //TODO(tim.simpson): Update the checksum once we actually have one.
+        //stmt->set_string(index ++, extra_info->checksum.c_str());
+        stmt->set_string(index ++, extra_info->type.c_str());
+        stmt->set_string(index ++, extra_info->location.c_str());
+    }
+    stmt->set_string(index ++, backup_id.c_str());
+    stmt->set_string(index ++, tenant.c_str());
     stmt->execute(0);
-    NOVA_LOG_INFO2("Setting backup: %s to state: %s", backup_id.c_str(),
-                                                      new_value.c_str());
-}
-
-void BackupJob::update_backup(const string & checksum, const string & type,
-                                 const string & location) {
-    auto stmt = infra_db->prepare_statement(
-        "UPDATE backups SET state=?, checksum=?, backup_type=?, location=? WHERE id=? AND tenant_id=?");
-    stmt->set_string(0, "COMPLETED");
-    stmt->set_string(1, checksum.c_str());
-    stmt->set_string(2, type.c_str());
-    stmt->set_string(3, location.c_str());
-    stmt->set_string(4, backup_id.c_str());
-    stmt->set_string(5, tenant.c_str());
-    stmt->execute(0);
-    NOVA_LOG_INFO2("Updating backup: %s", backup_id.c_str());
+    NOVA_LOG_INFO2("Updating backup %s to state %s", backup_id.c_str(),
+                   state.c_str());
 }
 
 

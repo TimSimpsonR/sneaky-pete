@@ -75,9 +75,9 @@ namespace nova { namespace guest { namespace backup {
             BackupJob & operator=(const BackupJob & rhs);
 
             struct DbInfo {
-                const std::string & checksum;
-                const std::string & type;
-                const std::string & location;
+                const std::string checksum;
+                const std::string type;
+                const std::string location;
             };
 
             const std::string backup_id;

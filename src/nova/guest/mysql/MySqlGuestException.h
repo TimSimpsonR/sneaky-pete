@@ -11,10 +11,12 @@ namespace nova { namespace guest { namespace mysql {
 
         public:
             enum Code {
+                CANT_CONNECT_WITH_MYCNF,
                 CANT_READ_ORIGINAL_MYCNF,
                 CANT_WRITE_TMP_MYCNF,
                 COULD_NOT_START_MYSQL,
                 COULD_NOT_STOP_MYSQL,
+                DEBIAN_SYS_MAINT_USER_NOT_FOUND,
                 GENERAL,
                 GUEST_INSTANCE_ID_NOT_FOUND,
                 INVALID_ZERO_LIMIT,

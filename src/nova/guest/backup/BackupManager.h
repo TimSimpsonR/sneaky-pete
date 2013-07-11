@@ -1,0 +1,50 @@
+#ifndef __NOVA_GUEST_BACKUP_BACKUPMANAGER_H
+#define __NOVA_GUEST_BACKUP_BACKUPMANAGER_H
+
+#include <boost/optional.hpp>
+#include "nova/db/mysql.h"
+#include <boost/shared_ptr.hpp>
+#include "nova/guest/guest.h"
+#include "nova/process.h"
+#include <map>
+#include <string>
+#include <curl/curl.h>
+#include "nova/utils/swift.h"
+#include "nova/utils/threads.h"
+#include <boost/utility.hpp>
+
+namespace nova { namespace guest { namespace backup {
+
+    class BackupManager : boost::noncopyable {
+        public:
+            BackupManager(
+                   nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,
+                   nova::utils::JobRunner & runner,
+                   const int chunk_size,
+                   const int segment_max_size,
+                   const std::string swift_container,
+                   const bool use_gzip,
+                   const double time_out);
+
+            ~BackupManager();
+
+            void run_backup(const std::string & swift_url,
+                            const std::string & tenant,
+                            const std::string & token,
+                            const std::string & backup_id);
+
+
+        private:
+            nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
+            const int chunk_size;
+            nova::utils::JobRunner & runner;
+            const int segment_max_size;
+            const std::string swift_container;
+            const bool use_gzip;
+            const std::string swift_url;
+            const double time_out;
+    };
+
+} } }  // end namespace
+
+#endif //__NOVA_GUEST_BACKUP_BACKUPMANAGER_H

@@ -1,4 +1,5 @@
 #include "nova/guest/apt.h"
+#include "nova/guest/backup/BackupRestore.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
@@ -20,6 +21,7 @@
 using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
+using nova::guest::backup::BackupRestore;
 using boost::format;
 using nova::guest::GuestException;
 using nova::Log;
@@ -175,8 +177,7 @@ namespace {
         cmds += token.c_str();
         cmds += backup_url.c_str();
         Process proc(cmds, true);
-        stringstream out;
-        proc.wait_for_eof(out, 60.0);
+        proc.wait_forever_for_eof();
         if (!proc.successful()) {
            throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
         }
@@ -434,14 +435,12 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() {
  *---------------------------------------------------------------------------*/
 
 MySqlAppMessageHandler::MySqlAppMessageHandler(
+    MySqlAppPtr mysqlApp,
     nova::guest::apt::AptGuestPtr apt,
-    MySqlAppStatusPtr status,
-    int state_change_wait_time,
     nova::guest::monitoring::Monitoring & monitoring)
-: apt(apt),
-  status(status),
-  state_change_wait_time(state_change_wait_time),
-  monitoring(monitoring)
+:   apt(apt),
+    monitoring(monitoring),
+    mysqlApp(mysqlApp)
 {
 }
 
@@ -454,8 +453,8 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("memory_mb");
-        app->install_and_secure(*this->apt, memory_mb);
         // Restore the database?
+        optional<BackupRestore> restore;
         const auto backup_url = input.args->get_optional_string("backup_url");
         if (backup_url && backup_url.get().length() > 0) {
             NOVA_LOG_INFO("Calling Restore...")
@@ -464,8 +463,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
                 throw GuestException(GuestException::MALFORMED_INPUT);
             }
             const auto token = input.token;
-            _restore_database(token.get(), backup_url.get());
+            restore = optional<BackupRestore>(
+                BackupRestore(token.get(), backup_url.get()));
         }
+        app->prepare(*this->apt, memory_mb, restore);
+
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases and users following successful prepare");
@@ -520,8 +522,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
 
 MySqlAppPtr MySqlAppMessageHandler::create_mysql_app()
 {
-    MySqlAppPtr ptr(new MySqlApp(this->status, this->state_change_wait_time));
-    return ptr;
+    return mysqlApp;
 }
 
 } } } // end namespace

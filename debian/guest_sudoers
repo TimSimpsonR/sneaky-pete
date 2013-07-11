@@ -2,6 +2,8 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /bin/cp,              \
                       /bin/rm,              \
                       /bin/ln,              \
+                      /bin/kill,            \
+                      /bin/chown,           \
                       /usr/sbin/service,    \
                       /usr/bin/dpkg,        \
                       /usr/bin/apt-get,     \
@@ -11,6 +13,7 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /var/lib/nova/backup, \
                       /var/lib/nova/restore, \
                       /etc/init.d/mysql,    \
+                      /usr/bin/mysqld_safe,  \
                       /etc/init.d/rackspace-monitoring-agent,    \
                       /usr/bin/mysqladmin,  \
                       /bin/ps,              \

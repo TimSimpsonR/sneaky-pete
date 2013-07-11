@@ -54,7 +54,12 @@ project
 		<variant>debug:<define>_DEBUG
         # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
-        <cxxflags>" -std=c++0x"
+        #TODO: Add  -Wall -Wextra
+        <cxxflags>" -std=c++0x -Werror -Wno-error=strict-aliasing"
+        # Enable the very little bit of C++0x functionality available in GCC
+        # 4.4.5 and turn warnings into errors except for strict-aliasing, which
+        # unfortunatley issues false warnings as verified here:
+        # http://stackoverflow.com/questions/15520642/using-stdmap-gives-warning-dereferencing-pointer-anonymous-does-break-str
         ;
 
 
@@ -440,6 +445,7 @@ unit u_nova_guest_mysql_MySqlApp
         u_nova_guest_apt_AptException
         u_nova_configfile
         u_nova_guest_mysql_MySqlAppStatus
+        u_nova_guest_backup_BackupRestore
     ;
 
 unit u_nova_guest_diagnostics_Interrogator
@@ -476,17 +482,24 @@ unit u_nova_guest_diagnostics_DiagnosticsMessageHandler
     :   src/nova/guest/diagnostics/DiagnosticsMessageHandler.cc
     ;
 
-unit u_nova_guest_backup_Backup
-    :   src/nova/guest/backup/Backup.cc
+unit u_nova_guest_backup_BackupException
+    :   src/nova/guest/backup/BackupException.cc
+    :   u_nova_guest_GuestException
+    ;
+
+unit u_nova_guest_backup_BackupManager
+    :   src/nova/guest/backup/BackupManager.cc
     :   u_nova_Log
         u_nova_guest_backup_BackupException
         u_nova_utils_io
         u_nova_utils_regex
     ;
 
-unit u_nova_guest_backup_BackupException
-    :   src/nova/guest/backup/BackupException.cc
-    :   u_nova_guest_GuestException
+unit u_nova_guest_backup_BackupRestore
+    :   src/nova/guest/backup/BackupRestore.cc
+    :   u_nova_Log
+        u_nova_guest_backup_BackupException
+        u_nova_process
     ;
 
 unit u_nova_guest_backup_BackupMessageHandler
@@ -559,7 +572,7 @@ alias guest_lib
         u_nova_guest_diagnostics_Interrogator
         u_nova_guest_diagnostics_InterrogatorException
         u_nova_guest_diagnostics_InterrogatorMessageHandler
-        u_nova_guest_backup_Backup
+        u_nova_guest_backup_BackupManager
         u_nova_guest_backup_BackupException
         u_nova_guest_backup_BackupMessageHandler
         u_nova_utils_swift
@@ -639,6 +652,7 @@ unit-test MySqlAppStatus_tests
         u_nova_guest_mysql_MySqlAppStatus
         test_dependencies
         tests/nova/guest/mysql/MySqlAppStatus_tests.cc
+        lib_boost_thread
     :   <define>BOOST_TEST_DYN_LINK
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;

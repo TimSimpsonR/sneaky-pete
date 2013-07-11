@@ -6,6 +6,7 @@
 #include "nova/utils/io.h"
 //#include <boost/assign/std/list.hpp>
 #include <boost/assign/list_of.hpp>
+#include <boost/assign/std/list.hpp>
 #include "nova/Log.h"
 #include "nova/db/mysql.h"
 #include "nova/guest/mysql/MySqlGuestException.h"
@@ -16,6 +17,7 @@
 
 using nova::guest::apt::AptGuest;
 using namespace boost::assign; // brings CommandList += into our code.
+using nova::guest::backup::BackupRestore;
 using boost::format;
 using namespace nova::guest;
 using nova::guest::utils::IsoTime;
@@ -35,13 +37,18 @@ namespace {
 
     const double TIME_OUT = 500;
 
-    const char * ADMIN_USER_NAME = "os_admin";
-    const char * ORIG_MYCNF = "/etc/mysql/my.cnf";
-    const char * FINAL_MYCNF ="/var/lib/mysql/my.cnf";
+    const char * const ADMIN_USER_NAME = "os_admin";
+    const char * const ORIG_MYCNF = "/etc/mysql/my.cnf";
+    const char * const FINAL_MYCNF ="/var/lib/mysql/my.cnf";
     // There's a permisions issue which necessitates this.
-    const char * HACKY_MYCNF ="/var/lib/nova/my.cnf";
-    const char * TMP_MYCNF = "/tmp/my.cnf.tmp";
-    const char * DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM";
+    const char * const HACKY_MYCNF ="/var/lib/nova/my.cnf";
+    const char * const TMP_MYCNF = "/tmp/my.cnf.tmp";
+    const char * const DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM";
+    const char * const TRUE_DEBIAN_CNF = "/etc/mysql/debian.cnf";
+    const char * const TMP_DEBIAN_CNF = "/tmp/debian.cnf";
+    const char * const FRESH_INIT_FILE_PATH = "/tmp/init.sql";
+    const char * const FRESH_INIT_FILE_PATH_ARG = "--init-file=/tmp/init.sql";
+
 
     void call_update_rc(bool enabled, bool throw_on_bad_exit_code)
     {
@@ -137,8 +144,10 @@ namespace {
     }
 }  // end anonymous namespace
 
-MySqlApp::MySqlApp(MySqlAppStatusPtr status, int state_change_wait_time)
-:   state_change_wait_time(state_change_wait_time),
+MySqlApp::MySqlApp(MySqlAppStatusPtr status, int state_change_wait_time,
+                   bool skip_install_for_prepare)
+:   skip_install_for_prepare(skip_install_for_prepare),
+    state_change_wait_time(state_change_wait_time),
     status(status)
 {
 }
@@ -170,7 +179,8 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
     } else {
         // TODO: Maybe in the future, set my.cnf from user_name value?
         string user_name;
-        MySqlConnection::get_auth_from_config(user_name, admin_password);
+        MySqlConnection::get_auth_from_config(
+            HACKY_MYCNF, user_name, admin_password);
     }
 
     /* As of right here, admin_password contains the password to be applied
@@ -204,40 +214,52 @@ void MySqlApp::reset_configuration(AptGuest & apt, int updated_memory_mb) {
     write_mycnf(apt, updated_memory_mb, boost::none);
 }
 
-void MySqlApp::install_and_secure(AptGuest & apt, int memory_mb) {
-    // The MySqlAdmin class is lazy initialized, so we can create it before
-    // the app exists.
-    MySqlConnectionPtr con(new MySqlConnection("localhost", "root", ""));
-    MySqlAdmin local_db(con);
-
-    if (status->is_mysql_installed()) {
-        NOVA_LOG_ERROR("Cannot install and secure MySQL because it is already "
-                       "installed.");
-        return;
+void MySqlApp::prepare(AptGuest & apt, int memory_mb,
+                       optional<BackupRestore> restore) {
+    // This option allows prepare to be run multiple times. In fact, I'm
+    // wondering if this newer version might be safe to just run whenever
+    // we want.
+    if (!skip_install_for_prepare) {
+        if (status->is_mysql_installed()) {
+            NOVA_LOG_ERROR("Cannot install and secure MySQL because it is already "
+                           "installed.");
+            return;
+        }
+        NOVA_LOG_INFO("Updating status to BUILDING...");
+        status->begin_mysql_install();
+    } else {
+        NOVA_LOG_INFO("Skipping install check.");
     }
-    NOVA_LOG_INFO("Updating status to BUILDING...");
-    status->begin_mysql_install();
 
     try {
         NOVA_LOG_INFO("Preparing Guest as MySQL Server");
         install_mysql(apt);
 
-        string admin_password = mysql::generate_password();
-
-        NOVA_LOG_INFO("Generating root password...");
-        generate_root_password(local_db);
-        NOVA_LOG_INFO("Removing anonymous users...");
-        remove_anonymous_user(local_db);
-        NOVA_LOG_INFO("Removing root access...");
-        remove_remote_root_access(local_db);
-        NOVA_LOG_INFO("Creating admin user...");
-        create_admin_user(local_db, admin_password);
-        NOVA_LOG_INFO("Flushing privileges");
-        local_db.get_connection()->flush_privileges();
-        local_db.get_connection()->close();
-
+        NOVA_LOG_INFO("Stopping MySQL to perform additional steps...");
         internal_stop_mysql();
+
+        if (restore) {
+            NOVA_LOG_INFO("A restore was requested. Running now...");
+            restore->run();
+            NOVA_LOG_INFO("Finished with restore job, proceeding with prepare.");
+        }
+
+        NOVA_LOG_INFO("Writing fresh init file...");
+        string admin_password = mysql::generate_password();
+        write_fresh_init_file(admin_password, !restore);
+
+        NOVA_LOG_INFO("Writing my.cnf...");
         write_mycnf(apt, memory_mb, admin_password);
+
+        NOVA_LOG_INFO("Starting MySQL with init file...");
+        run_mysqld_with_init();
+
+        NOVA_LOG_INFO("Erasing init file...");
+        if (0 != remove(FRESH_INIT_FILE_PATH)) {
+            // Probably not a huge problem in our case.
+            NOVA_LOG_ERROR("Can't destroy init file!");
+        }
+
         start_mysql();
 
         status->end_install_or_restart();
@@ -249,6 +271,58 @@ void MySqlApp::install_and_secure(AptGuest & apt, int memory_mb) {
     }
 }
 
+string fetch_debian_sys_maint_password() {
+    // Have to copy the debian file to tmp and chown it just to read it. LOL!
+    Process::execute(list_of("/usr/bin/sudo")("cp")(TRUE_DEBIAN_CNF)
+                            (TMP_DEBIAN_CNF));
+    Process::execute(list_of("/usr/bin/sudo")("/bin/chown")("nova")(TMP_DEBIAN_CNF));
+    string user, password;
+    MySqlConnection::get_auth_from_config(TMP_DEBIAN_CNF, user, password);
+    if (user != "debian-sys-maint") {
+        NOVA_LOG_ERROR2("Error! user found was not debian-sys-maint but %s!",
+                        user.c_str());
+        throw MySqlGuestException(MySqlGuestException::DEBIAN_SYS_MAINT_USER_NOT_FOUND);
+    }
+    return password;
+}
+
+void MySqlApp::write_fresh_init_file(const string & admin_password,
+                                     bool wipe_root_and_anonymous_users) {
+    ofstream init_file(FRESH_INIT_FILE_PATH);
+
+    if (wipe_root_and_anonymous_users) {
+        NOVA_LOG_INFO("Generating root password...");
+        auto new_root_password = mysql::generate_password();
+        init_file << "UPDATE mysql.user SET Password=PASSWORD('"
+                  << new_root_password << "') WHERE User='root' AND Host='%';"
+                  << std::endl;
+
+        NOVA_LOG_INFO("Removing anonymous users...");
+        init_file << "DELETE FROM mysql.user WHERE User='';" << std::endl;
+
+        NOVA_LOG_INFO("Removing root access...");
+        init_file << "DELETE FROM mysql.user"
+                     "    WHERE User='root'"
+                     "    AND Host!='localhost';" << std::endl;
+    }
+
+    NOVA_LOG_INFO("Creating admin user...");
+    init_file << "GRANT USAGE ON *.* TO '" << ADMIN_USER_NAME
+              << "'@'localhost' IDENTIFIED BY '" << admin_password << "';"
+              << std::endl;
+    init_file << "GRANT ALL PRIVILEGES ON *.* TO '" << ADMIN_USER_NAME
+              << "'@'localhost' WITH GRANT OPTION;" << std::endl;
+
+    NOVA_LOG_INFO("Setting debian-sys-maint password.");
+    string debian_sys_maint_password = fetch_debian_sys_maint_password();
+    init_file << "UPDATE mysql.user SET Password=PASSWORD('"
+              << debian_sys_maint_password << "') "
+              << "WHERE User='debian-sys-maint';" << std::endl;
+
+    NOVA_LOG_INFO("Flushing privileges");
+    init_file << "FLUSH PRIVILEGES;" << std::endl;
+}
+
 void MySqlApp::install_mysql(AptGuest & apt) {
     NOVA_LOG_INFO("Installing mysql server.");
     apt.install("mysql-server-5.1", TIME_OUT);
@@ -258,12 +332,7 @@ void MySqlApp::internal_stop_mysql(bool update_db) {
     NOVA_LOG_INFO("Stopping mysql...");
     Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"),
                      this->state_change_wait_time);
-    if (!status->wait_for_real_state_to_change_to(
-        MySqlAppStatus::SHUTDOWN, this->state_change_wait_time, update_db)) {
-        NOVA_LOG_ERROR("Could not stop MySQL!");
-        status->end_install_or_restart();
-        throw MySqlGuestException(MySqlGuestException::COULD_NOT_STOP_MYSQL);
-    }
+    wait_for_internal_stop(update_db);
 }
 
 void MySqlApp::remove_anonymous_user(MySqlAdmin & db) {
@@ -304,11 +373,48 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
     start_mysql();
 }
 
+void MySqlApp::run_mysqld_with_init() {
+    NOVA_LOG_INFO("Starting mysqld_safe with init file...");
+    Process::CommandList cmds = list_of("/usr/bin/sudo")
+        ("/usr/bin/mysqld_safe")("--user=mysql")(FRESH_INIT_FILE_PATH_ARG);
+    Process mysqld_safe(cmds, true);
+    if (!status->wait_for_real_state_to_change_to(
+        MySqlAppStatus::RUNNING, this->state_change_wait_time, false)) {
+        NOVA_LOG_ERROR("Start up of MySQL failed!");
+        status->end_install_or_restart();
+        throw MySqlGuestException(MySqlGuestException::COULD_NOT_START_MYSQL);
+    }
+    NOVA_LOG_INFO("Waiting for permissions change.");
+    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    // Wait until we can connect, which establishes that the connection
+    // settings were changed.
+    int wait_time = 0;
+    while(false == MySqlConnection::can_connect_to_localhost_with_mycnf()) {
+        NOVA_LOG_INFO("Waiting for user permissions to change.");
+        boost::this_thread::sleep(boost::posix_time::seconds(3));
+        wait_time += 3;
+        if (wait_time > 60) {
+            NOVA_LOG_ERROR("Can't connect! Settings never changed!");
+            throw MySqlGuestException(MySqlGuestException::CANT_CONNECT_WITH_MYCNF);
+        }
+    }
+    NOVA_LOG_INFO("Killing mysqld_safe...");
+    string pid_str = str(format("%d") % mysqld_safe.get_pid());
+    Process::CommandList kill_cmd = list_of("/usr/bin/sudo")("/bin/kill")
+                                           (pid_str.c_str());
+    Process::execute(kill_cmd);
+    NOVA_LOG_INFO("Waiting for process to die...");
+    mysqld_safe.wait_for_eof(60);
+
+    wait_for_internal_stop(false);
+}
+
 void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
     // As a precaution, make sure MySQL will run on boot.
-    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("start"),
-                     this->state_change_wait_time);
+    Process::CommandList cmds = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
+                                       ("start");
+    Process::execute(cmds, this->state_change_wait_time);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");
@@ -341,9 +447,17 @@ void MySqlApp::stop_db(bool do_not_start_on_reboot) {
     internal_stop_mysql(true);
 }
 
+void MySqlApp::wait_for_internal_stop(bool update_db) {
+    if (!status->wait_for_real_state_to_change_to(
+        MySqlAppStatus::SHUTDOWN, this->state_change_wait_time, update_db)) {
+        NOVA_LOG_ERROR("Could not stop MySQL!");
+        status->end_install_or_restart();
+        throw MySqlGuestException(MySqlGuestException::COULD_NOT_STOP_MYSQL);
+    }
+}
 
 void MySqlApp::wipe_ib_logfiles() {
-    const char * MYSQL_BASE_DIR = "/var/lib/mysql";
+    const char * const MYSQL_BASE_DIR = "/var/lib/mysql";
     NOVA_LOG_INFO("Wiping ib_logfiles...");
     // When MySQL starts up, it tries to find log files which are the exact
     // size mandated in its configs. If these do not exist, it simply creates

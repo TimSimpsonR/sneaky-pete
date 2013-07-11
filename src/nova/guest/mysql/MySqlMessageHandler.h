@@ -40,10 +40,10 @@ namespace nova { namespace guest { namespace mysql {
     class MySqlAppMessageHandler : public MessageHandler {
 
         public:
-            MySqlAppMessageHandler(nova::guest::apt::AptGuestPtr apt,
-                           MySqlAppStatusPtr status,
-                           int state_change_wait_time,
-                           nova::guest::monitoring::Monitoring & monitoring);
+            MySqlAppMessageHandler(
+                MySqlAppPtr mysqlApp,
+                nova::guest::apt::AptGuestPtr apt,
+                nova::guest::monitoring::Monitoring & monitoring);
 
             virtual ~MySqlAppMessageHandler();
 
@@ -53,9 +53,8 @@ namespace nova { namespace guest { namespace mysql {
 
         private:
             nova::guest::apt::AptGuestPtr apt;
-            MySqlAppStatusPtr status;
-            int state_change_wait_time;
             nova::guest::monitoring::Monitoring & monitoring;
+            MySqlAppPtr mysqlApp;
     };
 
 } } }

@@ -9,6 +9,7 @@
 #include "nova/Log.h"
 #include <memory>
 #include "nova/db/mysql.h"
+#include "nova/db/MySqlConfigReader.h"
 #include <stdlib.h>
 
 using nova::Log;
@@ -72,6 +73,30 @@ FlagMapPtr get_flags() {
     }
     //return FlagMap::create_from_args(argc, argv, true);
     return ptr;
+}
+
+BOOST_AUTO_TEST_CASE(config_reader)
+{
+    stringstream str;
+    str << "[blah]" << std::endl;
+    str << "user = wrong" << std::endl;
+    str << "password = wrong" << std::endl;
+    str << "[nothing]" << std::endl;
+    str << "socket = 3484:3==3" << std::endl;
+    str << "fjf = fgdjkgfldg" << std::endl;
+    str << "fj!!!f = fgdjk!!gfldg" << std::endl;
+    str << "garbage!!" << std::endl;
+    str << "[client]" << std::endl;
+    str << "user = right_user" << std::endl;
+    str << "password = right_password" << std::endl;
+    str << "[blah2]" << std::endl;
+    str << "user = wrong2" << std::endl;
+    str << "password = wrong2" << std::endl;
+
+    optional<MySqlConfigCreds> result = get_creds_from_file(str);
+    BOOST_REQUIRE(!!result);
+    BOOST_REQUIRE_EQUAL("right_user", result.get().user);
+    BOOST_REQUIRE_EQUAL("right_password", result.get().password);
 }
 
 BOOST_AUTO_TEST_CASE(integration_tests)

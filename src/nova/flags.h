@@ -169,6 +169,8 @@ class FlagValues {
 
         unsigned long report_interval() const;
 
+        bool skip_install_for_prepare() const;
+
         size_t status_thread_stack_size() const;
 
         bool use_syslog() const;

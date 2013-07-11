@@ -87,6 +87,10 @@ namespace nova { namespace db { namespace mysql {
 
             virtual ~MySqlConnection();
 
+            /* Checks to see if a connection using os_admin settings
+             * defined in my.cnf is possible. */
+            static bool can_connect_to_localhost_with_mycnf();
+
             void close();
 
             /* Opens and closes connection. */
@@ -96,8 +100,10 @@ namespace nova { namespace db { namespace mysql {
 
             void flush_privileges();
 
-            static void get_auth_from_config(std::string & user,
-                                             std::string & password);
+            static void get_auth_from_config(
+                const char * file_path,
+                std::string & user,
+                std::string & password);
 
             void grant_privileges_with_option(const char * privs,
                                               const char * database,

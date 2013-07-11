@@ -6,7 +6,8 @@
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
-#include "nova/guest/backup.h"
+#include "nova/guest/backup/BackupManager.h"
+#include "nova/guest/backup/BackupMessageHandler.h"
 #include "nova/guest/monitoring/monitoring.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/GuestException.h"
@@ -47,6 +48,8 @@ using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptGuestPtr;
 using nova::guest::apt::AptMessageHandler;
 using std::auto_ptr;
+using nova::guest::backup::BackupManager;
+using nova::guest::backup::BackupMessageHandler;
 using nova::utils::CurlScope;
 using boost::format;
 using boost::optional;
@@ -57,7 +60,6 @@ using namespace nova::guest::diagnostics;
 using namespace nova::guest::monitoring;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
-using namespace nova::guest::backup;
 using nova::utils::ThreadBasedJobRunner;
 using namespace nova::rpc;
 using std::string;
@@ -157,10 +159,10 @@ AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
 
 void initialize_and_run(FlagValues & flags) {
     NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-    NOVA_LOG_INFO(" ^ ^ ^                                       ^");
+    NOVA_LOG_INFO(" ^ ^ ^                                   '_' ^");
     NOVA_LOG_INFO(" ^ '  '       -----REDDWARF-GUEST-AGENT----- ^");
     NOVA_LOG_INFO(" ^ \\`-'/        -------Sneaky--Pete-------   ^");
-    NOVA_LOG_INFO(" ^   |__                                     ^");
+    NOVA_LOG_INFO(" ^   |__        updated " __DATE__ " " __TIME__ " ^");
     NOVA_LOG_INFO(" ^  /                         starting now...^");
     NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 
@@ -207,10 +209,12 @@ void initialize_and_run(FlagValues & flags) {
         apt_worker, monitoring));
     handlers.push_back(handler_monitoring_app);
 
+    MySqlAppPtr mysqlApp(new MySqlApp(mysql_status_updater,
+                                      flags.mysql_state_change_wait_time(),
+                                      flags.skip_install_for_prepare()));
+
     MessageHandlerPtr handler_mysql_app(new MySqlAppMessageHandler(
-        apt_worker, mysql_status_updater,
-        flags.mysql_state_change_wait_time(),
-        monitoring));
+        mysqlApp, apt_worker, monitoring));
     handlers.push_back(handler_mysql_app);
 
     /* Create the Interrogator for the guest. */

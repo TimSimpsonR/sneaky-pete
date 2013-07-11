@@ -1,7 +1,5 @@
-#include "nova/guest/backup.h"
-
+#include "nova/guest/backup/BackupMessageHandler.h"
 #include "nova/guest/GuestException.h"
-#include "nova_guest_version.hpp"
 #include <boost/foreach.hpp>
 #include "nova/Log.h"
 #include <sstream>

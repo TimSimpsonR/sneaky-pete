@@ -9,7 +9,7 @@ MYSQLDIR=/var/lib/mysql
 # TODO: make this work with another restore directory
 #       This will hopefully remove the need to delete existing files
 #       and allow mysql to continue to run while the files are being
-#       downloaded and installed. 
+#       downloaded and installed.
 RESTORE=$MYSQLDIR
 TOKEN=$1
 URL=$2
@@ -17,9 +17,6 @@ URL=$2
 if [ ! $URL ] || [ ! $TOKEN ]; then
    exit "Missing url or token"
 fi
-
-# Stop MYSQL
-service mysql stop
 
 #
 # Clean the existing files
@@ -59,45 +56,45 @@ done
 # Fix permissions on the restored files
 chown -R mysql $MYSQLDIR
 
-#
-# We need to reset the passwords on the new instance to match the 
-# new instance debian-sys-maint and os_admin passwords. These are 
-# unique to each vm. 
-# 
-# http://dev.mysql.com/doc/refman/5.1/en/resetting-permissions.html
-#
+# #
+# # We need to reset the passwords on the new instance to match the
+# # new instance debian-sys-maint and os_admin passwords. These are
+# # unique to each vm.
+# #
+# # http://dev.mysql.com/doc/refman/5.1/en/resetting-permissions.html
+# #
 
-# first grab the passwords from the files
-PASSLINES=`awk '/password/{print $3}' /etc/mysql/my.cnf`
-OSADMIN=`echo $PASSLINES | awk '{print $1}'`
-PASSLINES=`awk '/password/{print $3}' /etc/mysql/debian.cnf`
-DEBSYS=`echo $PASSLINES | awk '{print $1}'`
+# # first grab the passwords from the files
+# PASSLINES=`awk '/password/{print $3}' /etc/mysql/my.cnf`
+# OSADMIN=`echo $PASSLINES | awk '{print $1}'`
+# PASSLINES=`awk '/password/{print $3}' /etc/mysql/debian.cnf`
+# DEBSYS=`echo $PASSLINES | awk '{print $1}'`
 
-# Create the hacker sql file
-echo "UPDATE mysql.user SET Password=PASSWORD('$DEBSYS') WHERE User='debian-sys-maint';" > $HACKPASS
-echo "UPDATE mysql.user SET Password=PASSWORD('$OSADMIN') WHERE User='os_admin';" >> $HACKPASS
-echo "FLUSH PRIVILEGES;" >> $HACKPASS
-# keep it safe from everyone
-chmod 600 $HACKPASS
-chown mysql $HACKPASS
+# # Create the hacker sql file
+# echo "UPDATE mysql.user SET Password=PASSWORD('$DEBSYS') WHERE User='debian-sys-maint';" > $HACKPASS
+# echo "UPDATE mysql.user SET Password=PASSWORD('$OSADMIN') WHERE User='os_admin';" >> $HACKPASS
+# echo "FLUSH PRIVILEGES;" >> $HACKPASS
+# # keep it safe from everyone
+# chmod 600 $HACKPASS
+# chown mysql $HACKPASS
 
-echo "[RESTORE] starting mysql with auth off" >>$LOGFILE
-/usr/bin/mysqld_safe --init-file=$HACKPASS 2>>$LOGFILE &
+# echo "[RESTORE] starting mysql with auth off" >>$LOGFILE
+# /usr/bin/mysqld_safe --init-file=$HACKPASS 2>>$LOGFILE &
 
-sleep 5
-echo "[RESTORE] stopping mysql" >>$LOGFILE
-if [ -e $PIDFILE ]; then
-    rm $HACKPASS
-    /bin/kill `cat $PIDFILE`
-else
-    rm $HACKPASS
-    echo "[RESTORE] MYSQL not running." >>$LOGFILE
-    exit 1
-fi
+# sleep 5
+# echo "[RESTORE] stopping mysql" >>$LOGFILE
+# if [ -e $PIDFILE ]; then
+#     rm $HACKPASS
+#     /bin/kill `cat $PIDFILE`
+# else
+#     rm $HACKPASS
+#     echo "[RESTORE] MYSQL not running." >>$LOGFILE
+#     exit 1
+# fi
 
-# Wait a bit for it to stop
-sleep 5
+# # Wait a bit for it to stop
+# sleep 5
 
-echo "[RESTORE] starting mysql" >>$LOGFILE
-# Start mysql up
-service mysql start
+# echo "[RESTORE] starting mysql" >>$LOGFILE
+# # Start mysql up
+# service mysql start

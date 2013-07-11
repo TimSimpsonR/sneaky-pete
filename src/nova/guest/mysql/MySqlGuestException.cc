@@ -22,6 +22,8 @@ MySqlGuestException::~MySqlGuestException() throw() {
 
 const char *  MySqlGuestException::code_to_string(Code code) {
     switch(code) {
+        case CANT_CONNECT_WITH_MYCNF:
+            return "Can't connect using my.cnf file settings.";
         case CANT_READ_ORIGINAL_MYCNF:
             return "Can't read from original my.cnf file.";
         case CANT_WRITE_TMP_MYCNF:
@@ -30,6 +32,8 @@ const char *  MySqlGuestException::code_to_string(Code code) {
             return "Could not start MySQL!";
         case COULD_NOT_STOP_MYSQL:
             return "Could not stop MySQL!";
+        case DEBIAN_SYS_MAINT_USER_NOT_FOUND:
+            return "Could not locate 'debian-sys-maint' user!";
         case GUEST_INSTANCE_ID_NOT_FOUND:
             return "Guest instance ID not found.";
         case INVALID_ZERO_LIMIT:

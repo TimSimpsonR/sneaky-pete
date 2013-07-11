@@ -18,6 +18,7 @@ class ProcessException : public std::exception {
         enum Code {
             EXIT_CODE_NOT_ZERO,
             GENERAL,
+            KILL_SIGNAL_ERROR,
             NO_PROGRAM_GIVEN,
             PROGRAM_FINISHED,
             SPAWN_FAILURE
@@ -33,7 +34,9 @@ class ProcessException : public std::exception {
 };
 
 /** Runs and manipulate a process by controlling the standard input and output
- *  streams. */
+ *  streams.
+ *  Note that if there is no need to capture output, don't bother using a
+ *  function that uses a stream. */
 class Process : private boost::noncopyable {
 
     public:
@@ -63,8 +66,19 @@ class Process : private boost::noncopyable {
          *  class it does not open up the process's streams or wait for it. */
         static pid_t execute_and_abandon(const CommandList & cmds);
 
+        pid_t get_pid();
+
         /** Returns true if the given pid is alive. */
         static bool is_pid_alive(pid_t pid);
+
+        /* Kill the process!
+         * Waits for the time specified by initial_wait_time for the
+         * process to die. If it doesn't and serious_wait_time is specified,
+         * it tries again with SIGKILL and then
+         * waits for the time specified by serious_wait_time. If the process
+         * still does not die then an exception is thrown. */
+        void kill(double initial_wait_time,
+                  boost::optional<double> serious_wait_time=boost::none);
 
         /* Waits until the process's stdout stream has bytes to read or the
          * number of seconds specified by the argument "seconds" passes.
@@ -77,6 +91,12 @@ class Process : private boost::noncopyable {
                          const boost::optional<double> seconds=boost::none);
         size_t read_into(char * buffer, const size_t length,
                          const boost::optional<double> seconds=boost::none);
+
+        /** Waits for EOF while reading into the given stream. Note that this
+         *  can result in a very large stream as all the standard output is
+         *  captured!
+         *  Throws TimeOutException if it doesn't happen. */
+        void read_into_until_eof(std::stringstream & out, double seconds);
 
         /* Reads from the process's stdout into the string stream until
          * stdout does not have any data for the given number of seconds.
@@ -93,9 +113,8 @@ class Process : private boost::noncopyable {
         /** Waits for EOF, throws TimeOutException if it doesn't happen. */
         void wait_for_eof(double seconds);
 
-        /** Waits for EOF while reading into the given stream.
-         *  Throws TimeOutException if it doesn't happen. */
-        void wait_for_eof(std::stringstream & out, double seconds);
+        /** Waits for EOF. Does not time out. Does not collect stdout. */
+        void wait_forever_for_eof();
 
         /** Writes to the process's standard input. */
         void write(const char * msg);
@@ -150,7 +169,10 @@ class Process : private boost::noncopyable {
         bool ready(int file_desc, const boost::optional<double> seconds);
 
         void set_eof();
+
+        void _wait_for_eof(const boost::optional<double> seconds);
 };
+
 
 }  // end nova namespace
 

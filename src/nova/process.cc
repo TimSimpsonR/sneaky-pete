@@ -16,6 +16,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 // Be careful with this Macro, as it comments out the entire line.
@@ -63,6 +64,18 @@ namespace {
             throw ProcessException(code);
         }
     }
+
+    void kill_with_throw(pid_t pid, int sig, bool allow_not_found=false) {
+        if (0 != ::kill(pid, sig)) {
+            NOVA_LOG_ERROR2("Couldn't send kill signal!! %s", strerror(errno));
+            if (allow_not_found && ESRCH == errno){
+                NOVA_LOG_INFO("errno was ESRCH and that's OK.");
+                return;
+            }
+            throw ProcessException(ProcessException::KILL_SIGNAL_ERROR);
+        }
+    }
+
 
     /** Translates a CommandList to the type requried by posix_spawn. */
     class ArgV : private boost::noncopyable
@@ -269,14 +282,17 @@ void Process::delete_argv(char * * & new_argv, int & new_argv_length) {
 }
 
 void Process::execute(const CommandList & cmds, double time_out) {
-    stringstream str;
-    execute(str, cmds, time_out);
+    Process proc(cmds, true);
+    proc.wait_for_eof(time_out);
+    if (!proc.successful()) {
+        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+    }
 }
 
 void Process::execute(std::stringstream & out, const CommandList & cmds,
                       double time_out) {
     Process proc(cmds, true);
-    proc.wait_for_eof(out, time_out);
+    proc.read_into_until_eof(out, time_out);
     if (!proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
     }
@@ -285,6 +301,10 @@ void Process::execute(std::stringstream & out, const CommandList & cmds,
 pid_t Process::execute_and_abandon(const CommandList & cmds) {
     pid_t pid;
     spawn_process(cmds, &pid);
+    return pid;
+}
+
+pid_t Process::get_pid() {
     return pid;
 }
 
@@ -299,6 +319,22 @@ bool Process::is_pid_alive(pid_t pid) {
     }
     // ESRCH means o such process found.
     return result == 0;
+}
+
+void Process::kill(double initial_wait_time, optional<double> serious_wait_time) {
+    kill_with_throw(pid, SIGTERM);
+    try {
+        wait_for_eof(5);
+    } catch (const TimeOutException & toe) {
+        if (!serious_wait_time) {
+            throw;
+        } else {
+            NOVA_LOG_ERROR("Won't die, eh? Then its time to use our ultimate "
+                           "weapon.");
+            kill_with_throw(pid, SIGKILL, true);
+            wait_for_eof(15);
+        }
+    }
 }
 
 size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
@@ -329,6 +365,17 @@ size_t Process::read_into(char * buffer, const size_t length, const optional<dou
     LOG_DEBUG2("OUTPUT:%s", buffer);
     LOG_DEBUG("Exit read_into");
     return (size_t) count;
+}
+
+void Process::read_into_until_eof(stringstream & out, double seconds) {
+    LOG_DEBUG2("wait_for_eof, timeout=%f", seconds);
+    Timer timer(seconds);
+    while(read_into(out, optional<double>(seconds)));
+    if (!eof()) {
+        NOVA_LOG_ERROR2("Something went wrong, EOF not reached! Time out=%f",
+                        seconds);
+        throw TimeOutException();
+    }
 }
 
 size_t Process::read_until_pause(stringstream & std_out,
@@ -382,20 +429,27 @@ void Process::set_eof() {
     }
 }
 
-void Process::wait_for_eof(double seconds) {
-    stringstream str;
-    wait_for_eof(str, seconds);
-}
-
-void Process::wait_for_eof(stringstream & out, double seconds) {
-    LOG_DEBUG2("wait_for_eof, timeout=%f", seconds);
-    Timer timer(seconds);
-    while(read_into(out, optional<double>(seconds)));
+void Process::_wait_for_eof(const optional<double> seconds) {
+    char buffer[1024];
+    while(read_into(buffer, sizeof(buffer) - 1, seconds));
     if (!eof()) {
-        NOVA_LOG_ERROR2("Something went wrong, EOF not reached! Time out=%f",
-                        seconds);
+        NOVA_LOG_ERROR2("Something went wrong, EOF not reached!");
+        if (seconds) {
+            NOVA_LOG_ERROR2("Time out=%f", seconds.get());
+        }
         throw TimeOutException();
     }
+}
+
+void Process::wait_for_eof(double seconds) {
+    NOVA_LOG_DEBUG2("Waiting for %f seconds for EOF...", seconds);
+    Timer timer(seconds);
+    _wait_for_eof(boost::optional<double>(seconds));
+}
+
+void Process::wait_forever_for_eof() {
+    NOVA_LOG_DEBUG("Waiting forever for EOF...");
+    _wait_for_eof(boost::none);
 }
 
 void Process::write(const char * msg) {

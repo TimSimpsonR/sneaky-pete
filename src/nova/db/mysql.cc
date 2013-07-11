@@ -5,6 +5,7 @@
 #include <iostream>
 #include <boost/lexical_cast.hpp>
 #include <mysql/mysql.h>
+#include "nova/db/MySqlConfigReader.h"
 #include <regex.h>  //TODO(tim.simpson): Use the Regex classes here.
 #include <string.h>
 
@@ -474,6 +475,16 @@ MySqlConnection::~MySqlConnection() {
     this->close();
 }
 
+bool MySqlConnection::can_connect_to_localhost_with_mycnf() {
+    try {
+        MySqlConnection con("localhost");
+        con.query("SELECT 'Hello'");
+        return true;
+    } catch(const MySqlException & mse) {
+        return false;
+    }
+}
+
 void MySqlConnection::close() {
     if (mysql_con(con) != 0) {
         mysql_close(mysql_con(con));
@@ -520,38 +531,23 @@ const char * MySqlConnection::get_db_name() const {
     return NULL;
 }
 
-void MySqlConnection::get_auth_from_config(string & user, string & password) {
-    const char *pattern = "^\\w+\\s*=\\s*['\"]?(.[^'\"]*)['\"]?\\s*$";
-    regex_t regex;
-    regcomp(&regex, pattern, REG_EXTENDED);
-
+void MySqlConnection::get_auth_from_config(const char * file_path,
+                                           string & user, string & password) {
+    ifstream my_cnf(file_path);
     // TODO(tim.simpson): This should be the normal my.cnf, but we can't
     // read it from there... yet.
-    ifstream my_cnf("/var/lib/nova/my.cnf");
     if (!my_cnf.is_open()) {
+        NOVA_LOG_ERROR2("Couldn't read config file %s!", file_path);
         throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
     }
-    std::string line;
-    bool is_in_client = false;
-    while(my_cnf.good()) {
-        getline(my_cnf, line);
-        if (strstr(line.c_str(), "[client]")) {
-            is_in_client = true;
-        }
-        if (strstr(line.c_str(), "[mysqld]")) {
-            is_in_client = false;
-        }
-        // Be careful - end index is non-inclusive.
-        if (is_in_client && strstr(line.c_str(), "user")) {
-            append_match_to_string(user, regex, line.c_str());
-        }
-        if (is_in_client && strstr(line.c_str(), "password")) {
-            append_match_to_string(password, regex, line.c_str());
-        }
+    optional<MySqlConfigCreds> result = get_creds_from_file(my_cnf);
+    if (!result) {
+        NOVA_LOG_ERROR2("Couldn't find creds in config file %s!", file_path);
+        throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
+    } else {
+        user = result.get().user;
+        password = result.get().password;
     }
-    my_cnf.close();
-
-    regfree(&regex);
 }
 
 void MySqlConnection::grant_privileges_with_option(const char * privs,
@@ -647,7 +643,7 @@ void MySqlConnection::init() {
     }
 
     if (use_mycnf) {
-        get_auth_from_config(user, password);
+        get_auth_from_config("/var/lib/nova/my.cnf", user, password);
     }
 
     con = mysql_init(NULL);

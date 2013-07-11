@@ -412,6 +412,10 @@ unsigned long FlagValues::report_interval() const {
     return get_flag_value(*map, "report_interval", (unsigned long) 10);
 }
 
+bool FlagValues::skip_install_for_prepare() const {
+    return get_flag_value<bool>(*map, "skip_install_for_prepare", false);
+}
+
 size_t FlagValues::status_thread_stack_size() const {
     return get_flag_value(*map, "status_thread_stack_size",
                           (size_t) 1024 * 1024);

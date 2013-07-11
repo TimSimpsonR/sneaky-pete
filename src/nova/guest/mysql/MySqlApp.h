@@ -4,6 +4,8 @@
 #include "nova/guest/apt.h"
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
+#include "nova/guest/backup/BackupRestore.h"
+#include <boost/optional.hpp>
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -16,12 +18,17 @@ class MySqlApp {
     public:
 
         MySqlApp(MySqlAppStatusPtr status,
-                 int state_change_wait_time);
+                 int state_change_wait_time,
+                 bool skip_install_for_prepare);
 
         virtual ~MySqlApp();
 
-        /** Installs MySql and secure it. */
-        void install_and_secure(nova::guest::apt::AptGuest & apt, int memory_mb);
+        /** Installs MySql, secures it, and possibly runs a backup. */
+        void prepare(
+            nova::guest::apt::AptGuest & apt,
+            int memory_mb,
+            boost::optional<nova::guest::backup::BackupRestore> restore
+        );
 
         /** Restarts MySQL on this host. */
         void restart();
@@ -76,15 +83,30 @@ class MySqlApp {
          *  This should never be done unless the innodb_log_file_size changes.*/
         void restart_mysql_and_wipe_ib_logfiles();
 
-        int state_change_wait_time;
+        /* Runs mysqld_safe with the init-file option to set up the database. */
+        void run_mysqld_with_init();
+
+        const bool skip_install_for_prepare;
+
+        const int state_change_wait_time;
 
         MySqlAppStatusPtr status;
 
         /** Starts MySQL on this host. */
         void start_mysql(bool update_db=false);
 
+        /* Tests that a connection can be made using the my.cnf settings. */
+        static bool test_ability_to_connect(bool throw_on_failure);
+
+        void wait_for_internal_stop(bool update_db);
+
         /* Destroy these files as needed for my.cnf changes. */
         void wipe_ib_logfiles();
+
+        /* Writes an init file that prepares the MySQL instance for use
+         * by this agent. */
+        void write_fresh_init_file(const std::string & admin_password,
+                                   bool wipe_root_and_anonymous_users);
 
 };
 

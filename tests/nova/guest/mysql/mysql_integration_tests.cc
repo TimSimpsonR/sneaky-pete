@@ -161,12 +161,12 @@ void set_up_tests() {
                         true);
         stringstream str;
         CHECK_POINT();
-        rm_proc.wait_for_eof(str, TIME_OUT);
+        rm_proc.read_into_until_eof(str, TIME_OUT);
         CHECK_POINT();
         Process ls_proc(list_of("/bin/ls")("/var/lib/mysql"), true);
         stringstream ls_out;
         CHECK_POINT();
-        ls_proc.wait_for_eof(ls_out, TIME_OUT);
+        ls_proc.read_into_until_eof(ls_out, TIME_OUT);
         bool found = ls_out.str().find("cannot access /var/lib/mysql: No such "
                                        "file or directory", 0) == string::npos;
         CHECK_POINT();

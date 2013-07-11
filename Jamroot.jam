@@ -396,6 +396,10 @@ unit u_nova_guest_mysql_MySqlUser
     :   src/nova/guest/mysql/MySqlUser.cc
     ;
 
+unit u_nova_guest_mysql_MySqlUserAttr
+    :   src/nova/guest/mysql/MySqlUserAttr.cc
+    ;
+
 unit u_nova_guest_mysql_MySqlAdmin
     :   src/nova/guest/mysql/MySqlAdmin.cc
     :   lib_uuid
@@ -406,6 +410,7 @@ unit u_nova_guest_mysql_MySqlAdmin
         u_nova_guest_mysql_MySqlDatabase
         u_nova_guest_mysql_MySqlGuestException
         u_nova_guest_mysql_MySqlUser
+        u_nova_guest_mysql_MySqlUserAttr
     :   tests/nova/guest/mysql/MySqlAdminTests.cc
     ;
 

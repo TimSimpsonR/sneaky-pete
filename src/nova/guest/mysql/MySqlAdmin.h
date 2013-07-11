@@ -26,6 +26,8 @@ namespace nova { namespace guest { namespace mysql {
 
             void change_passwords(MySqlUserListPtr);
 
+            void update_attributes(const std::string & username, const std::string & hostname, MySqlUserAttrPtr);
+
             void create_database(MySqlDatabaseListPtr databases);
 
             void create_user(MySqlUserPtr);

@@ -87,6 +87,38 @@ namespace nova { namespace guest { namespace mysql {
     typedef boost::shared_ptr<MySqlUserList> MySqlUserListPtr;
 
 
+    class MySqlUserAttr {
+        public:
+            MySqlUserAttr();
+
+            const boost::optional<std::string> get_name() const {
+                return name;
+            }
+
+            const boost::optional<std::string> get_host() const {
+                return host;
+            }
+
+            const boost::optional<std::string> get_password() const {
+                return password;
+            }
+
+            void set_name(const boost::optional<std::string> & value);
+
+            void set_host(const boost::optional<std::string> & value);
+
+            void set_password(const boost::optional<std::string> & value);
+
+        private:
+            boost::optional<std::string> name;
+            boost::optional<std::string> host;
+            boost::optional<std::string> password;
+        };  
+
+
+    typedef boost::shared_ptr<MySqlUserAttr> MySqlUserAttrPtr;
+
+
 } } }  // end namespace
 
 #endif //__NOVA_GUEST_SQL_GUEST_H

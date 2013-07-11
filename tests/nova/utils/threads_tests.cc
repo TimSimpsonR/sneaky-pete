@@ -72,6 +72,7 @@ BOOST_AUTO_TEST_CASE(job_runner_tests)
 
     quit = true;  // End job.
     sleep_one();
+    sleep_one();
 
     BOOST_REQUIRE_EQUAL(1, finish_count);;
     BOOST_REQUIRE(runner.is_idle());

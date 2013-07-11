@@ -3,6 +3,8 @@
 #include "nova/Log.h"
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
+#include <boost/algorithm/string/join.hpp>
+#include <vector>
 
 #include <fstream>
 #include <iostream>
@@ -85,6 +87,47 @@ void MySqlAdmin::change_passwords(MySqlUserListPtr users){
     BOOST_FOREACH(MySqlUserPtr & user, *users) {
         set_password(user->get_name().c_str(), user->get_host().c_str(),
                      user->get_password().get().c_str());
+    }
+}
+
+void MySqlAdmin::update_attributes(const string & username, const string & hostname, MySqlUserAttrPtr user){
+    std::vector<std::string> subquery;
+    MySqlPreparedStatementPtr stmt;
+    const MySqlUserPtr found_user = find_user(username, hostname);
+    MySqlDatabaseListPtr db_access = list_access(username, hostname);
+    std::string host_name;
+    if (user->get_name()){
+        const string name = str(format(" User='%s' ") 
+                          % con->escape_string(user->get_name().get().c_str()));
+        subquery.push_back(name);
+    }
+    if (user->get_host()){
+        const string host = str(format(" Host='%s' ") 
+                          % con->escape_string(user->get_host().get().c_str()));
+        subquery.push_back(host);
+    }
+    if (user->get_password()){
+        const string password = str(format(" Password=PASSWORD('%s') ") 
+                          % con->escape_string(user->get_password().get().c_str()));
+        subquery.push_back(password);
+    }
+    std::string final_subquery = boost::algorithm::join(subquery, ", ");
+    string final_query = str(format("UPDATE mysql.user SET %s"
+                             " WHERE User = '%s' AND "
+                             " Host = '%s'" )
+                             % final_subquery.c_str()
+                             % con->escape_string(found_user->get_name().c_str())
+                             % con->escape_string(found_user->get_host().c_str()));
+    con->query(final_query.c_str());
+    con->flush_privileges();
+    if (user->get_name()){
+        if (!(user->get_host())){
+            host_name = found_user->get_host();
+        }
+        else{
+            host_name = user->get_host().get();
+        }
+        grant_access(user->get_name().get(), host_name, db_access);
     }
 }
 

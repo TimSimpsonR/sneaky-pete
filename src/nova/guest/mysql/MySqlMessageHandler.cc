@@ -100,6 +100,14 @@ namespace {
         return user;
     }
 
+    MySqlUserAttrPtr user_updateattrs_from_obj(JsonObjectPtr obj) {
+        MySqlUserAttrPtr user(new MySqlUserAttr());
+        user->set_name(obj->get_optional_string("name"));
+        user->set_host(obj->get_optional_string("host"));
+        user->set_password(obj->get_optional_string("password"));
+        return user;
+    }
+
     void user_to_stream(stringstream & out, MySqlUserPtr user) {
         out << "{\"_name\":" << JsonData::json_string(user->get_name().c_str())
             << ", \"_host\":" << JsonData::json_string(user->get_host().c_str())
@@ -312,6 +320,15 @@ namespace {
         return JsonData::from_null();
     }
 
+    JSON_METHOD(update_attributes) {
+        MySqlAdminPtr sql = guest->sql_admin();
+        string username = args->get_string("username");
+        string hostname = args->get_optional_string("hostname").get_value_or("%");
+        MySqlUserAttrPtr user = user_updateattrs_from_obj(args->get_object("user_attrs"));
+        sql->update_attributes(username, hostname, user);
+        return JsonData::from_null();
+    }
+
     JSON_METHOD(get_user){
         MySqlAdminPtr sql = guest->sql_admin();
         string username = args->get_string("username");
@@ -398,6 +415,7 @@ MySqlMessageHandler::MySqlMessageHandler()
         REGISTER(list_databases),
         REGISTER(list_users),
         REGISTER(revoke_access),
+        REGISTER(update_attributes),
         {0, 0}
     };
     const MethodEntry * itr = static_method_entries;

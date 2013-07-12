@@ -3,7 +3,6 @@
 #include "nova/guest/GuestException.h"
 #include "nova/guest/guest.h"
 #include "nova/guest/apt.h"
-#include "nova_guest_version.hpp"
 #include <boost/foreach.hpp>
 #include "nova/Log.h"
 #include <sstream>

@@ -4,7 +4,6 @@
 #include <iostream>
 #include <boost/lexical_cast.hpp>
 #include <boost/assign/list_of.hpp>
-#include "nova_guest_version.hpp"
 #include "nova/guest/apt.h"
 #include "nova/utils/regex.h"
 #include "nova/process.h"

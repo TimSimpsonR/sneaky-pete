@@ -39,7 +39,10 @@ using testing ;
 
 
 SKIP_SNEAKY_TESTS = [ os.environ SKIP_SNEAKY_TESTS ] ;
-
+VERSION_STRING = [ os.environ VERSION_STRING ] ;
+if ! $(VERSION_STRING) {
+    VERSION_STRING = "_v" ;
+}
 
 ###############################################################################
 #       Project Settings
@@ -55,7 +58,7 @@ project
         # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
         #TODO: Add  -Wall -Wextra
-        <cxxflags>" -std=c++0x -Werror -Wno-error=strict-aliasing"
+        <cxxflags>" -std=c++0x -Werror -Wno-error=strict-aliasing -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\""
         # Enable the very little bit of C++0x functionality available in GCC
         # 4.4.5 and turn warnings into errors except for strict-aliasing, which
         # unfortunatley issues false warnings as verified here:
@@ -147,33 +150,6 @@ alias static_dependencies
 alias test_dependencies
 	:	lib_boost_unit_test_framework lib_boost_thread
 	;
-
-
-###############################################################################
-#       Version Header Generator
-###############################################################################
-import type : register ;
-register VERSION_FILE : th ;
-actions make_version_file_action {
-    GIT_REVISION=`git --git-dir=./.git rev-parse HEAD`
-    QUOTES='"'
-    VERSION_NUMBER=$QUOTES$GIT_REVISION$QUOTES
-    printf "
-    #ifndef __NOVA_GUEST_VERSION_H
-    #define __NOVA_GUEST_VERSION_H
-
-    #define NOVA_GUEST_CURRENT_VERSION $VERSION_NUMBER
-
-    #endif //__NOVA_GUEST_VERSION_H
-    " >> "$(<)"
-}
-IMPORT $(__name__) : make_version_file_action : : make_version_file_action ;
-import generators : register-standard ;
-register-standard make_version_file_action : VERSION_FILE : HPP ;
-
-# Defines the target "nova_guest_version" which will create the target
-# 'nova_guest_version.hpp' in the output directory.
-hpp nova_guest_version : src/nova/guest/version.th ;
 
 
 ###############################################################################
@@ -455,9 +431,9 @@ unit u_nova_guest_diagnostics_Interrogator
         u_nova_utils_io
         u_nova_utils_regex
     :   tests/nova/guest/diag_tests.cc
-    :   <implicit-dependency>nova_guest_version
     :
-    :   <implicit-dependency>nova_guest_version
+    :
+    :
     ;
 
 unit u_nova_guest_diagnostics_InterrogatorException
@@ -475,7 +451,7 @@ unit u_nova_guest_diagnostics_InterrogatorMessageHandler
     :
     :
     :
-    :   <implicit-dependency>nova_guest_version
+    :
     ;
 
 unit u_nova_guest_diagnostics_DiagnosticsMessageHandler
@@ -509,7 +485,7 @@ unit u_nova_guest_backup_BackupMessageHandler
     :
     :
     :
-    :   <implicit-dependency>nova_guest_version
+    :
     ;
 
 unit u_nova_guest_monitoring_Status
@@ -527,7 +503,7 @@ unit u_nova_guest_monitoring_Monitoring
     :   #tests/nova/guest/diag_tests.cc
     :
     :
-    :   <implicit-dependency>nova_guest_version
+    :
     ;
 
 unit u_nova_guest_monitoring_MonitoringException
@@ -546,7 +522,7 @@ unit u_nova_guest_monitoring_MonitoringMessageHandler
     :
     :
     :
-    :   <implicit-dependency>nova_guest_version
+    :
     ;
 
 unit u_nova_guest_mysql_MySqlMessageHandler

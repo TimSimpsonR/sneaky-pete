@@ -4,7 +4,6 @@
 #include <fstream>
 #include <iostream>
 #include <boost/lexical_cast.hpp>
-#include "nova_guest_version.hpp"
 #include "nova/utils/regex.h"
 #include "nova/Log.h"
 #include <sstream>
@@ -47,7 +46,7 @@ DiagInfoPtr Interrogator::get_diagnostics() {
     get_proc_status(pid, *status);
 
     // Add the version to the Info
-    process_info->version = NOVA_GUEST_CURRENT_VERSION;
+    process_info->version = NOVA_GUEST_VERSION;
 
     return retValue;
 }

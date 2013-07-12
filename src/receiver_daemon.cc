@@ -158,11 +158,15 @@ AmqpConnectionPtr make_amqp_connection(FlagValues & flags) {
 }
 
 void initialize_and_run(FlagValues & flags) {
+    // This should evaluate to a single const char string.
+    const char * const info = ("v" NOVA_GUEST_VERSION " " __DATE__ " " __TIME__);
     NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-    NOVA_LOG_INFO(" ^ ^ ^                                   '_' ^");
+    NOVA_LOG_INFO(" ^ ^ ^                                       ^");
     NOVA_LOG_INFO(" ^ '  '       -----REDDWARF-GUEST-AGENT----- ^");
     NOVA_LOG_INFO(" ^ \\`-'/        -------Sneaky--Pete-------   ^");
-    NOVA_LOG_INFO(" ^   |__        updated " __DATE__ " " __TIME__ " ^");
+    string banner_text = str(format(
+                  " ^   |__     %|+31| ^") % info);
+    NOVA_LOG_INFO(banner_text.c_str());
     NOVA_LOG_INFO(" ^  /                         starting now...^");
     NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 

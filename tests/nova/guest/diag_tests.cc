@@ -3,7 +3,6 @@
 
 #include "nova/guest/diagnostics.h"
 #include "nova/Log.h"
-#include "nova_guest_version.hpp"
 #include "nova/utils/regex.h"
 #include <fstream>
 #include <unistd.h>
@@ -42,7 +41,7 @@ BOOST_AUTO_TEST_CASE(get_something_back_from_diagnostics)
     BOOST_CHECK(diags->vm_rss > 0 && diags->vm_rss < 5000);
     BOOST_CHECK(diags->vm_hwm > 0 && diags->vm_hwm < 5000);
     BOOST_CHECK_EQUAL(diags->threads, 1);
-    BOOST_CHECK_EQUAL(diags->version, NOVA_GUEST_CURRENT_VERSION);
+    BOOST_CHECK_EQUAL(diags->version, NOVA_GUEST_VERSION);
 }
 
 

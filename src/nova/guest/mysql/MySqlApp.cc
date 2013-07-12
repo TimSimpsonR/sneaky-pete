@@ -385,7 +385,6 @@ void MySqlApp::run_mysqld_with_init() {
         throw MySqlGuestException(MySqlGuestException::COULD_NOT_START_MYSQL);
     }
     NOVA_LOG_INFO("Waiting for permissions change.");
-    boost::this_thread::sleep(boost::posix_time::seconds(10));
     // Wait until we can connect, which establishes that the connection
     // settings were changed.
     int wait_time = 0;

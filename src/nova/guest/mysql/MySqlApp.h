@@ -103,8 +103,10 @@ class MySqlApp {
         /* Destroy these files as needed for my.cnf changes. */
         void wipe_ib_logfiles();
 
-        /* Writes an init file that prepares the MySQL instance for use
-         * by this agent. */
+        /* Writes an init file containing commands to prepare this MySQL
+         * application for use by the agent. This init file will be read and
+         * each command executed as root by MySQL when 'run_mysqld_with_init'
+         * is called. */
         void write_fresh_init_file(const std::string & admin_password,
                                    bool wipe_root_and_anonymous_users);
 

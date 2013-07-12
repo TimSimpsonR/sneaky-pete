@@ -37,12 +37,15 @@
 import os ;
 using testing ;
 
+import pch ;
+
 
 SKIP_SNEAKY_TESTS = [ os.environ SKIP_SNEAKY_TESTS ] ;
 VERSION_STRING = [ os.environ VERSION_STRING ] ;
 if ! $(VERSION_STRING) {
     VERSION_STRING = "_v" ;
 }
+
 
 ###############################################################################
 #       Project Settings
@@ -58,12 +61,20 @@ project
         # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
         #TODO: Add  -Wall -Wextra
-        <cxxflags>" -std=c++0x -Werror -Wno-error=strict-aliasing -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\""
+        <cxxflags>" -std=c++0x -Werror -Wno-error=strict-aliasing -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" "
         # Enable the very little bit of C++0x functionality available in GCC
         # 4.4.5 and turn warnings into errors except for strict-aliasing, which
         # unfortunatley issues false warnings as verified here:
         # http://stackoverflow.com/questions/15520642/using-stdmap-gives-warning-dereferencing-pointer-anonymous-does-break-str
         ;
+
+# This meta-target is a precompiled header. Using it shaves a little bit of
+# time off the build process. Nothing mind-blowing but every little bit helps.
+cpp-pch pch
+    : src/pch.hpp
+    : <cxxflags>" -std=c++0x"
+    ;
+
 
 
 # A quick note about linking and the flags defined below.
@@ -155,54 +166,55 @@ alias test_dependencies
 ###############################################################################
 #      Custom Rule "Unit"
 ###############################################################################
-# The rule "unit" defines a target related to a single object file which
-# usually comes from one C++ source file, along with a the source code for its
-# unit tests. Anything that depends on a unit will have to run its unit tests.
+# The rule "unit" lets us define a target related to a single object file which
+# usually comes from one C++ source file, along with the source code for its
+# unit tests.
 #
-# A more complicated explanation:
+# We could just have used the built-in "obj" rule, but this automatically adds
+# a dependency on the precompiled header and also lets us optionally define
+# a "unit-test" target by specifying the test sources, which is nice.
 #
-# Because we compile certain unit tests with different properties,
-# Boost's gives an error that we're duplicating a target name.  This is a
-# safety feature used to avoid compiling the code in potentially different ways
-# each builds (though here it doesn't matter):
+# Also, the resulting target isn't an "obj" but an "alias" to an obj.
+# Because we compile a (very few) unit tests with different properties,
+# Boost's gives an error that we're duplicating a target names if they use the
+# same objs.  This is a safety feature used to avoid compiling the code in
+# potentially different ways each builds (though here it doesn't matter):
 # http://www.boost.org/boost-build2/doc/html/bbv2/faq/s02.html
-# To get around it we have to create "obj" targets for each unit, and make
-# any unit tests a dependency to ensure they execute.
-# There does not seem to be a way out of compiling the object file twice-
-# you can make the final target an alias of the original object, but because an
-# alias alone cannot declare a dependency, a second object file is used. There
-# is probably a way around this but it has not been found yet.
+# "alias" creates a unique target but ensures we only build the obj file once.
+#
+# Note also that unfortunately, the tests need to link to Boost Test
+# dynamically, which means if you run the build with "link=static" some objects
+# will also be built as "link=shared" to meet this requirement.
+#
+# Tests can be avoided by specifying a specific target when running bjam (i.e.
+# nova-guest) or setting the environment variable SKIP_SNEAKY_TESTS.
+#
+# Note: This rule used to enforce that the unit tests were run for each
+# object, but to do this it had to build the obj twice. This made things too
+# slow and wasn't worth it.
 
 local rule unit ( name : sources * : dependencies * : test-sources *
                   :  test-properties * : env-vars * : main-properties * )
 {
+    obj __unit_obj_$(name) : pch $(sources)
+                           : $(main-properties) ;
+    alias $(name) :  __unit_obj_$(name) $(dependencies) ;
+
     if ! $(SKIP_SNEAKY_TESTS) && $(test-sources) > []
     {
-        obj __unit_test_obj_$(name) : $(sources)
+        obj unit_test_$(name) : pch $(sources)
             : $(test-properties) $(main-properties) ;
         unit-test __unit_tests_$(name)
-            :   __unit_test_obj_$(name)
+            :   pch
+                __unit_obj_$(name)
                 $(test-sources)
                 test_dependencies
                 $(dependencies)
             :   <define>BOOST_TEST_DYN_LINK
                 <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no $(env-vars) valgrind --leak-check=full"
                 $(test-properties)
+                <link>shared
             ;
-        explicit __unit_tests_$(name) ;
-        obj __unit_obj_$(name) : $(sources)
-            : <dependency>__unit_test_obj_$(name)
-              # Be sure to force the unit tests we require to be shared,
-              # or it will fail on static builds.
-              <dependency>__unit_tests_$(name)/<link>shared
-              $(main-properties)
-            ;
-        alias $(name) :  __unit_obj_$(name) $(dependencies) ;
-    }
-    else
-    {
-        obj __unit_obj_$(name) : $(sources) : $(main-properties) ;
-        alias $(name) :  __unit_obj_$(name) $(dependencies) ;
     }
 }
 
@@ -211,24 +223,15 @@ local rule unit ( name : sources * : dependencies * : test-sources *
 #      Core Library and Unit Tests.
 ###############################################################################
 
-# Because we compile certain unit tests with different properties,
-# Boost's gives an error that we're duplicating a target name.  This is a
-# safety feature used to avoid compiling the code in potentially different ways
-# each builds (though here it doesn't matter):
-# http://www.boost.org/boost-build2/doc/html/bbv2/faq/s02.html
-# To get around it we have to create "obj" targets for each unit, and make
-# any unit tests a dependency to ensure they execute.
-# "alias" creates a unique target but ensures we only build the obj file once.
-# We make a unique object file if we compile the test version differently.
 
-
-obj u_nova_Log_limited
+unit u_nova_Log_limited
     : src/nova/Log.cc
     ;
 
 unit u_nova_Log
     : u_nova_Log_limited
       src/nova/Log_rotate_files.cc
+      pch
     : u_nova_guest_utils
       u_nova_utils_io
       lib_boost_thread
@@ -272,7 +275,7 @@ unit u_nova_json
     : tests/nova/json_tests.cc
     ;
 
-obj u_nova_utils_Md5
+unit u_nova_utils_Md5
     : src/nova/utils/Md5.cc
     ;
 
@@ -321,6 +324,7 @@ unit u_nova_guest_HeartBeat
 exe parrot_e
     :   u_nova_Log
         tests/nova/parrot.cc
+        pch
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
@@ -538,7 +542,8 @@ unit u_nova_guest_mysql_MySqlMessageHandler
     ;
 
 alias guest_lib
-    :   u_nova_guest_HeartBeat
+    :   pch
+        u_nova_guest_HeartBeat
         u_nova_configfile
         u_nova_flags
         u_nova_guest_apt_apt
@@ -575,7 +580,8 @@ alias guest_lib
 
 # Doesn't require anything other than apt-get on the machine, but is brittle.
 unit-test apt_tests
-    :   u_nova_guest_apt_apt
+    :   pch
+        u_nova_guest_apt_apt
         u_nova_flags
         tests/nova/guest/apt_tests.cc
         test_dependencies
@@ -591,7 +597,8 @@ explicit apt_tests ;
 
 # Requires RabbitMQ server to be installed and running on localhost.
 unit-test send_and_receive
-    :   u_nova_flags
+    :   pch
+        u_nova_flags
         u_nova_guest_GuestException
         u_nova_rpc_Receiver
         u_nova_rpc_Sender
@@ -608,7 +615,8 @@ explicit send_and_receive ;
 # Run by setting an environment variable named "TEST_ARGS" to whatever nova
 # flag settings you need (such as "--flagfile=blah.conf").
 unit-test int_tests_mysql
-    :   u_nova_Log
+    :   pch
+        u_nova_Log
         #u_nova_guest_apt_apt
         #u_nova_guest_apt_AptException
         u_nova_flags
@@ -622,7 +630,8 @@ explicit int_tests_mysql ;
 
 
 unit-test MySqlAppStatus_tests
-    :   lib_boost_thread
+    :   pch
+        lib_boost_thread
         u_nova_flags
         u_nova_guest_mysql_MySqlGuestException
         u_nova_guest_mysql_MySqlAppStatus
@@ -637,7 +646,8 @@ explicit MySqlAppStatus_tests ;
 
 
 unit-test HeartBeat_tests
-    :   u_nova_flags
+    :   pch
+        u_nova_flags
         u_nova_guest_HeartBeat
         test_dependencies
         tests/nova/guest/HeartBeat_tests.cc
@@ -653,7 +663,8 @@ explicit HeartBeat_tests ;
 # remove it, since its so difficult to run and may just turn into an out-of-date
 # pitfall for someone trying to run this code.
 unit-test int_tests
-    :   u_nova_flags
+    :   pch
+        u_nova_flags
         u_nova_Log
         #u_nova_guest_apt_apt
         #u_nova_guest_apt_AptException
@@ -689,6 +700,7 @@ exe nova_guest_diagnostics_interrogator_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/diag_demo.cc
+        pch
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
@@ -697,11 +709,13 @@ exe nova_guest_utils_demo
         u_nova_flags
         u_nova_Log
         tests/nova/guest/utils_demo.cc
+        pch
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe nova_process_fd_demo
-    :   u_nova_guest_utils
+    :   pch
+        u_nova_guest_utils
         u_nova_flags
         u_nova_Log
         u_nova_process
@@ -711,7 +725,8 @@ exe nova_process_fd_demo
     ;
 
 exe apt_install
-    :   u_nova_Log
+    :   pch
+        u_nova_Log
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         tests/nova/guest/apt_install.cc
@@ -724,12 +739,13 @@ exe apt_install
 explicit apt_install ;
 
 
-obj obj_receiver_daemon
+unit obj_receiver_daemon
     :   src/receiver_daemon.cc
     ;
 
 exe receiver
-    :   dependencies
+    :   pch
+        dependencies
         guest_lib
         obj_receiver_daemon
     :  <linkflags>$(EXE_LINK_FLAGS)
@@ -742,12 +758,14 @@ exe nova-guest
         obj_receiver_daemon
         lib_m
         lib_c
+        pch
     :   <linkflags>$(EXE_LINK_FLAGS)
 	;
 
 # Run this in Valgrind to find possible leaks.
 exe leak_tester
-	:	dependencies
+	:	pch
+        dependencies
 		guest_lib
 		src/leak_tester.cc
 	:   #<link>shared:<dependency>sql_guest_tests
@@ -756,7 +774,7 @@ exe leak_tester
 
 # Run this to find out how much memory is availble in the container
 exe greedy_pete
-    :
+    :   pch
         u_nova_guest_diagnostics_Interrogator
         src/greedy_pete.cc
     :
@@ -768,7 +786,8 @@ explicit leak_tester ;
 
 
 exe upload_file
-    :   tests/upload_file.cc
+    :   pch
+        tests/upload_file.cc
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
@@ -776,7 +795,8 @@ exe upload_file
     ;
 
 exe download_file
-    :   tests/download_file.cc
+    :   pch
+        tests/download_file.cc
         u_nova_utils_swift
         u_nova_utils_Md5
         u_nova_Log
@@ -785,7 +805,8 @@ exe download_file
 
 # Run this to manually test the monitoring calls
 exe centi-pete
-    :   static_dependencies
+    :   pch
+        static_dependencies
         u_nova_guest_monitoring_Status
         u_nova_guest_monitoring_Monitoring
         u_nova_process

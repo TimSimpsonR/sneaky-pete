@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/json.h"
 #include <json/json.h>
 using boost::optional;

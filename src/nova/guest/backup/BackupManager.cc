@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/backup/BackupException.h"
 #include "nova/guest/backup/BackupManager.h"
 #include "nova/guest/backup/BackupMessageHandler.h"

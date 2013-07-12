@@ -92,3 +92,12 @@ make install
 # Needed for static compile magic.
 cd $BUILD_DIR
 ln -s `g++ -print-file-name=libstdc++.a`
+
+
+# Implements a fix for Boost Build's precompiled header feature so it will pass
+# necessary C++ flags when building the precompiled header initially.
+# Basically, we have to put $(USER_OPTIONS) into the "actions compile.c++.pch"
+# for gcc.
+# See the following link for more info:
+# http://en.it-usenet.org/thread/14892/13006/
+sudo sed -i.bac 's/$(CONFIG_COMMAND)" -x c++-header $(OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)/$(CONFIG_COMMAND)" -x c++-header $(OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" $(USER_OPTIONS) -c -o "$(<)" "$(>)/g' /usr/share/boost-build/tools/gcc.jam

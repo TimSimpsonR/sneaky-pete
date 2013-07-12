@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "Curl.h"
 #include <algorithm>
 #include <boost/foreach.hpp>

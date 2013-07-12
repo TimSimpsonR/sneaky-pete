@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/monitoring/monitoring.h"
 
 namespace nova { namespace guest { namespace monitoring {

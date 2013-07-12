@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/Log.h"
 
 #include <boost/format.hpp>

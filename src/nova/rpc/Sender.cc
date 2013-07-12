@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/json.h"
 #include "nova/rpc/sender.h"
 #include "nova/rpc/amqp.h"

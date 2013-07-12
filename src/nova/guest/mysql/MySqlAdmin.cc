@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/guest.h"
 #include "nova/Log.h"
 #include <boost/foreach.hpp>

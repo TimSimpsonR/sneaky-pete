@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/backup/BackupMessageHandler.h"
 #include "nova/guest/GuestException.h"
 #include <boost/foreach.hpp>

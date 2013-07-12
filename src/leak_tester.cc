@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/rpc/amqp.h"
 #include "nova/guest/guest.h"
 #include "nova/guest/mysql.h"

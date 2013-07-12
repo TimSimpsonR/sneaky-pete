@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/backup/BackupException.h"
 
 namespace nova { namespace guest { namespace backup {

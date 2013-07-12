@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/monitoring/status.h"
 #include <fstream>
 #include <string>

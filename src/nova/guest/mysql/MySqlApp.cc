@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/mysql/MySqlApp.h"
 #include "nova/guest/apt.h"
 #include <exception>

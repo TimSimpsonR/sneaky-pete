@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/rpc/amqp.h"
 #include <algorithm>
 #include <boost/foreach.hpp>

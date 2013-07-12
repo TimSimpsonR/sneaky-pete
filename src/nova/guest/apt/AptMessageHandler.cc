@@ -1,5 +1,5 @@
+#include "pch.hpp"
 #include "nova/guest/apt.h"
-
 #include "nova/guest/GuestException.h"
 #include "nova/Log.h"
 #include <boost/optional.hpp>

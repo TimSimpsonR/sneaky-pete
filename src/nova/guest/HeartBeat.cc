@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/HeartBeat.h"
 #include <boost/format.hpp>
 #include "nova/Log.h"

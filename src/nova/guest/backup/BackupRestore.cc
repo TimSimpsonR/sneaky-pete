@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "BackupRestore.h"
 #include <boost/assign/list_of.hpp>
 #include <boost/assign/std/list.hpp>

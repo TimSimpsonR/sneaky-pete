@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/apt.h"
 
 namespace nova { namespace guest { namespace apt {

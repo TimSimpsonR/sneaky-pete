@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/rpc/receiver.h"
 #include "nova/rpc/amqp.h"
 

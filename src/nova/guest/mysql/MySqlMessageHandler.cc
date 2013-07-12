@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/apt.h"
 #include "nova/guest/backup/BackupRestore.h"
 #include <boost/format.hpp>

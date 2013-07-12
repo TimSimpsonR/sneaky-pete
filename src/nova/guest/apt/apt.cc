@@ -1,6 +1,5 @@
+#include "pch.hpp"
 #include "nova/guest/apt.h"
-
-
 #include <boost/assign/list_of.hpp>
 #include <boost/assign/std/list.hpp>
 #include "nova/Log.h"

@@ -1,5 +1,5 @@
+#include "pch.hpp"
 #include "nova/guest/mysql/MySqlAppStatus.h"
-
 #include <boost/format.hpp>
 #include "nova/utils/io.h"
 #include <boost/lexical_cast.hpp>

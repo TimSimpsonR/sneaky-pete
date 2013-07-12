@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/diagnostics.h"
 
 namespace nova { namespace guest { namespace diagnostics {

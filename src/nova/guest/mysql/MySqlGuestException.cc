@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/guest/guest.h"
 #include "nova/guest/mysql/MySqlGuestException.h"
 #include <uuid/uuid.h>

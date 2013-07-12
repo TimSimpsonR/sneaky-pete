@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "nova/db/mysql.h"
 #include "nova/Log.h"
 #include <boost/format.hpp>
@@ -6,7 +7,6 @@
 #include <boost/lexical_cast.hpp>
 #include <mysql/mysql.h>
 #include "nova/db/MySqlConfigReader.h"
-#include <regex.h>  //TODO(tim.simpson): Use the Regex classes here.
 #include <string.h>
 
 using boost::format;

@@ -5,30 +5,18 @@ Setting up Your Environment
 
 You can build Sneaky Pete on your real machine, or on its own VM using the
 included Vagrantfile, but the recommended (and currently used) method is to
-build it inside the Reddwarf Vagrant VM.
-
-How to use Vagrant and how to build Reddwarf is beyond the scope of this file,
-so if you're curious check these links for more info:
+build it inside the Trove Vagrant VM.
 
 Vagrant:
 http://vagrantup.com/
 
-Reddwarf:
-https://github.com/rackspace/reddwarf
-https://github.com/rackspace/reddwarf/tree/reddwarf/master/integration
-
-
-How to Automatically Build and Package with Reddwarf
-====================================================
-When setting up the Reddwarf VM, make sure you set an environment variable with
-the name REDDWARF_AGENT to the directory to the directory containing this file,
-and the Reddwarf CI scripts should automatically build and package this agent.
+Sneaky Pete is currently set up to build for Debian Squeeze. Make sure your
+VM is running that and run the file vagrant/initialize.sh to install
+dependencies.
 
 
 How to Build
 ============
-This sections explains what the Reddwarf CI scripts do.
-
 This project is built using Boost Build v2, a build tool used to build the
 Boost libraries. The command for this program is "bjam".
 
@@ -40,17 +28,25 @@ Boost Build, type "bjam" at the command line.
 
 To build the Sneaky Pete, cd into this directory and type the following:
 
-bjam -d+2 link=static release nova-guest
+bjam -d+2 link=static release -q nova-guest
 
 "-d+2" is optional and tells Boost Build to print out every command it executes.
 Boost Build will take awhile to start up, so if you keep getting compiler
 errors in a file a good technique is to copy the command it executes and run
 that instead until you can build the necessary target without errors.
 
+"-q" is optional and tells Boost Build to stop after the first error. It's not
+good to build it this way in a CI setup but when building locally it can
+make life easier.
+
 "link=static" will, as implied, build the project with static linking.
 Otherwise, all dependencies will be dynamically linked. Some targets however
 can not be built statically (see the Jamroot.jam file for details) and ignore
 this request (the tests are an example).
+
+NOTE: Currently Curl is set up as a dependency which can only be used
+statically. Because of that, certain metatargets- such as the "nova-guest"
+exe- won't build unless "link=static" is set.
 
 "release" causes bjam to build in the release configuration. By default it will
 use the debug version (you can specify this with "debug").
@@ -110,63 +106,109 @@ All of these functional tests are executed by the Reddwarf package scripts
 mentioned above.
 
 
-Debugging in the Reddwarf Vagrant VM
-------------------------------------
-To debug in the Reddwarf test environment, you must uninstall any
-existing instance of the guest package by executing the following statement:
+Testing in a real Trove Container
+---------------------------------
+The Trove VM should have a local apt repo and will probably already be
+building and installing the Sneaky Pete agent when it creates an image used
+to provision new Trove instances. So one way to test changes is to build the
+agent and then build a brand new image. This takes forever though.
 
-sudo -E reprepro -Vb /var/www/debian remove squeeze nova-guest
-sudo apt-get update
+If you already have a running OpenVZ container, a quicker way to debug Sneaky
+Pete is to install it into that container, shut down the running Sneaky Pete
+process and run your new one.
 
-At this point, any time you create an instance it will eventually time out
-because the agent will never install.
+To do this,
 
-However, during the time out phase you can manually install a statically linked
-debug version of Sneaky Pete into the instance and run it. Here's how:
+1. Create an instance using the Trove API.
 
-1. Wait for an instance to be created. You can run all of the Reddwarf
-integration tests by running "/vagrant/reddwarf-ci tests" (remember that this
-is in the Reddwarf VM environment) or just create a container by executing
-"/vagrant/reddwarf-ci tests --group=dbaas.guest.initialize".
+2. Build Sneaky Pete as explained above.
 
-2. When the OpenVZ container is created, copy this entire directory (the one
-with the README file you're reading right now) into it by executing the script
-"copy-to-guest.sh" which is in this directory with the ID of the container as
-an argument. For example if the container appears as container 1 when you
-execute "sudo vzlist", then:
+2. Copy this entire directory (the one with the README file you're reading
+right now) into it by executing the script "copy-to-guest.sh" which is in this
+directory with the ID of the container as an argument. For example if the
+container appears as container 1 when you execute "sudo vzlist", then:
 
 /agent/copy-to-guest.sh 1
 
 3. Enter the container with "sudo vzctl enter 1".
 
-4. Install gdb with:
+4. An instance of the agent will already be running. Stop it with "sudo service
+nova-guest stop".
 
-sudo apt-get install gdb
-
-5. Login as the nova user on the vagrant image.
+4. Login as the nova user (remember, Sneaky Pete needs to run as this user
+so there's not much point in debugging as root).
 
 su nova
 
-6. Inside the /agent directory, execute the statically-linked debug version of
-Sneaky-Pete with the following command (this file was copied here in step 2):
+5. The copy-to-guest.sh script will have place things inside the /agent
+directory. Execute the newer version of SP with the following command:
+
+/agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/etc/nova/guest.conf
+
+
+A Note on Logging when Testing
+------------------------------
+
+The default flags for Sneaky Pete cause it to log to a file. If
+you're debugging, it can be easier to log to stdout. This is achieved by
+changing the flag value "--log_use_std_streams=true". You can also show even
+more log data that usual by setting "--log_show_trace=true". Note that the
+trace option will show all output from processes run by Sneaky Pete which
+usually makes things more confusing.
+
+
+Running RPC Methods Directly
+----------------------------
+
+Sometimes you might want to make Sneaky Pete run one RPC method. One way to do
+this is to make the Trove code call Sneaky Pete the usual way and then see
+what Sneaky Pete does.
+
+However, its also possible to make Sneaky Pete start up and instantly run an
+RPC method by setting the flag "--method", like so:
+
+/agent/bin/gcc-4.4.5/debug/link-static/nova-guest --flagfile=/etc/nova/guest.conf '--message={"method":"create_user", "args": {"users":[{"_name":"blah", "_password":"poo", "_databases":[]}]}}'
+
+This will run the method "create_user".
+
+Another method that is sometimes necessary to debug is "prepare." This is called
+usually as soon as Sneaky Pete starts up, and installs MySQL and then changes
+settings in order for Sneaky Pete to be able to log in.
+
+However, if MySQL is already installed, the call aborts. This is done on
+purpose to ensure erroneous calls to "prepare" aren't being made, but it makes
+it hard to debug. To get around it, set the flag "--skip_install_for_prepare",
+like so:
+
+/agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/etc/nova/guest.conf '--message={"method":"prepare", "args":{"memory_mb":512, "databases":[{"_name":"blah"}], "users":[] }}' --skip_install_for_prepare=true
+
+
+Using a Debugger
+----------------
+
+If you're experiencing a crash in Sneaky Pete, running it in a debugger can
+sometimes allow you to see the exact line number where the error is occurring.
+
+1. You will need to build the debug version of Sneaky Pete. Just replace
+"release" to "debug" when building Sneaky Pete:
+
+bjam -d+2 -q link=static debug
+
+2. Log into the container, and install gdb with:
+
+sudo apt-get install gdb
+
+3. Login as the nova user.
+
+su nova
+
+4. Execute the debug version of SP with the following command:
 
 gdb /agent/bin/gcc-4.4.5/debug/link-static/nova-guest
 
-7. Once gdb is started, run it with the flag files via
+7. Inside the gdb session, run it with the flag files via
 
 run --flagfile=/agent/debian/guest.conf
 
-When Reddwarf creates an instance, it sends a message out on AMQP to prepare
-the guest. This message sits in the queue until the guest "wakes up" and
-receives it. As soon as the agent is started, it will begin to process the
-"prepare" command, which if you're new to the code is probably the most
-difficult one to follow.
+Remember you can also pass in the "message" flag as explained above.
 
-If you'd like to avoid this, you can instead start a working instance and then
-enter into the OpenVZ container and kill the existing guest agent and run your
-own version of the agent in its place by executing commands 2 and 5. You can
-then manually test that the instance works.
-
-8. To run the release mode in the container without debugging just execute the command:
-
-/agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/agent/debian/guest.conf

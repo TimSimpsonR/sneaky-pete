@@ -341,7 +341,7 @@ double FlagValues::monitoring_agent_install_timeout() const {
 }
 
 int FlagValues::mysql_state_change_wait_time() const {
-    return get_flag_value<int>(*map, "mysql_state_change_wait_time", 2 * 60);
+    return get_flag_value<int>(*map, "mysql_state_change_wait_time", 3 * 60);
 }
 
 const char * FlagValues::node_availability_zone() const {

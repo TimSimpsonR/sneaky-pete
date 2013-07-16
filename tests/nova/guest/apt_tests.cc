@@ -162,8 +162,10 @@ BOOST_AUTO_TEST_CASE(abuse_cowsay) {
     apt::AptGuest mon_guest(USE_SUDO, "monitoring-agent", 1 * 60);
     optional<string> version_dpkg = mon_guest.version("dpkg");
     BOOST_REQUIRE_EQUAL(!!version_dpkg, true);
-    BOOST_REQUIRE(matches->exists_at(1));
-    BOOST_REQUIRE(matches->exists_at(2));
+    Regex dpkg_regex("(\\w+)");
+    RegexMatchesPtr dpkg_matches = dpkg_regex.match(version_dpkg.get().c_str(), 5);
+    BOOST_REQUIRE(!!dpkg_matches);
+    BOOST_REQUIRE(dpkg_matches->exists_at(0));
 
     optional<string> version = guest.version("cowsay");
     BOOST_REQUIRE_EQUAL(!!version, true);

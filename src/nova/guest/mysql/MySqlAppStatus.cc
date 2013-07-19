@@ -26,8 +26,7 @@ using nova::db::mysql::MySqlResultSetPtr;
 using nova::guest::utils::IsoDateTime;
 using nova::guest::utils::IsoTime;
 using boost::optional;
-using nova::Process;
-using nova::ProcessException;
+namespace process = nova::process;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using std::string;
@@ -41,8 +40,8 @@ namespace nova { namespace guest { namespace mysql {
 // These are the normal production methods.
 // By defining these the tests can mock out the dependencies.
 void MySqlAppStatusContext::execute(stringstream & out,
-                                      const Process::CommandList & cmds) const {
-    Process::execute(out, cmds);
+                                    const process::CommandList & cmds) const {
+    process::execute(out, cmds);
 }
 
 bool MySqlAppStatusContext::is_file(const char * file_path) const {
@@ -90,7 +89,7 @@ optional<string> MySqlAppStatus::find_mysql_pid_file() const {
     try {
         context->execute(out, list_of("/usr/bin/sudo")("/usr/sbin/mysqld")
                         ("--print-defaults"));
-    } catch(const ProcessException & pe) {
+    } catch(const process::ProcessException & pe) {
         NOVA_LOG_ERROR2("Error running mysqld --print-defaults! %s", pe.what());
         return boost::none;
     }
@@ -127,8 +126,8 @@ MySqlAppStatus::Status MySqlAppStatus::get_actual_db_status() const {
         context->execute(out, list_of("/usr/bin/sudo")("/usr/bin/mysqladmin")
                              ("ping"));
         return RUNNING;
-    } catch(const ProcessException & pe) {
-        if (pe.code != ProcessException::EXIT_CODE_NOT_ZERO) {
+    } catch(const process::ProcessException & pe) {
+        if (pe.code != process::ProcessException::EXIT_CODE_NOT_ZERO) {
             throw pe;
         }
         try {
@@ -137,8 +136,8 @@ MySqlAppStatus::Status MySqlAppStatus::get_actual_db_status() const {
             // TODO(rnirmal): Need to create new statuses for instances where
             // the mysql service is up, but unresponsive
             return BLOCKED;
-        } catch(const ProcessException & pe) {
-            if (pe.code != ProcessException::EXIT_CODE_NOT_ZERO) {
+        } catch(const process::ProcessException & pe) {
+            if (pe.code != process::ProcessException::EXIT_CODE_NOT_ZERO) {
                 throw pe;
             }
             // Figure out what the PID file would be if we started.

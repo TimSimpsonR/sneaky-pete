@@ -16,6 +16,7 @@
 
 using namespace boost::assign; // brings CommandList += into our code.
 using nova::guest::apt::AptGuest;
+namespace process = nova::process;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using std::string;
@@ -68,7 +69,8 @@ void Monitoring::install_and_configure_monitoring_agent(
 
     // Move the temp monitoring config file into place and restart agent
     NOVA_LOG_INFO("Moving tmp monitoring file into place.");
-    Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MON_CONF)(agent_config_file.c_str()));
+    process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MON_CONF)
+        (agent_config_file.c_str()));
 
     apt.install(agent_package_name.c_str(), agent_install_timeout);
 }
@@ -81,7 +83,7 @@ void Monitoring::remove_monitoring_agent(AptGuest & apt) const {
 
 void Monitoring::start_monitoring_agent() const {
     NOVA_LOG_INFO("Starting monitoring agent...");
-    Process::execute(list_of("/usr/bin/sudo")
+    process::execute(list_of("/usr/bin/sudo")
                             ("/etc/init.d/rackspace-monitoring-agent")
                             ("start"));
 }
@@ -89,19 +91,19 @@ void Monitoring::start_monitoring_agent() const {
 void Monitoring::stop_monitoring_agent() const {
     NOVA_LOG_INFO("Stopping monitoring agent...");
     try{
-        Process::execute(list_of("/usr/bin/sudo")
+        process::execute(list_of("/usr/bin/sudo")
                                 ("/etc/init.d/rackspace-monitoring-agent")
                                 ("stop"));
     }
-    catch (ProcessException &e) {
+    catch (process::ProcessException &e) {
         NOVA_LOG_ERROR2("Failed to stop monitoring agent: %s" , e.what());
         NOVA_LOG_ERROR("Trying to killall rackspace-monitoring-agent");
         try{
-            Process::execute(list_of("/usr/bin/sudo")
+            process::execute(list_of("/usr/bin/sudo")
                                     ("killall")
                                     ("rackspace-monitoring-agent"));
         }
-        catch (ProcessException &e) {
+        catch (process::ProcessException &e) {
             NOVA_LOG_ERROR2("Failed to killall monitoring agent: %s" , e.what());
             NOVA_LOG_ERROR("Giving up because nothing else we can do to stop monitoring agent");
             throw MonitoringException(MonitoringException::ERROR_STOPPING_AGENT);
@@ -112,7 +114,7 @@ void Monitoring::stop_monitoring_agent() const {
 
 void Monitoring::restart_monitoring_agent() const {
     NOVA_LOG_INFO("Restarting monitoring agent...");
-    Process::execute(list_of("/usr/bin/sudo")
+    process::execute(list_of("/usr/bin/sudo")
                             ("/etc/init.d/rackspace-monitoring-agent")
                             ("restart"));
 

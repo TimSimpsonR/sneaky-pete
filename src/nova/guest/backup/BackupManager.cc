@@ -20,10 +20,10 @@
 #include "nova/guest/utils.h"
 
 using namespace boost::assign;
-
+using nova::process::CommandList;
 using namespace nova::db::mysql;
-using nova::Process;
-using nova::ProcessException;
+using nova::process::Process;
+using nova::process::StdErrAndStdOut;
 using std::string;
 using std::stringstream;
 using namespace boost;
@@ -49,8 +49,8 @@ namespace {  // Begin anonymous namespace
 class BackupProcessReader : public SwiftClient::Input {
 public:
 
-    BackupProcessReader(Process::CommandList cmds, optional<double> time_out)
-    :   process(cmds, false),
+    BackupProcessReader(CommandList cmds, optional<double> time_out)
+    :   process(cmds),
         time_out(time_out)
     {
     }
@@ -63,7 +63,7 @@ public:
     }
 
     virtual bool eof() const {
-        return process.eof();
+        return process.is_finished();
     }
 
     virtual size_t read(char * buffer, size_t bytes) {
@@ -71,7 +71,7 @@ public:
     }
 
 private:
-    Process process;
+    Process<StdErrAndStdOut> process;
     optional<double> time_out;
 };
 
@@ -177,7 +177,7 @@ private:
 
         NOVA_LOG_DEBUG2("Volume used: %d", stats->used);
 
-        Process::CommandList cmds;
+        CommandList cmds;
         /* BACKUP COMMAND TO RUN
          * TODO: (rmyers) Make this a config option
          * 'sudo innobackupex'\

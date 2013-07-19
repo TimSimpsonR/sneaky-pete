@@ -3,6 +3,7 @@
 
 #include "nova/Log.h"
 #include <errno.h>
+#include <fcntl.h> // Consider moving to io.cc and using there.
 #include <boost/foreach.hpp>
 #include <fstream>
 #include "nova/utils/io.h"
@@ -18,45 +19,24 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-
-// Be careful with this Macro, as it comments out the entire line.
-#ifdef _NOVA_PROCESS_VERBOSE
-#define LOG_DEBUG(a) NOVA_LOG_TRACE(a)
-#define LOG_DEBUG2(a, b) NOVA_LOG_TRACE2(a, b)
-#define LOG_DEBUG3(a, b, c) NOVA_LOG_TRACE2(a, b, c)
-#define LOG_DEBUG8(a, b, c, d, e, f, g, h) NOVA_LOG_TRACE2(a, b, c, d, e, f, g, h)
-#else
-#define LOG_DEBUG(a) /* log.debug(a) */
-#define LOG_DEBUG2(a, b) /* log.debug(a, b) */
-#define LOG_DEBUG3(a, b, c) /* log.debug(a, b, c) */
-#define LOG_DEBUG8(a, b, c, d, e, f, g, h) /* log.debug(a, b, c, d, e, f, g, h)*/
-#endif
 
 extern char **environ;
 
 using boost::optional;
-using nova::ProcessException;
 using nova::Log;
+using nova::utils::io::Pipe;
 using namespace nova::utils;
 using std::stringstream;
 using std::string;
 using nova::utils::io::TimeOutException;
 using nova::utils::io::Timer;
+using nova::utils::io::wait_pid_with_throw;
 
 bool time_out_occurred;
 
-namespace nova {
+namespace nova { namespace process {
 
 namespace {
-
-    inline void checkGE0(const int return_code,
-                         ProcessException::Code code = ProcessException::GENERAL) {
-        if (return_code < 0) {
-            NOVA_LOG_ERROR2("System error : %s", strerror(errno));
-            throw ProcessException(code);
-        }
-    }
 
     inline void checkEqual0(const int return_code,
                             ProcessException::Code code = ProcessException::GENERAL) {
@@ -82,7 +62,7 @@ namespace {
     class ArgV : private boost::noncopyable
     {
         public:
-            ArgV(const Process::CommandList & cmds)
+            ArgV(const CommandList & cmds)
             : new_argv(0), new_argv_length(0) {
                 const size_t max = 2048;
                 new_argv_length = cmds.size() + 1;
@@ -112,39 +92,62 @@ namespace {
             size_t new_argv_length;
     };
 
-    /**
-     *  Wraps posix_spawn_file_actions_t to make sure the destroy method is
-     *  called.
-     */
-    class SpawnFileActions : private boost::noncopyable
-    {
-        public:
-            SpawnFileActions() {
-                checkEqual0(posix_spawn_file_actions_init(&file_actions));
-            }
+    const size_t BUFFER_SIZE = 1048;
 
-            ~SpawnFileActions() {
-                posix_spawn_file_actions_destroy(&file_actions);
-            }
+    /** Waits for the given file descriptor to have more data for the given
+     *  number of seconds. */
+    bool ready(int file_desc, const optional<double> seconds) {
+        fd_set file_set;
+        FD_ZERO(&file_set);
+        FD_SET(file_desc, &file_set);
+        return io::select_with_throw(file_desc + 1, &file_set, NULL, NULL, seconds)
+               != 0;
+    }
 
-            void add_close(int fd) {
-                checkEqual0(posix_spawn_file_actions_addclose(&file_actions, fd));
-            }
+}  // end anonymous namespace
 
-            void add_dup_to(int fd, int new_fd) {
-                checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
-                    fd, new_fd));
-            }
 
-            inline posix_spawn_file_actions_t * get() {
-                return &file_actions;
-            }
+/**---------------------------------------------------------------------------
+ *- SpawnFileActions
+ *---------------------------------------------------------------------------*/
 
-        private:
-            posix_spawn_file_actions_t file_actions;
-    };
+/**
+ *  Wraps posix_spawn_file_actions_t to make sure the destroy method is
+ *  called.
+ */
+class SpawnFileActions : private boost::noncopyable
+{
+    public:
+        SpawnFileActions() {
+            checkEqual0(posix_spawn_file_actions_init(&file_actions));
+        }
 
-    void spawn_process(const Process::CommandList & cmds, pid_t * pid,
+        ~SpawnFileActions() {
+            posix_spawn_file_actions_destroy(&file_actions);
+        }
+
+        void add_close(int fd) {
+            checkEqual0(posix_spawn_file_actions_addclose(&file_actions, fd));
+        }
+
+        void add_dup_to(int fd, int new_fd) {
+            checkEqual0(posix_spawn_file_actions_adddup2(&file_actions,
+                fd, new_fd));
+        }
+
+        inline posix_spawn_file_actions_t * get() {
+            return &file_actions;
+        }
+
+    private:
+        posix_spawn_file_actions_t file_actions;
+};
+
+namespace {
+    /* This function really does everything related to "running a process",
+     * all the rest of this junk is just for monitoring that process.
+     * See "execute_and_abandon" for the simplest possible way to use this. */
+    void spawn_process(const CommandList & cmds, pid_t * pid,
                        SpawnFileActions * actions=0)
     {
         if (cmds.size() < 1) {
@@ -172,10 +175,58 @@ namespace {
             throw ProcessException(ProcessException::SPAWN_FAILURE);
         }
     }
+} // end second anonymous namespace
 
-    size_t BUFFER_SIZE = 1048;
 
-}  // end anonymous namespace
+/**---------------------------------------------------------------------------
+ *- Global Functions
+ *---------------------------------------------------------------------------*/
+
+void execute(const CommandList & cmds, double time_out) {
+    Process<> proc(cmds);
+    proc.wait_for_exit(time_out);
+    if (!proc.successful()) {
+        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+    }
+}
+
+void execute(std::stringstream & out, const CommandList & cmds,
+             double time_out) {
+    Process<StdErrAndStdOut> proc(cmds); //, true);
+    try {
+        proc.read_into_until_exit(out, time_out);
+    } catch(const TimeOutException & toe) {
+        NOVA_LOG_ERROR2("Timeout error occurred reading until eof.");
+        // This is what the code used to do, but maybe it would be good to
+        // double check that this is desired.
+        proc.wait_forever_for_exit();
+        throw;
+    }
+    proc.wait_forever_for_exit();
+    if (!proc.successful()) {
+        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+    }
+}
+
+pid_t execute_and_abandon(const CommandList & cmds) {
+    pid_t pid;
+    spawn_process(cmds, &pid);
+    return pid;
+}
+
+bool is_pid_alive(pid_t pid) {
+    // Send the "null signal," so kill only performs error checking but does not
+    // actually send a signal.
+    int result = ::kill(pid, 0);
+    if (result == EINVAL && result == EPERM) {
+        NOVA_LOG_ERROR2("Error calling kill with null signal: %s",
+                        strerror(errno));
+        throw ProcessException(ProcessException::GENERAL);
+    }
+    // ESRCH means o such process found.
+    return result == 0;
+}
+
 
 /**---------------------------------------------------------------------------
  *- ProcessException
@@ -203,228 +254,52 @@ const char * ProcessException::what() const throw() {
 
 
 /**---------------------------------------------------------------------------
- *- Process::Pipe
+ *- ProcessStatusWatcher
  *---------------------------------------------------------------------------*/
 
-Process::Pipe::Pipe() {
-    checkGE0(pipe(fd) < 0);
-    is_open[0] = is_open[1] = true;
-}
-
-Process::Pipe::~Pipe() {
-    close_in();
-    close_out();
-}
-
-void Process::Pipe::close(int index) {
-    if (is_open[index]) {
-        checkEqual0(::close(fd[index]));
-        is_open[index] = false;
-    }
-}
-
-void Process::Pipe::close_in() {
-    close(0);
-}
-
-void Process::Pipe::close_out() {
-    close(1);
-}
-
-
-/**---------------------------------------------------------------------------
- *- Process
- *---------------------------------------------------------------------------*/
-
-Process::Process(const CommandList & cmds, bool wait_for_close)
-: argv(argv), eof_flag(false), std_in_pipe(), std_out_pipe(), success(false),
-  wait_for_close(wait_for_close)
+ProcessStatusWatcher::ProcessStatusWatcher()
+: finished_flag(false), success(false)
 {
-    SpawnFileActions file_actions;
-    // Redirect process stdout / in to the pipes.
-    file_actions.add_dup_to(std_in_pipe.in(), STDIN_FILENO);
-    file_actions.add_dup_to(std_out_pipe.out(), STDOUT_FILENO);
-    file_actions.add_dup_to(std_out_pipe.out(), STDERR_FILENO);
-    file_actions.add_close(std_in_pipe.out());
-    file_actions.add_close(std_out_pipe.in());
 
-    spawn_process(cmds, &pid, &file_actions);
 
-    // Close file descriptors on parent side.
-    std_in_pipe.close_in();
-    std_out_pipe.close_out();
 }
 
-
-Process::~Process() {
-    set_eof();  // Close pipes.
+ProcessStatusWatcher::~ProcessStatusWatcher() {
+    wait_for_exit_code(false);  // Close pipes.
 }
 
-
-void Process::create_argv(char * * & new_argv, int & new_argv_length,
-                          const CommandList & cmds) {
-    const size_t max = 2048;
-    new_argv_length = cmds.size() + 1;
-    new_argv = new char * [new_argv_length];
-    size_t i = 0;
-    BOOST_FOREACH(const char * cmd, cmds) {
-        new_argv[i ++] = strndup(cmd, max);
-    }
-    new_argv[new_argv_length - 1] = NULL;
+int ProcessStatusWatcher::call_waitpid(int * status, bool do_not_wait) {
+    const int options = do_not_wait ? WNOHANG : 0 ;
+    return wait_pid_with_throw(pid, status, options);
 }
 
-void Process::delete_argv(char * * & new_argv, int & new_argv_length) {
-    for (int i = 0; i < new_argv_length; i ++) {
-        ::free(new_argv[i]);
-    }
-    delete[] new_argv;
-    new_argv = 0;
-    new_argv_length = 0;
-}
-
-void Process::execute(const CommandList & cmds, double time_out) {
-    Process proc(cmds, true);
-    proc.wait_for_eof(time_out);
-    if (!proc.successful()) {
-        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
-    }
-}
-
-void Process::execute(std::stringstream & out, const CommandList & cmds,
-                      double time_out) {
-    Process proc(cmds, true);
-    proc.read_into_until_eof(out, time_out);
-    if (!proc.successful()) {
-        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
-    }
-}
-
-pid_t Process::execute_and_abandon(const CommandList & cmds) {
-    pid_t pid;
-    spawn_process(cmds, &pid);
-    return pid;
-}
-
-pid_t Process::get_pid() {
-    return pid;
-}
-
-bool Process::is_pid_alive(pid_t pid) {
-    // Send the "null signal," so kill only performs error checking but does not
-    // actually send a signal.
-    int result = ::kill(pid, 0);
-    if (result == EINVAL && result == EPERM) {
-        NOVA_LOG_ERROR2("Error calling kill with null signal: %s",
-                        strerror(errno));
-        throw ProcessException(ProcessException::GENERAL);
-    }
-    // ESRCH means o such process found.
-    return result == 0;
-}
-
-void Process::kill(double initial_wait_time, optional<double> serious_wait_time) {
-    kill_with_throw(pid, SIGTERM);
-    try {
-        wait_for_eof(5);
-    } catch (const TimeOutException & toe) {
-        if (!serious_wait_time) {
-            throw;
-        } else {
-            NOVA_LOG_ERROR("Won't die, eh? Then its time to use our ultimate "
-                           "weapon.");
-            kill_with_throw(pid, SIGKILL, true);
-            wait_for_eof(15);
-        }
-    }
-}
-
-size_t Process::read_into(stringstream & std_out, const optional<double> seconds) {
-    char buf[BUFFER_SIZE];
-    for (size_t i = 0; i < BUFFER_SIZE; ++i)
-    {
-        buf[i] = '~';
-    }
-    size_t count = read_into(buf, BUFFER_SIZE-1, seconds);
-    buf[count] = 0;  // Have to do this or Valgrind fails.
-    std_out.write(buf, count);
-    LOG_DEBUG2("buffer output:%s", buf);
-    LOG_DEBUG3("count = %d, SO FAR %d", count, std_out.str().length());
-    return count;
-}
-
-size_t Process::read_into(char * buffer, const size_t length, const optional<double> seconds) {
-    LOG_DEBUG2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
-    if (eof_flag == true) {
-        throw ProcessException(ProcessException::PROGRAM_FINISHED);
-    }
-    if (!ready(std_out_pipe.in(), seconds)) {
-        LOG_DEBUG("read_into: ready returned false, returning zero from read_into");
-        return 0;
-    }
-    size_t count = io::read_with_throw(std_out_pipe.in(), buffer, length);
-    if (count == 0) {
-        LOG_DEBUG("read returned 0, EOF");
-        set_eof();
-        return 0; // eof
-    }
-    LOG_DEBUG("Writing.");
-    LOG_DEBUG2("OUTPUT:%s", buffer);
-    LOG_DEBUG("Exit read_into");
-    return (size_t) count;
-}
-
-void Process::read_into_until_eof(stringstream & out, double seconds) {
-    LOG_DEBUG2("wait_for_eof, timeout=%f", seconds);
-    Timer timer(seconds);
-    while(read_into(out, optional<double>(seconds)));
-    if (!eof()) {
-        NOVA_LOG_ERROR2("Something went wrong, EOF not reached! Time out=%f",
-                        seconds);
-        throw TimeOutException();
-    }
-}
-
-size_t Process::read_until_pause(stringstream & std_out,
-                                 const double pause_time,
-                                 const double time_out) {
-    io::Timer timer(time_out);
-
-    if (eof_flag == true) {
-        throw ProcessException(ProcessException::PROGRAM_FINISHED);
-    }
-    size_t bytes_read = 0;
-    size_t count;
-    while(!eof() && (count = read_into(std_out, pause_time)) > 0) {
-        bytes_read += count;
-    }
-    return bytes_read;
-}
-
-bool Process::ready(int file_desc, const optional<double> seconds) {
-    if (eof_flag == true) {
-        throw ProcessException(ProcessException::PROGRAM_FINISHED);
-    }
-    fd_set file_set;
-    FD_ZERO(&file_set);
-    FD_SET(file_desc, &file_set);
-    return io::select_with_throw(file_desc + 1, &file_set, NULL, NULL, seconds)
-           != 0;
-}
-
-void Process::set_eof() {
-    if (!eof()) {
-        eof_flag = true;
-        std_out_pipe.close_in();
-        std_in_pipe.close_out();
+void ProcessStatusWatcher::wait_for_exit_code(bool wait_forever) {
+    if (!is_finished()) {
+        finished_flag = true;
         int status;
         int child_pid;
-        int options = wait_for_close ? 0 : WNOHANG;
-        while(((child_pid = waitpid(pid, &status, options)) == -1)
-              && (errno == EINTR));
+        if (!wait_forever) {
+            // Here's the thing- WNOHANG causes waitpid to return 0 (fail)
+            // nearly every time. So it's better to not specify it, even if
+            // the calling code wanted it, and use a Timer to bust out if
+            // we risk hanging forever. Then we can use WNOHANG as a last
+            // resort.
+            try {
+                Timer timer(1);
+                child_pid = call_waitpid(&status);
+            } catch(const TimeOutException & toe) {
+                NOVA_LOG_ERROR("Timed out calling waitpid without WNOHANG.");
+                child_pid = call_waitpid(&status, true);
+            }
+        } else {
+            child_pid = call_waitpid(&status);
+        }
         #ifdef _NOVA_PROCESS_VERBOSE
-            NOVA_LOG_TRACE2("Child exited. child_pid=%d, pid=%d, Pid==pid=%s, "
+            NOVA_LOG_TRACE2("Child exited. wait_forever=%s child_pid=%d, "
+                            "pid=%d, Pid==pid=%s, "
                             "WIFEXITED=%d, WEXITSTATUS=%d, "
                             "WIFSIGNALED=%d, WIFSTOPPED=%d",
+                            (wait_forever ? "true" : "false"),
                             child_pid, pid,
                             (child_pid == pid ? "true" : "false"),
                             WIFEXITED(status), (int) WEXITSTATUS(status),
@@ -435,30 +310,127 @@ void Process::set_eof() {
     }
 }
 
-void Process::_wait_for_eof(const optional<double> seconds) {
-    char buffer[1024];
-    while(read_into(buffer, sizeof(buffer) - 1, seconds));
-    if (!eof()) {
-        NOVA_LOG_ERROR2("Something went wrong, EOF not reached!");
-        if (seconds) {
-            NOVA_LOG_ERROR2("Time out=%f", seconds.get());
-        }
-        throw TimeOutException();
+
+/**---------------------------------------------------------------------------
+ *- ProcessBase
+ *---------------------------------------------------------------------------*/
+
+ProcessBase::ProcessBase()
+:   io_watchers(),
+    status_watcher()
+{
+}
+
+ProcessBase::~ProcessBase() {
+}
+
+
+void ProcessBase::add_io_handler(ProcessFileHandler * handler) {
+    io_watchers.push_back(handler);
+}
+
+void ProcessBase::destroy() {
+    _wait_for_exit_code(false); // Close pipes.
+}
+
+void ProcessBase::drain_io_from_file_handlers(optional<double> seconds) {
+    BOOST_FOREACH(ProcessFileHandler * ptr, io_watchers) {
+        ptr->drain_io(seconds);
     }
 }
 
-void Process::wait_for_eof(double seconds) {
+void ProcessBase::initialize(const CommandList & cmds) { //, ProcessIOList io_list) {
+    SpawnFileActions file_actions;
+    pre_spawn_stderr_actions(file_actions);
+    pre_spawn_stdin_actions(file_actions);
+    pre_spawn_stdout_actions(file_actions);
+
+    spawn_process(cmds, &(status_watcher.get_pid()), &file_actions);
+
+    BOOST_FOREACH(ProcessFileHandler * const ptr, io_watchers) {
+        ptr->post_spawn_actions();
+    }
+}
+
+void ProcessBase::kill(double initial_wait_time,
+                       optional<double> serious_wait_time) {
+    kill_with_throw(status_watcher.get_pid(), SIGTERM);
+    try {
+        wait_for_exit(5);
+    } catch (const TimeOutException & toe) {
+        if (!serious_wait_time) {
+            throw;
+        } else {
+            NOVA_LOG_ERROR("Won't die, eh? Then its time to use our ultimate "
+                           "weapon.");
+            kill_with_throw(status_watcher.get_pid(), SIGKILL, true);
+            wait_for_exit(15);
+        }
+    }
+}
+
+void ProcessBase::pre_spawn_stderr_actions(SpawnFileActions & file_actions) {
+    file_actions.add_close(STDERR_FILENO);
+}
+
+void ProcessBase::pre_spawn_stdin_actions(SpawnFileActions & file_actions) {
+    file_actions.add_close(STDIN_FILENO);
+}
+
+void ProcessBase::pre_spawn_stdout_actions(SpawnFileActions & file_actions) {
+    file_actions.add_close(STDOUT_FILENO);
+}
+
+void ProcessBase::_wait_for_exit_code(bool wait_forever) {
+    if (!status_watcher.is_finished()) {
+        BOOST_FOREACH(ProcessFileHandler * const ptr, io_watchers) {
+            ptr->set_eof_actions();
+        }
+        status_watcher.wait_for_exit_code(wait_forever);
+    }
+}
+
+void ProcessBase::wait_for_exit(double seconds) {
     NOVA_LOG_DEBUG2("Waiting for %f seconds for EOF...", seconds);
+    drain_io_from_file_handlers(seconds);
     Timer timer(seconds);
-    _wait_for_eof(boost::optional<double>(seconds));
+    wait_forever_for_exit();
 }
 
-void Process::wait_forever_for_eof() {
+void ProcessBase::wait_forever_for_exit() {
     NOVA_LOG_DEBUG("Waiting forever for EOF...");
-    _wait_for_eof(boost::none);
+    drain_io_from_file_handlers(boost::none);
+    _wait_for_exit_code(true);
 }
 
-void Process::write(const char * msg) {
+
+/**---------------------------------------------------------------------------
+ *- StdIn
+ *---------------------------------------------------------------------------*/
+
+StdIn::StdIn()
+:   std_in_pipe()
+{
+    add_io_handler(this);
+}
+
+StdIn::~StdIn() {
+}
+
+void StdIn::set_eof_actions() {
+    std_in_pipe.close_out();
+}
+
+void StdIn::pre_spawn_stdin_actions(SpawnFileActions & file_actions) {
+    file_actions.add_dup_to(std_in_pipe.in(), STDIN_FILENO);
+    file_actions.add_close(std_in_pipe.out());
+}
+
+void StdIn::post_spawn_actions() {
+    std_in_pipe.close_in();
+}
+
+void StdIn::write(const char * msg) {
     const size_t maxlen = 2048;
     size_t length = (size_t) strnlen(msg, maxlen);
     if (length == maxlen) {
@@ -468,10 +440,10 @@ void Process::write(const char * msg) {
     this->write(msg, length);
 }
 
-void Process::write(const char * msg, size_t length) {
+void StdIn::write(const char * msg, size_t length) {
     //::write(std_in_fd[0], msg, length);
-    LOG_DEBUG2("Writing msg with %d bytes.", length);
-    ssize_t count = ::write(std_in_pipe.out(), msg, length);
+    NOVA_LOG_TRACE2("Writing msg with %d bytes.", length);
+    ssize_t count = ::write(this->std_in_pipe.out(), msg, length);
     if (count < 0) {
         NOVA_LOG_ERROR2("write failed. errno = %d", errno);
         throw ProcessException(ProcessException::GENERAL);
@@ -481,4 +453,122 @@ void Process::write(const char * msg, size_t length) {
     }
 }
 
-}  // end nova namespace
+/**---------------------------------------------------------------------------
+ *- StdErrAndStdOut
+ *---------------------------------------------------------------------------*/
+
+StdErrAndStdOut::StdErrAndStdOut()
+:   draining(false),
+    std_out_pipe()
+{
+    ::fcntl(std_out_pipe.in(), F_SETFL, O_NONBLOCK);
+    add_io_handler(this);
+}
+
+StdErrAndStdOut::~StdErrAndStdOut()
+{
+}
+
+void StdErrAndStdOut::drain_io(optional<double> seconds) {
+    if (draining) {
+        return;
+    }
+    NOVA_LOG_TRACE("Draining STDOUT / STDERR...");
+    draining = true;
+    char buffer[1024];
+    size_t count;
+    std::auto_ptr<Timer> timer;
+    if (seconds) {
+        timer.reset(new Timer(seconds.get()));
+    }
+    while (0 != (count = read_into(buffer, sizeof(buffer) - 1, seconds))) {
+        NOVA_LOG_TRACE2("Draining again! %d", count);
+    };
+}
+
+void StdErrAndStdOut::pre_spawn_stderr_actions(SpawnFileActions & file_actions) {
+    NOVA_LOG_TRACE("Opening up stderr pipes.");
+    file_actions.add_dup_to(std_out_pipe.out(), STDERR_FILENO);
+}
+
+void StdErrAndStdOut::pre_spawn_stdout_actions(SpawnFileActions & file_actions) {
+    NOVA_LOG_TRACE("Opening up stdout pipes.");
+    file_actions.add_dup_to(std_out_pipe.out(), STDOUT_FILENO);
+    file_actions.add_close(std_out_pipe.in());
+}
+
+void StdErrAndStdOut::post_spawn_actions() {
+    std_out_pipe.close_out();
+    NOVA_LOG_TRACE("Closing the out side of the stderr/stdout pipe.");
+}
+
+size_t StdErrAndStdOut::read_into(stringstream & std_out,
+                                  const optional<double> seconds) {
+    char buf[BUFFER_SIZE];
+    for (size_t i = 0; i < BUFFER_SIZE; ++i)
+    {
+        buf[i] = '~';
+    }
+    size_t count = read_into(buf, BUFFER_SIZE-1, seconds);
+    buf[count] = 0;  // Have to do this or Valgrind fails.
+    std_out.write(buf, count);
+    NOVA_LOG_TRACE2("buffer output:%s", buf);
+    NOVA_LOG_TRACE2("count = %d, SO FAR %d", count, std_out.str().length());
+    return count;
+}
+
+size_t StdErrAndStdOut::read_into(char * buffer, const size_t length,
+                                  const optional<double> seconds) {
+    NOVA_LOG_TRACE2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    if (!std_out_pipe.in_is_open()) {
+        throw ProcessException(ProcessException::PROGRAM_FINISHED);
+    }
+    if (!ready(this->std_out_pipe.in(), seconds)) {
+        NOVA_LOG_TRACE("ready returned false, returning zero from read_into");
+        return 0;
+    }
+    size_t count = io::read_with_throw(this->std_out_pipe.in(), buffer, length);
+    if (count == 0) {
+        NOVA_LOG_TRACE("read returned 0, EOF");
+        draining = true;  // Avoid re-draining.
+        wait_forever_for_exit();
+        return 0; // eof
+    }
+    NOVA_LOG_TRACE("Writing.");
+    //TODO(tim.simpson): Consider eliminating this. It's a mess.
+    NOVA_LOG_TRACE2("OUTPUT:~={%.*s}=~", count, buffer);
+    NOVA_LOG_TRACE("Exit read_into");
+    return (size_t) count;
+}
+
+void StdErrAndStdOut::read_into_until_exit(stringstream & out,
+                                           double seconds) {
+    NOVA_LOG_TRACE2("wait_for_eof, timeout=%f", seconds);
+    while(read_into(out, optional<double>(seconds)));
+    if (std_out_pipe.in_is_open()) {
+        NOVA_LOG_ERROR2("Something went wrong, EOF not reached! Time out=%f",
+                        seconds);
+        throw TimeOutException();
+    }
+}
+
+size_t StdErrAndStdOut::read_until_pause(stringstream & std_out,
+                                         const double time_out) {
+    if (!std_out_pipe.in_is_open()) {
+        throw ProcessException(ProcessException::PROGRAM_FINISHED);
+    }
+    size_t bytes_read = 0;
+    size_t count;
+    while(std_out_pipe.in_is_open() && (count = read_into(std_out, time_out)) > 0) {
+        bytes_read += count;
+    }
+    return bytes_read;
+}
+
+void StdErrAndStdOut::set_eof_actions() {
+    std_out_pipe.close_in();
+    NOVA_LOG_TRACE("Closing in side of the stderr/stdout pipe.");
+}
+
+
+} }  // end nova::process namespace

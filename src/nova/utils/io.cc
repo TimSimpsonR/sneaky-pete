@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 using nova::utils::io::IOException;
 using nova::Log;
@@ -18,6 +19,20 @@ using nova::LogPtr;
 using boost::optional;
 
 namespace {
+
+    void assert_only_one_timer(int increment) {
+        static int instance_count = 0;
+        instance_count += increment;
+        if (instance_count > 1 || instance_count < 0) {
+            NOVA_LOG_ERROR2("\n\n\n\tERROR!\n\n\n"
+                            "Two timers cannot be used at a time. Destroy one "
+                            "before creating another.");
+            NOVA_LOG_ERROR2("Count = %d", instance_count);
+            #ifdef _DEBUG
+                std::abort();  // This is what you get, criminal!
+            #endif
+        }
+    }
 
     inline void checkGE0(LogPtr & log, const int return_code,
                          IOException::Code code = IOException::GENERAL) {
@@ -88,6 +103,8 @@ const char * IOException::what() const throw() {
     switch(code) {
         case ACCESS_DENIED:
             return "Access denied.";
+        case PIPE_CREATION_ERROR:
+            return "Error creating pipe!";
         case READ_ERROR:
             return "Read error.";
         case SIGNAL_HANDLER_DESTROY_ERROR:
@@ -101,6 +118,41 @@ const char * IOException::what() const throw() {
         default:
             return "An error occurred.";
     }
+}
+
+
+/**---------------------------------------------------------------------------
+ *- Pipe
+ *---------------------------------------------------------------------------*/
+
+Pipe::Pipe() {
+    if (0 != pipe(fd)) {
+        NOVA_LOG_ERROR2("System error : %s", strerror(errno));
+        throw IOException(IOException::PIPE_CREATION_ERROR);
+    }
+    is_open[0] = is_open[1] = true;
+}
+
+Pipe::~Pipe() {
+    close_in();
+    close_out();
+}
+
+void Pipe::close(int index) {
+    if (is_open[index]) {
+        if (0 != ::close(fd[index])) {
+            NOVA_LOG_ERROR2("Error closing pipe! %s", strerror(errno));
+        }
+        is_open[index] = false;
+    }
+}
+
+void Pipe::close_in() {
+    close(0);
+}
+
+void Pipe::close_out() {
+    close(1);
 }
 
 
@@ -124,6 +176,7 @@ const char * TimeOutException::what() const throw() {
  *---------------------------------------------------------------------------*/
 
 Timer::Timer(double seconds) {
+    assert_only_one_timer(1);
     set_interrupt_handler();
     // Initialize timer.
     itimerspec value;
@@ -143,9 +196,12 @@ Timer::Timer(double seconds) {
 }
 
 Timer::~Timer() {
+    assert_only_one_timer(-1);
     LogPtr log = Log::get_instance();
-    checkEqual0(log, timer_delete(id),
-                IOException::TIMER_DISABLE_ERROR);
+    if (0 != ::timer_delete(id)) {
+        NOVA_LOG_WRITE(log, LEVEL_ERROR)
+            ("Error deleting timer! OH NO! : %s", strerror(errno));
+    }
     time_out_occurred() = false;
     remove_interrupt_handler();
 }
@@ -233,6 +289,13 @@ size_t read_with_throw(int fd, char * const buf, size_t count) {
 // ProcessTimeOutExceptions if they happen.
 int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * errorfds, optional<double> seconds) {
+    NOVA_LOG_TRACE2("select_with_throw, seconds for timeout? %f",
+                    (seconds ? seconds.get() : -99));
+    if (Timer::time_out_occurred()) {
+        NOVA_LOG_ERROR("Not even attempting a select call as an unhandled"
+                       "time out exception is being thrown.");
+        throw TimeOutException();
+    }
     timespec time_out = timespec_from_seconds(!seconds ? 0.0 : seconds.get());
     sigset_t empty_set;
     sigemptyset(&empty_set);
@@ -240,8 +303,11 @@ int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
     int ready = -1;
     while(ready < 0)
     {
+        //TODO(tim.simpson): Consider surrounding this call with the
+        //                   assert_only_one_timer calls seen in the Timer
+        //                   class.
         ready = pselect(nfds, readfds, writefds, errorfds,
-                            (!seconds ? NULL: &time_out), &empty_set);
+                        (!seconds ? NULL: &time_out), &empty_set);
         if (ready < 0) {
             if (errno == EINTR) {
                 if (Timer::time_out_occurred()) {
@@ -258,5 +324,29 @@ int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
     }
     return ready;
 }
+
+int wait_pid_with_throw(pid_t pid, int * status, int options) {
+    if (Timer::time_out_occurred()) {
+        NOVA_LOG_ERROR("Not even attempting a waitpid call as an unhandled"
+                       "time out exception is being thrown.");
+        throw TimeOutException();
+    }
+    int child_pid;
+    while(((child_pid = ::waitpid(pid, status, options)) == -1)
+          && (errno == EINTR)) {
+        if (errno == EINTR) {
+            if (Timer::time_out_occurred()) {
+                throw TimeOutException();
+            } else {
+                NOVA_LOG_ERROR("waitpid was interrupted, retrying.");
+            }
+        } else {
+            NOVA_LOG_ERROR2("Error calling waitpid:%s", strerror(errno));
+            throw IOException(IOException::WAITPID_ERROR);
+        }
+    }
+    return child_pid;
+}
+
 
 } } }  // end nova::utils::io

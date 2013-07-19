@@ -7,10 +7,12 @@
 #include <stdlib.h>
 
 using namespace nova;
+using namespace nova::process;
 using std::string;
 using std::stringstream;
 using namespace boost::assign;
 
+#define CHECK_POINT BOOST_REQUIRE_EQUAL(2,2);
 
 static string path;
 
@@ -33,6 +35,7 @@ struct GlobalFixture {
 
     GlobalFixture()
     : log(LogOptions::simple()) {
+        setenv("food", "", 1);
     }
 
 };
@@ -44,123 +47,103 @@ BOOST_GLOBAL_FIXTURE(GlobalFixture);
  *---------------------------------------------------------------------------*/
 BOOST_AUTO_TEST_CASE(sending_to_stdin)
 {
-    Process::CommandList cmds = list_of(parrot_path())("wake");
-    Process process(cmds);
+    CommandList cmds = list_of(parrot_path())("wake");
+    Process<StdErrAndStdOut, StdIn> process(cmds);
 
     // Parrot program sends a first message to its stdout, then waits
     // for a response.
     {
         stringstream std_out;
-        size_t bytes_read = process.read_until_pause(std_out, 1, 4.0);
+        size_t bytes_read = process.read_until_pause(std_out, 1);
         BOOST_REQUIRE_EQUAL(bytes_read, 22);
         BOOST_REQUIRE_EQUAL("(@'> <( Hello! AWK! )\n", std_out.str());
-        BOOST_REQUIRE_EQUAL(process.eof(), false);
+        BOOST_REQUIRE_EQUAL(process.is_finished(), false);
     }
 
     // Polling a second time will show no new input.
     {
         stringstream std_out;
-        size_t bytes_read = process.read_until_pause(std_out, 1, 4.0);
+        size_t bytes_read = process.read_until_pause(std_out, 1);
         BOOST_REQUIRE_EQUAL(bytes_read, 0);
         BOOST_REQUIRE_EQUAL("", std_out.str());
-        BOOST_REQUIRE_EQUAL(process.eof(), false);
+        BOOST_REQUIRE_EQUAL(process.is_finished(), false);
     }
 
     process.write("hi...\n");
     {
         stringstream std_out;
-        size_t bytes_read = process.read_until_pause(std_out, 1, 4.0);
+        size_t bytes_read = process.read_until_pause(std_out, 1);
         BOOST_REQUIRE_EQUAL(bytes_read, 21);
         BOOST_REQUIRE_EQUAL("(@'> <( hi... AWK! )\n", std_out.str());
-        BOOST_REQUIRE_EQUAL(process.eof(), false);
+        BOOST_REQUIRE_EQUAL(process.is_finished(), false);
     }
 
     // Again, polling a second time will show no new input.
     {
         stringstream std_out;
-        size_t bytes_read = process.read_until_pause(std_out, 2, 4.0);
+        size_t bytes_read = process.read_until_pause(std_out, 2);
         BOOST_REQUIRE_EQUAL(bytes_read, 0);
         BOOST_REQUIRE_EQUAL("", std_out.str());
-        BOOST_REQUIRE_EQUAL(process.eof(), false);
+        BOOST_REQUIRE_EQUAL(process.is_finished(), false);
     }
 
     process.write("die\n");
     {
         stringstream std_out;
-        size_t bytes_read = process.read_until_pause(std_out, 5, 4.0);
+        size_t bytes_read = process.read_until_pause(std_out, 5);
         BOOST_REQUIRE_EQUAL("(@'> <( I am dead! AWK! )\n", std_out.str());
         BOOST_REQUIRE_EQUAL(bytes_read, 26);
-        BOOST_REQUIRE_EQUAL(process.eof(), true);
+        BOOST_REQUIRE_EQUAL(process.is_finished(), true);
     }
 }
 
 BOOST_AUTO_TEST_CASE(sending_to_stderr)
 {
-    Process::CommandList cmds = list_of(parrot_path());
-    Process process(cmds);
+    CHECK_POINT;
+    CommandList cmds = list_of(parrot_path());
+    Process<StdErrAndStdOut> process(cmds);
     stringstream std_out;
-    size_t bytes_read = process.read_until_pause(std_out, 2, 4.0);
+    size_t bytes_read = process.read_until_pause(std_out, 2);
     BOOST_REQUIRE_EQUAL("(@'> <( zzz )\n", std_out.str());
     BOOST_REQUIRE_EQUAL(bytes_read, 14);
-    BOOST_REQUIRE_EQUAL(process.eof(), true);
+    BOOST_REQUIRE_EQUAL(process.is_finished(), true);
 }
 
 BOOST_AUTO_TEST_CASE(execute_test) {
+    CHECK_POINT;
     const double TIME_OUT = 4.0;
     // Returns zero exit code.
-    Process::CommandList cmds = list_of(parrot_path())("chirp");
-    Process::execute(cmds, TIME_OUT);
+    CommandList cmds = list_of(parrot_path())("chirp");
+    execute(cmds, TIME_OUT);
 
     try {
-        Process::CommandList cmds = list_of(parrot_path());
-        Process::execute(cmds, TIME_OUT);
+        CommandList cmds = list_of(parrot_path());
+        execute(cmds, TIME_OUT);
         BOOST_FAIL("Should have thrown.");
     } catch(const ProcessException & pe) {
         BOOST_REQUIRE_EQUAL(ProcessException::EXIT_CODE_NOT_ZERO, pe.code);
     }
 }
 
-BOOST_AUTO_TEST_CASE(environment_variables_should_transfer) {
+BOOST_AUTO_TEST_CASE(environment_variables_should_transfer_part_1_it_fails) {
+    CHECK_POINT;
     const double TIME_OUT = 4.0;
     // Returns zero exit code.
-    Process::CommandList cmds = list_of(parrot_path())("eat");
+    CommandList cmds = list_of(parrot_path())("eat");
 
     stringstream out;
-    Process::execute(out, cmds, TIME_OUT);
+    execute(out, cmds, TIME_OUT);
     BOOST_CHECK_EQUAL(out.str(), "(@'> <( I can't eat this! AWK! )\n");
+}
 
+BOOST_AUTO_TEST_CASE(environment_variables_should_transfer_part_2_it_fails) {
+    CHECK_POINT;
+    NOVA_LOG_TRACE("\n\nENVIRO TEST\n\n\n");
+    const double TIME_OUT = 4.0;
+    CommandList cmds = list_of(parrot_path())("eat");
     setenv("food", "birdseed", 1);
     stringstream out2;
-    Process::execute(out2, cmds, TIME_OUT);
+    execute(out2, cmds, TIME_OUT);
     BOOST_CHECK_EQUAL(out2.str(), "(@'> < * crunch * )\n");
+    CHECK_POINT;
 }
-
-
-//TODO: Need a test for a process which outputs infinite data to standard out.
-
-/*
-BOOST_AUTO_TEST_CASE(read_until_pause_will_time_out_even_with_infinite_input)
-{
-    const char * program_path = "/src/bin/gcc-4.4.3/debug/parrot";
-    const char * const argv[] = {"babble", (char *) 0};
-    Process process(program_path, argv);
-    stringstream std_out;
-    size_t bytes_read = process.read_until_pause(std_out, 6, 3.0);
-    BOOST_REQUIRE(bytes_read > 1024);
-    BOOST_REQUIRE_EQUAL("(@'> <( zzz )\n", std_out.str().substr(0, 30));
-    BOOST_REQUIRE_EQUAL(process.eof(), false);
-}
-
-
-BOOST_AUTO_TEST_CASE(gdfhd)
-{
-    const char * program_path = "/src/bin/gcc-4.4.3/debug/parrot";
-    const char * const argv[] = {"wake", (char *) 0};
-    Process process(program_path, argv);
-    stringstream std_out;
-    size_t bytes_read = process.read_until_pause(std_out, 9, 3.0);
-    bytes_read = process.read_until_pause(std_out, 9, 3.0);
-    BOOST_REQUIRE(bytes_read > 1024);
-    BOOST_REQUIRE_EQUAL("(@'> <( zzz )\n", std_out.str().substr(0, 30));
-    BOOST_REQUIRE_EQUAL(process.eof(), false);
-}*/

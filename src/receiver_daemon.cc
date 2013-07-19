@@ -4,6 +4,7 @@
 #include "nova/ConfigFile.h"
 #include "nova/utils/Curl.h"
 #include "nova/flags.h"
+#include "nova/LogFlags.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
@@ -375,20 +376,7 @@ int main(int argc, char* argv[]) {
         FlagValues flags(FlagMap::create_from_args(argc, argv, true));
 
         /* Initialize logging. */
-        optional<LogFileOptions> log_file_options;
-        if (flags.log_file_path()) {
-            LogFileOptions ops(flags.log_file_path().get(),
-                               flags.log_file_max_size(),
-                               flags.log_file_max_time(),
-                               flags.log_file_max_old_files().get_value_or(30));
-            log_file_options = optional<LogFileOptions>(ops);
-        } else {
-            log_file_options = boost::none;
-        }
-        LogOptions log_options(log_file_options,
-                               flags.log_use_std_streams(),
-                               flags.log_show_trace());
-
+        LogOptions log_options = log_options_from_flags(flags);
         LogApiScope log_api_scope(log_options);
 
         #ifndef _DEBUG

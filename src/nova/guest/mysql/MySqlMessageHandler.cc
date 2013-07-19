@@ -31,8 +31,6 @@ using nova::JsonDataPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
 using nova::guest::mysql::MySqlGuestException;
-using nova::Process;
-using nova::ProcessException;
 using namespace nova::db::mysql;
 using boost::optional;
 using namespace std;
@@ -178,18 +176,6 @@ namespace {
         };
         sql->create_users(users);
         return JsonData::from_null();
-    }
-
-    void _restore_database(string token, string backup_url) {
-        Process::CommandList cmds;
-        cmds += "/usr/bin/sudo", "-E", "/var/lib/nova/restore";
-        cmds += token.c_str();
-        cmds += backup_url.c_str();
-        Process proc(cmds, true);
-        proc.wait_forever_for_eof();
-        if (!proc.successful()) {
-           throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
-        }
     }
 
     JSON_METHOD(create_database) {

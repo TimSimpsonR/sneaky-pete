@@ -29,7 +29,7 @@ using boost::optional;
 using namespace nova;
 using namespace nova::utils;
 using nova::Log;
-using nova::Process;
+namespace process = nova::process;
 using namespace std;
 
 namespace nova { namespace guest { namespace mysql {
@@ -58,11 +58,11 @@ namespace {
         // UPDATE: Nope, turns out this is only on my box. Sometimes it
         //         returns something else.
         stringstream output;
-        Process::CommandList cmds = list_of("/usr/bin/sudo")
+        process::CommandList cmds = list_of("/usr/bin/sudo")
             ("update-rc.d")("mysql")(enabled ? "enable" : "disable");
         try {
-            Process::execute(output, cmds);
-        } catch(const ProcessException & pe) {
+            process::execute(output, cmds);
+        } catch(const process::ProcessException & pe) {
             NOVA_LOG_ERROR("Exception running process!");
             NOVA_LOG_ERROR(pe.what());
             if (throw_on_bad_exit_code) {
@@ -98,9 +98,9 @@ namespace {
             IsoTime time;
             string new_mycnf = str(format("%s.%s") % original_path
                                    % time.c_str());
-            Process::execute(list_of("/usr/bin/sudo")("mv")(original_path)
+            process::execute(list_of("/usr/bin/sudo")("mv")(original_path)
                              (new_mycnf.c_str()));
-            Process::execute(list_of("/usr/bin/sudo")("cp")(template_path)
+            process::execute(list_of("/usr/bin/sudo")("cp")(template_path)
                              (original_path));
         }
     }
@@ -200,13 +200,13 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
                                         admin_password.c_str());
 
     NOVA_LOG_INFO("Copying tmp file so we can log in (permissions work-around).");
-    Process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
+    process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
     NOVA_LOG_INFO("Moving tmp into final.");
-    Process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
+    process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
     NOVA_LOG_INFO("Removing original my.cnf.");
-    Process::execute(list_of("/usr/bin/sudo")("rm")(ORIG_MYCNF));
+    process::execute(list_of("/usr/bin/sudo")("rm")(ORIG_MYCNF));
     NOVA_LOG_INFO("Symlinking final my.cnf.");
-    Process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
+    process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
                             (ORIG_MYCNF));
     wipe_ib_logfiles();
 }
@@ -274,9 +274,9 @@ void MySqlApp::prepare(AptGuest & apt, int memory_mb,
 
 string fetch_debian_sys_maint_password() {
     // Have to copy the debian file to tmp and chown it just to read it. LOL!
-    Process::execute(list_of("/usr/bin/sudo")("cp")(TRUE_DEBIAN_CNF)
+    process::execute(list_of("/usr/bin/sudo")("cp")(TRUE_DEBIAN_CNF)
                             (TMP_DEBIAN_CNF));
-    Process::execute(list_of("/usr/bin/sudo")("/bin/chown")("nova")(TMP_DEBIAN_CNF));
+    process::execute(list_of("/usr/bin/sudo")("/bin/chown")("nova")(TMP_DEBIAN_CNF));
     string user, password;
     MySqlConnection::get_auth_from_config(TMP_DEBIAN_CNF, user, password);
     if (user != "debian-sys-maint") {
@@ -331,7 +331,7 @@ void MySqlApp::install_mysql(AptGuest & apt) {
 
 void MySqlApp::internal_stop_mysql(bool update_db) {
     NOVA_LOG_INFO("Stopping mysql...");
-    Process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"),
+    process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"),
                      this->state_change_wait_time);
     wait_for_internal_stop(update_db);
 }
@@ -376,9 +376,9 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
 
 void MySqlApp::run_mysqld_with_init() {
     NOVA_LOG_INFO("Starting mysqld_safe with init file...");
-    Process::CommandList cmds = list_of("/usr/bin/sudo")
+    process::CommandList cmds = list_of("/usr/bin/sudo")
         ("/usr/bin/mysqld_safe")("--user=mysql")(FRESH_INIT_FILE_PATH_ARG);
-    Process mysqld_safe(cmds, true);
+    process::Process<> mysqld_safe(cmds);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, false)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");
@@ -400,11 +400,11 @@ void MySqlApp::run_mysqld_with_init() {
     }
     NOVA_LOG_INFO("Killing mysqld_safe...");
     string pid_str = str(format("%d") % mysqld_safe.get_pid());
-    Process::CommandList kill_cmd = list_of("/usr/bin/sudo")("/bin/kill")
+    process::CommandList kill_cmd = list_of("/usr/bin/sudo")("/bin/kill")
                                            (pid_str.c_str());
-    Process::execute(kill_cmd);
+    process::execute(kill_cmd);
     NOVA_LOG_INFO("Waiting for process to die...");
-    mysqld_safe.wait_for_eof(60);
+    mysqld_safe.wait_for_exit(60);
 
     wait_for_internal_stop(false);
 }
@@ -412,9 +412,9 @@ void MySqlApp::run_mysqld_with_init() {
 void MySqlApp::start_mysql(bool update_db) {
     NOVA_LOG_INFO("Starting mysql...");
     // As a precaution, make sure MySQL will run on boot.
-    Process::CommandList cmds = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
+    process::CommandList cmds = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
                                        ("start");
-    Process::execute(cmds, this->state_change_wait_time);
+    process::execute(cmds, this->state_change_wait_time);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");
@@ -468,8 +468,8 @@ void MySqlApp::wipe_ib_logfiles() {
     // separately.
     string logfile0 = str(format("%s/ib_logfile0") % MYSQL_BASE_DIR);
     string logfile1 = str(format("%s/ib_logfile1") % MYSQL_BASE_DIR);
-    Process::execute(list_of("/usr/bin/sudo")("rm")(logfile0.c_str()));
-    Process::execute(list_of("/usr/bin/sudo")("rm")(logfile1.c_str()));
+    process::execute(list_of("/usr/bin/sudo")("rm")(logfile0.c_str()));
+    process::execute(list_of("/usr/bin/sudo")("rm")(logfile1.c_str()));
 }
 
 } } }  // end nova::guest::mysql

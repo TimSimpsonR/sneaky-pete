@@ -9,6 +9,7 @@ using namespace nova;
 using std::string;
 using std::stringstream;
 using namespace boost::assign;
+using namespace nova::process;
 
 /*
  * This is a demo app which repeatedly runs the process
@@ -25,9 +26,9 @@ int main(int argc, char* argv[]) {
             count ++;
             NOVA_LOG_INFO("Pinging mysqladmin...");
             stringstream out;
-            Process::execute(out, list_of("/usr/bin/sudo")
-                                         ("/usr/bin/mysqladmin")
-                                         ("ping"));
+            execute(out, list_of("/usr/bin/sudo")
+                                ("/usr/bin/mysqladmin")
+                                ("ping"));
             NOVA_LOG_INFO("Ping complete.");
             NOVA_LOG_INFO2("Current count = %d", count);
         } catch(const std::exception & ex) {

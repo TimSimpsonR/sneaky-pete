@@ -22,7 +22,7 @@ using nova::LogOptions;
 using namespace nova::db::mysql;
 using nova::guest::mysql::MySqlAppStatus;
 using boost::optional;
-using nova::ProcessException;
+using nova::process::ProcessException;
 using std::string;
 
 namespace nova { namespace guest { namespace mysql {

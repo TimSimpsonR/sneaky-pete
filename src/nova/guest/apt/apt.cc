@@ -28,7 +28,7 @@ using namespace boost::assign;
 using std::auto_ptr;
 using boost::format;
 using boost::optional;
-using nova::Process;
+namespace proc = nova::process;
 using nova::utils::Regex;
 using nova::utils::RegexMatches;
 using nova::utils::RegexMatchesPtr;
@@ -39,6 +39,7 @@ using nova::utils::io::TimeOutException;
 using nova::utils::io::Timer;
 using std::vector;
 
+#define _VERBOSE_NOVA_GUEST_APT
 #ifdef _VERBOSE_NOVA_GUEST_APT
 #define VERBOSE_LOG(args) NOVA_LOG_DEBUG(args)
 #define VERBOSE_LOG3(a1, a2, a3) NOVA_LOG_DEBUG2(a1, a2, a3)
@@ -68,7 +69,7 @@ namespace {
 
     void wait_for_proc_to_finish(pid_t pid, int time_out) {
         int time_left = time_out;
-        while (Process::is_pid_alive(pid) && time_left > 0) {
+        while (proc::is_pid_alive(pid) && time_left > 0) {
             boost::this_thread::sleep(boost::posix_time::seconds(1));
             time_left--;
         }
@@ -86,26 +87,27 @@ AptGuest::AptGuest(bool with_sudo, const char * self_package_name,
 
 void AptGuest::fix(double time_out) {
     // sudo -E dpkg --configure -a
-    Process::CommandList cmds;
+    proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
     cmds += "/usr/bin/dpkg", "--configure", "-a";
-    Process process(cmds, false);
+    proc::Process<proc::StdErrAndStdOut> process(cmds);
 
     // Expect just a simple EOF.
     stringstream std_out;
-    process.read_until_pause(std_out, time_out, time_out);
-    if (!process.eof()) {
+    process.read_until_pause(std_out, time_out);
+    if (!process.is_finished()) {
         throw AptException(AptException::COULD_NOT_FIX);
     }
 }
 
 
 // Returns -1 on EOF, an index of a regular expression that matched.
-optional<ProcessResult> match_output(Process & process,
-                                     const vector<string> & patterns,
-                                     double seconds)
+optional<ProcessResult> match_output(
+    proc::Process<proc::StdErrAndStdOut> & process,
+    const vector<string> & patterns,
+    double seconds)
 {
     typedef shared_ptr<Regex> RegexPtr;
     vector<RegexPtr> regexes;
@@ -116,13 +118,13 @@ optional<ProcessResult> match_output(Process & process,
     stringstream std_out;
 
     Timer timer(seconds);
-    while(!process.eof()) {
-        size_t count = process.read_into(std_out, boost::none);
+    while(!process.is_finished()) {
+        size_t count = process.read_into(std_out, seconds);
         VERBOSE_LOG("********************************************************");
         VERBOSE_LOG(std_out.str().c_str());
         VERBOSE_LOG("********************************************************");
         if (count == 0) {
-            if (!process.eof()) {
+            if (!process.is_finished()) {
                 NOVA_LOG_ERROR("read should not exit until it gets data.");
                 throw AptException(AptException::GENERAL);
             }
@@ -156,14 +158,14 @@ optional<ProcessResult> match_output(Process & process,
  */
 OperationResult _install(bool with_sudo, const char * package_name,
                          double time_out) {
-    Process::CommandList cmds;
+    proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
     setenv("DEBIAN_FRONTEND", "noninteractive", 1);
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
             package_name;
-    Process process(cmds, false);
+    proc::Process<proc::StdErrAndStdOut> process(cmds);  // Should be ok to make wait.
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -201,7 +203,7 @@ OperationResult _install(bool with_sudo, const char * package_name,
             throw AptException(AptException::ADMIN_LOCK_ERROR);
         } else {
             try {
-                process.wait_for_eof(time_out);
+                process.wait_for_exit(time_out);
             } catch(const TimeOutException & toe) {
                 throw AptException(AptException::PROCESS_TIME_OUT);
             }
@@ -231,7 +233,7 @@ pid_t AptGuest::_install_new_self() {
     // Calling the update function above won't work when updating this process,
     // because there will be broken pipe issues in apt-get when this program
     // exits.
-    Process::CommandList cmds;
+    proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
@@ -239,8 +241,8 @@ pid_t AptGuest::_install_new_self() {
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
             self_package_name.c_str();
     try {
-        return Process::execute_and_abandon(cmds);
-    } catch(const ProcessException & pe) {
+        return proc::execute_and_abandon(cmds);
+    } catch(const proc::ProcessException & pe) {
         NOVA_LOG_ERROR2("An error occurred calling apt-get update:%s",
                         pe.what());
         throw AptException(AptException::UPDATE_FAILED);
@@ -253,7 +255,7 @@ void AptGuest::install_self_update() {
     pid_t pid = _install_new_self();
     NOVA_LOG_INFO("Waiting for oblivion...");
     wait_for_proc_to_finish(pid, self_update_time_out);
-    if (Process::is_pid_alive(pid)) {
+    if (proc::is_pid_alive(pid)) {
         NOVA_LOG_ERROR("Time out. apt-get is still running. This is very bad.");
         throw AptException(AptException::PROCESS_TIME_OUT);
     }
@@ -264,14 +266,14 @@ void AptGuest::install_self_update() {
 
 OperationResult _call_remove_or_purge(bool with_sudo, const char * package_name,
                                       double time_out, bool use_purge) {
-    Process::CommandList cmds;
+    proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
     cmds += use_purge ? "purge" : "remove";
     cmds += package_name;
-    Process process(cmds, false);
+    proc::Process<proc::StdErrAndStdOut> process(cmds);
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -323,7 +325,7 @@ OperationResult _call_remove_or_purge(bool with_sudo, const char * package_name,
                 }
             }
             try {
-                process.wait_for_eof(time_out);
+                process.wait_for_exit(time_out);
             } catch(const TimeOutException & toe) {
                 throw AptException(AptException::PROCESS_TIME_OUT);
             }
@@ -362,16 +364,16 @@ void AptGuest::remove(const char * package_name, const double time_out) {
 }
 
 void AptGuest::update(const double time_out) {
-    Process::CommandList cmds;
+    proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
     cmds += "/usr/bin/apt-get", "update";
     try {
-        Process::execute(cmds, time_out);
+        proc::execute(cmds, time_out);
     } catch(const TimeOutException & toe) {
         throw AptException(AptException::PROCESS_TIME_OUT);
-    } catch(const ProcessException & pe) {
+    } catch(const proc::ProcessException & pe) {
         NOVA_LOG_ERROR2("An error occurred calling apt-get update:%s",
                         pe.what());
         throw AptException(AptException::UPDATE_FAILED);
@@ -384,7 +386,8 @@ typedef boost::optional<std::string> optional_string;
 optional<string> AptGuest::version(const char * package_name,
                                    const double time_out) {
     NOVA_LOG_DEBUG2("Getting version of %s", package_name);
-    Process process(list_of("/usr/bin/dpkg-query")("-W")(package_name), true);
+    proc::CommandList cmds = list_of("/usr/bin/dpkg-query")("-W")(package_name);
+    proc::Process<proc::StdErrAndStdOut> process(cmds);
 
     vector<string> patterns;
     // 0 = Not found

@@ -47,6 +47,46 @@ struct SwiftFileInfo {
 
 
 class SwiftClient : boost::noncopyable {
+public:
+    SwiftClient(const std::string & token);
+
+    virtual ~SwiftClient();
+
+protected:
+    nova::utils::Curl session;
+
+    void add_token();
+
+    void reset_session();
+
+private:
+    const std::string token;
+};
+
+
+class SwiftDownloader : public SwiftClient {
+public:
+    class Output : boost::noncopyable  {
+    public:
+        virtual ~Output();
+
+        virtual void write(const char * buffer, size_t buffer_size) = 0;
+    };
+
+    SwiftDownloader(const std::string & token,
+                    const std::string & url);
+
+    SwiftDownloader(const std::string & token,
+                    const SwiftFileInfo & file_info);
+
+    void read(Output & writer);
+
+private:
+    std::string url;
+};
+
+
+class SwiftUploader : public SwiftClient {
 
 public:
     /**
@@ -61,35 +101,22 @@ public:
         virtual size_t read(char * buffer, size_t buffer_size) = 0;
     };
 
-    class Output : boost::noncopyable  {
-    public:
-        virtual ~Output();
 
-        virtual void write(const char * buffer, size_t buffer_size) = 0;
-    };
+    SwiftUploader(const std::string & token,
+                  const size_t & max_bytes,
+                  const SwiftFileInfo & file_info);
 
-    SwiftClient(const std::string & token,
-                const size_t & max_bytes,
-                const int & chunk_size,
-                const SwiftFileInfo & file_info);
-
-    const size_t max_bytes;
-    void read(Output & writer);
     std::string write(Input & reader);
 
 private:
     struct SegmentInfo;
 
-    int chunk_size;
     Md5 file_checksum;
     SwiftFileInfo file_info;
     int file_number;
-    nova::utils::Curl session;
-    const std::string token;
 
-    void add_token();
+    const size_t max_bytes;
 
-    void reset_session();
     bool validate_segment(const std::string & url, const std::string checksum);
     void write_container();
     void write_manifest(int file_number);

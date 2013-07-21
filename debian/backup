@@ -2,20 +2,4 @@
 set -e
 ulimit -s unlimited
 
-run_backup() {
-    echo "BAD" > /tmp/$$.dumb_hack
-    /usr/bin/innobackupex --stream=xbstream \
-        /var/lib/mysql \
-        2>/tmp/xtrabackup.log
-    echo "0" > /tmp/$$.dumb_hack
-}
-
-
-run_backup | /bin/gzip -
-
-MAGICAL_VAR=`cat /tmp/$$.dumb_hack`
-if [ "0" != "${MAGICAL_VAR}" ]; then
-    echo "Error running xtrabackup!"
-    exit 1
-fi
-
+/usr/bin/innobackupex --stream=xbstream /var/lib/mysql

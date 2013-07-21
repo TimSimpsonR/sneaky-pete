@@ -144,3 +144,23 @@ BOOST_AUTO_TEST_CASE(match_dpkg_output_another_version)
     BOOST_REQUIRE_EQUAL(matches->get(1), "dpkg");
     BOOST_REQUIRE_EQUAL(matches->get(2), "1.0~rc1");
 }
+
+BOOST_AUTO_TEST_CASE(match_backup_files) {
+    Regex regex("^ib|^xtrabackup|^mysql$|lost|^backup-my.cnf$");
+    BOOST_REQUIRE_EQUAL( true, regex.has_match("ib_logfile0"));
+    BOOST_REQUIRE_EQUAL(false, regex.has_match("ie"));
+    BOOST_REQUIRE_EQUAL( true, regex.has_match("xtrabackup88"));
+    BOOST_REQUIRE_EQUAL(false, regex.has_match("xtrabackDown"));
+    BOOST_REQUIRE_EQUAL( true, regex.has_match("mysql"));
+    BOOST_REQUIRE_EQUAL(false, regex.has_match("mysql5"));
+    BOOST_REQUIRE_EQUAL( true, regex.has_match("lost_and_found"));
+    BOOST_REQUIRE_EQUAL(false, regex.has_match("lots"));
+    BOOST_REQUIRE_EQUAL( true, regex.has_match("backup-my.cnf"));
+    BOOST_REQUIRE_EQUAL(false, regex.has_match("backup-my.cnf2"));
+}
+
+BOOST_AUTO_TEST_CASE(match_empty) {
+    Regex regex("^$");
+    BOOST_REQUIRE_EQUAL(false, regex.has_match("Blah!"));
+}
+

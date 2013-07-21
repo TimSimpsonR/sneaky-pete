@@ -28,7 +28,6 @@ const char * parrot_path() {
     }
 }
 
-
 struct GlobalFixture {
 
     LogApiScope log;
@@ -146,4 +145,80 @@ BOOST_AUTO_TEST_CASE(environment_variables_should_transfer_part_2_it_fails) {
     execute(out2, cmds, TIME_OUT);
     BOOST_CHECK_EQUAL(out2.str(), "(@'> < * crunch * )\n");
     CHECK_POINT;
+}
+
+void test_independent_redirects(CommandList & cmds) {
+    Process<IndependentStdErrAndStdOut> process(cmds);
+    stringstream err, out;
+    char buffer[5];
+    IndependentStdErrAndStdOut::ReadResult result;
+    while((result = process.read_into(buffer, sizeof(buffer) - 1, 60))
+          .file != IndependentStdErrAndStdOut::ReadResult::NA)
+    {
+        NOVA_LOG_TRACE("HI!")
+        stringstream & stream =
+            (result.file == IndependentStdErrAndStdOut::ReadResult::StdOut
+             ?  out
+             :  err);
+        buffer[result.write_length] = '\0';
+        stream << buffer;
+    }
+    BOOST_CHECK_EQUAL("(@'> <( Hi from StdOut. AWK! )\n", out.str().c_str());
+    BOOST_CHECK_EQUAL("(@'> <( Hi from StdErr. )\n", err.str().c_str());
+}
+
+BOOST_AUTO_TEST_CASE(independent_redirects) {
+    CommandList cmds = list_of(parrot_path())("duo");
+    test_independent_redirects(cmds);
+}
+
+BOOST_AUTO_TEST_CASE(independent_redirects2) {
+    CommandList cmds = list_of(parrot_path())("duo2");
+    test_independent_redirects(cmds);
+}
+
+BOOST_AUTO_TEST_CASE(test_giga_flood) {
+    CommandList cmds = list_of(parrot_path())("giga-flood");
+    Process<IndependentStdErrAndStdOut> process(cmds);
+    stringstream err, out;
+    char buffer[1024];
+    IndependentStdErrAndStdOut::ReadResult result;
+
+    bool expecting_eof_stdout = false;
+    bool expecting_eof_stderr = false;
+
+    size_t actual_stdout_count = 0;
+    size_t actual_stderr_count = 0;
+
+    while(!process.is_finished())
+    // while((result = process.read_into(buffer, sizeof(buffer) - 1, 60))
+    //       .file != IndependentStdErrAndStdOut::ReadResult::NA)
+    {
+        result = process.read_into(buffer, sizeof(buffer) - 1, 60);
+        if (IndependentStdErrAndStdOut::ReadResult::StdOut == result.file) {
+            //BOOST_REQUIRE_EQUAL(expecting_eof_stdout, false);
+            actual_stdout_count += result.write_length;
+        } else {
+            //BOOST_REQUIRE_EQUAL(expecting_eof_stderr, false);
+            actual_stderr_count += result.write_length;
+        }
+        const char expected_char =
+            IndependentStdErrAndStdOut::ReadResult::StdOut == result.file
+            ? '1' : '2';
+        for (size_t i = 0; i < result.write_length; i ++) {
+            if (expected_char != buffer[i]) {
+                NOVA_LOG_ERROR2("Failure at index %d", i);
+                BOOST_REQUIRE_EQUAL(true, false);
+            }
+        }
+        if (result.write_length < sizeof(buffer) - 1) {
+            if (IndependentStdErrAndStdOut::ReadResult::StdOut == result.file) {
+                expecting_eof_stdout = true;
+            } else {
+                expecting_eof_stderr = true;
+            }
+        }
+    }
+    BOOST_REQUIRE_EQUAL(actual_stdout_count, 1024 * 1024);
+    BOOST_REQUIRE_EQUAL(actual_stderr_count, 1024 * 1024);
 }

@@ -46,12 +46,17 @@ namespace nova { namespace process {
 
 
 /** Simple list of commands. */
-typedef std::list<const char *> CommandList;
+typedef std::list<std::string> CommandList;
 
 /** Executes the given command, waiting until its finished. Returns
  *  true if the command runs successfully with a good exit code, false
  *  otherwise. */
 void execute(const CommandList & cmds, double time_out=30);
+
+/** Like the corresponding "execute" command but pipes stdout / stderr to
+ *  a stream. Some processes need this to function correctly! */
+void execute_with_stdout_and_stderr(const CommandList & cmds,
+                                    double time_out=30);
 
 /** Similar to execute, but throws a TimeOutException if any reads take
  *  longer than the time_out argument. */
@@ -215,7 +220,7 @@ class ProcessFileHandler {
 
         virtual void post_spawn_actions() = 0;
 
-        virtual void set_eof_actions() = 0;
+        virtual void set_eof_actions() {};
 };
 
 
@@ -243,6 +248,91 @@ class StdIn : public ProcessFileHandler, public virtual ProcessBase {
         nova::utils::io::Pipe std_in_pipe;
 };
 
+
+class StdErrToFile : public ProcessFileHandler, public virtual ProcessBase {
+    public:
+        StdErrToFile();
+
+        virtual ~StdErrToFile();
+
+        virtual const char * log_file_name() = 0;
+
+    protected:
+
+        virtual void post_spawn_actions();
+
+        virtual void pre_spawn_stderr_actions(SpawnFileActions & sp);
+
+    private:
+        int file_descriptor;
+};
+
+
+class IndependentStdErrAndStdOut : public ProcessFileHandler,
+                                   public virtual ProcessBase {
+    public:
+
+        struct ReadResult {
+            enum FileIndex {
+                StdErr = 2,
+                StdOut = 1,
+                NA = 0
+            };
+
+            inline bool err() const {
+                return file == StdErr;
+            }
+
+            FileIndex file;
+
+            inline bool na() const {
+                return file == NA;
+            }
+
+            inline bool out() const {
+                return file == StdOut;
+            }
+
+            size_t write_length;
+        };
+
+        IndependentStdErrAndStdOut();
+
+        virtual ~IndependentStdErrAndStdOut();
+
+        /* Reads from either stdour or stderr, and returns the bytes read
+         * as well as from which stream reading occurred. */
+        ReadResult read_into(char * buffer, const size_t length,
+                             boost::optional<double> seconds);
+
+        bool std_err_closed() const {
+            return !std_err_pipe.in_is_open();
+        }
+
+        bool std_out_closed() const {
+            return !std_out_pipe.in_is_open();
+        }
+    protected:
+
+        virtual void drain_io(boost::optional<double> seconds);
+
+        virtual void post_spawn_actions();
+
+        virtual void pre_spawn_stderr_actions(SpawnFileActions & sp);
+
+        virtual void pre_spawn_stdout_actions(SpawnFileActions & sp);
+
+        // Reads from the last remaing stream.
+        ReadResult _read_into(char * buffer, const size_t length,
+                              const boost::optional<double> seconds);
+
+        virtual void set_eof_actions();
+
+    private:
+        bool draining;
+        nova::utils::io::Pipe std_err_pipe;
+        nova::utils::io::Pipe std_out_pipe;
+};
 
 class StdErrAndStdOut : public ProcessFileHandler, public virtual ProcessBase {
     public:

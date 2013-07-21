@@ -22,7 +22,7 @@
 using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
-using nova::guest::backup::BackupRestore;
+using nova::guest::backup::BackupRestoreInfo;
 using boost::format;
 using nova::guest::GuestException;
 using nova::Log;
@@ -459,7 +459,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         MySqlAppPtr app = this->create_mysql_app();
         int memory_mb = input.args->get_int("memory_mb");
         // Restore the database?
-        optional<BackupRestore> restore;
+        optional<BackupRestoreInfo> restore;
         const auto backup_url = input.args->get_optional_string("backup_url");
         if (backup_url && backup_url.get().length() > 0) {
             NOVA_LOG_INFO("Calling Restore...")
@@ -468,8 +468,8 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
                 throw GuestException(GuestException::MALFORMED_INPUT);
             }
             const auto token = input.token;
-            restore = optional<BackupRestore>(
-                BackupRestore(token.get(), backup_url.get()));
+            restore = optional<BackupRestoreInfo>(
+                BackupRestoreInfo(token.get(), backup_url.get()));
         }
         app->prepare(*this->apt, memory_mb, restore);
 

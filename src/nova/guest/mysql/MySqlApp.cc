@@ -18,7 +18,9 @@
 
 using nova::guest::apt::AptGuest;
 using namespace boost::assign; // brings CommandList += into our code.
-using nova::guest::backup::BackupRestore;
+using nova::guest::backup::BackupRestoreInfo;
+using nova::guest::backup::BackupRestoreManager;
+using nova::guest::backup::BackupRestoreManagerPtr;
 using boost::format;
 using namespace nova::guest;
 using nova::guest::utils::IsoTime;
@@ -145,9 +147,12 @@ namespace {
     }
 }  // end anonymous namespace
 
-MySqlApp::MySqlApp(MySqlAppStatusPtr status, int state_change_wait_time,
+MySqlApp::MySqlApp(MySqlAppStatusPtr status,
+                   BackupRestoreManagerPtr backup_restore_manager,
+                   int state_change_wait_time,
                    bool skip_install_for_prepare)
-:   skip_install_for_prepare(skip_install_for_prepare),
+:   backup_restore_manager(backup_restore_manager),
+    skip_install_for_prepare(skip_install_for_prepare),
     state_change_wait_time(state_change_wait_time),
     status(status)
 {
@@ -216,7 +221,7 @@ void MySqlApp::reset_configuration(AptGuest & apt, int updated_memory_mb) {
 }
 
 void MySqlApp::prepare(AptGuest & apt, int memory_mb,
-                       optional<BackupRestore> restore) {
+                       optional<BackupRestoreInfo> restore) {
     // This option allows prepare to be run multiple times. In fact, I'm
     // wondering if this newer version might be safe to just run whenever
     // we want.
@@ -236,12 +241,15 @@ void MySqlApp::prepare(AptGuest & apt, int memory_mb,
         NOVA_LOG_INFO("Preparing Guest as MySQL Server");
         install_mysql(apt);
 
+        NOVA_LOG_INFO("Waiting until we can connect to MySQL...");
+        wait_for_initial_connection();
+
         NOVA_LOG_INFO("Stopping MySQL to perform additional steps...");
-        internal_stop_mysql();
+        wait_for_mysql_initial_stop();
 
         if (restore) {
             NOVA_LOG_INFO("A restore was requested. Running now...");
-            restore->run();
+            backup_restore_manager->run(restore.get());
             NOVA_LOG_INFO("Finished with restore job, proceeding with prepare.");
         }
 
@@ -331,8 +339,9 @@ void MySqlApp::install_mysql(AptGuest & apt) {
 
 void MySqlApp::internal_stop_mysql(bool update_db) {
     NOVA_LOG_INFO("Stopping mysql...");
-    process::execute(list_of("/usr/bin/sudo")("/etc/init.d/mysql")("stop"),
-                     this->state_change_wait_time);
+    process::execute_with_stdout_and_stderr(
+        list_of("/usr/bin/sudo")("-E")("/etc/init.d/mysql")("stop"),
+        this->state_change_wait_time);
     wait_for_internal_stop(update_db);
 }
 
@@ -414,7 +423,7 @@ void MySqlApp::start_mysql(bool update_db) {
     // As a precaution, make sure MySQL will run on boot.
     process::CommandList cmds = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
                                        ("start");
-    process::execute(cmds, this->state_change_wait_time);
+    process::execute_with_stdout_and_stderr(cmds, this->state_change_wait_time);
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");
@@ -447,6 +456,30 @@ void MySqlApp::stop_db(bool do_not_start_on_reboot) {
     internal_stop_mysql(true);
 }
 
+void MySqlApp::wait_for_initial_connection() {
+    NOVA_LOG_INFO("Waiting to get a connection to MySQL...");
+    bool can_connect = false;
+    while(!can_connect) {
+        boost::this_thread::sleep(boost::posix_time::seconds(3));
+        MySqlConnection con("localhost", "root", "");
+        can_connect = con.test_connection();
+    }
+}
+
+void MySqlApp::wait_for_mysql_initial_stop() {
+    bool stopped = false;
+    int attempts = 1;
+    while(!stopped) {
+        try {
+            internal_stop_mysql();
+            stopped = true;
+        } catch(std::exception & ex) {
+            NOVA_LOG_ERROR2("Attempt #%d to stop MySQL failed!", attempts);
+            ++ attempts;
+        }
+    }
+}
+
 void MySqlApp::wait_for_internal_stop(bool update_db) {
     if (!status->wait_for_real_state_to_change_to(
         MySqlAppStatus::SHUTDOWN, this->state_change_wait_time, update_db)) {
@@ -456,8 +489,20 @@ void MySqlApp::wait_for_internal_stop(bool update_db) {
     }
 }
 
-void MySqlApp::wipe_ib_logfiles() {
+void MySqlApp::wipe_ib_logfile(const int index) {
     const char * const MYSQL_BASE_DIR = "/var/lib/mysql";
+    string logfile = str(format("%s/ib_logfile%d") % MYSQL_BASE_DIR % index);
+    process::CommandList cmds = list_of("/usr/bin/sudo")("/bin/ls")
+                                       (logfile.c_str());
+    process::Process<process::StdErrAndStdOut> proc(cmds);
+    proc.wait_for_exit(60);
+    if (proc.successful()) {
+        process::execute_with_stdout_and_stderr(
+            list_of("/usr/bin/sudo")("rm")(logfile.c_str()));
+    }
+}
+
+void MySqlApp::wipe_ib_logfiles() {
     NOVA_LOG_INFO("Wiping ib_logfiles...");
     // When MySQL starts up, it tries to find log files which are the exact
     // size mandated in its configs. If these do not exist, it simply creates
@@ -466,10 +511,8 @@ void MySqlApp::wipe_ib_logfiles() {
     // So we remove the ib_logfile, because if not mysql won't start.
     // For some reason wildcards don't seem to work, so we delete both files
     // separately.
-    string logfile0 = str(format("%s/ib_logfile0") % MYSQL_BASE_DIR);
-    string logfile1 = str(format("%s/ib_logfile1") % MYSQL_BASE_DIR);
-    process::execute(list_of("/usr/bin/sudo")("rm")(logfile0.c_str()));
-    process::execute(list_of("/usr/bin/sudo")("rm")(logfile1.c_str()));
+    wipe_ib_logfile(0);
+    wipe_ib_logfile(1);
 }
 
 } } }  // end nova::guest::mysql

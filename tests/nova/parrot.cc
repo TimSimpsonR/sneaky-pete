@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string>
 #include <string.h>
+#include <vector>
 
 
 using namespace nova;
@@ -25,7 +26,12 @@ static void error(const char * msg) {
  * word "die" at which point it does so (don't worry, its just a neat trick,
  * the real parrot doesn't actually die). */
 int main(int argc, const char* argv[]) {
-    if (argc >= 2 && strncmp(argv[1], "wake", 4) == 0) {
+    vector<string> args;
+    for (int i = 0; i < argc; i ++) {
+        args.push_back(argv[i]);
+    }
+
+    if (args.size() >= 2 && args[1] == "wake") {
         speak("Hello!");
         string next = "";
         while(true) {
@@ -44,19 +50,30 @@ int main(int argc, const char* argv[]) {
                 speak(next.c_str());
             }
         }
-    } else if (argc >= 2 && strncmp(argv[1], "babble", 6) == 0) {
+    } else if (args.size() >= 2 && args[1] == "babble") {
         while(true) {
             speak("blah");
         }
-    } else if (argc >= 2 && strncmp(argv[1], "chirp", 5) == 0) {
+    } else if (args.size() >= 2 && args[1] == "chirp") {
         cout << "(@'> < * chirp * )" << endl;
         return 0;
-    } else if (argc >= 2 && strncmp(argv[1], "eat", 3) == 0) {
+    } else if (args.size() >= 2 && args[1] == "eat") {
         char * food = getenv("food");
         if (food == 0 || strncmp(food, "birdseed", 8) != 0) {
             speak("I can't eat this!");
         } else {
             cout << "(@'> < * crunch * )" << endl;
+        }
+    } else if (args.size() >=2 && args[1] == "duo") {
+        speak("Hi from StdOut.");
+        error("Hi from StdErr.");
+    } else if (args.size() >=2 && args[1] == "duo2") {
+        error("Hi from StdErr.");
+        speak("Hi from StdOut.");
+    } else if (args.size() >=2 && args[1] == "giga-flood") {
+        for (size_t index = 0; index < (1024 * 1024); index ++) {
+            cout << "1";
+            cerr << "2";
         }
     } else {
         error("zzz");

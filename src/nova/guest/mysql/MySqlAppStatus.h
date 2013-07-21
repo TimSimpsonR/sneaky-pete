@@ -15,8 +15,11 @@ namespace nova { namespace guest { namespace mysql {
     class MySqlAppStatusTestsFixture;
 
     struct MySqlAppStatusContext {
+
+        virtual ~MySqlAppStatusContext();
+
         virtual void execute(std::stringstream & out,
-                             const std::list<const char *> & cmds) const;
+                             const std::list<std::string> & cmds) const;
         virtual bool is_file(const char * file_path) const;
     };
 

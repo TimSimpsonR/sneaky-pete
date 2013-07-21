@@ -67,7 +67,7 @@ struct MySqlAppStatusDefaultTestContext
     }
 
     virtual void execute(std::stringstream & out,
-                         const std::list<const char *> & cmds) const {
+                         const std::list<std::string> & cmds) const {
         const_cast<MySqlAppStatusDefaultTestContext *>(this)->calls ++;
         on_execute(out, calls);
     }

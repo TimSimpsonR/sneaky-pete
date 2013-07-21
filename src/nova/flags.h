@@ -3,6 +3,7 @@
 
 #include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
+#include <list>
 #include <map>
 #include <string>
 
@@ -72,6 +73,8 @@ class FlagMap {
 
         int get_as_int(const char * const name, int default_value);
 
+        std::list<std::string> get_as_list(const char * const name) const;
+
         void get_sql_connection(std::string & host, std::string & user,
                                 std::string & password, std::string & database);
 
@@ -97,13 +100,23 @@ class FlagValues {
 
         int backup_chunk_size() const;
 
+        std::list<std::string> backup_process_commands() const;
+
+        size_t backup_restore_chunk_size() const;
+
+        const char * backup_restore_delete_file_pattern() const;
+
+        const char * backup_restore_restore_directory() const;
+
+        std::list<std::string> backup_restore_process_commands() const;
+
+        const char * backup_restore_save_file_pattern() const;
+
         int backup_segment_max_size() const;
 
         const char * backup_swift_container() const;
 
         double backup_timeout() const;
-
-        bool backup_use_gzip_compression() const;
 
         const char * control_exchange() const;
 

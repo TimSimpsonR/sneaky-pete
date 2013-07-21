@@ -34,7 +34,7 @@ using namespace nova::utils::swift;
  */
 
 
-class FileWriter : public SwiftClient::Output {
+class FileWriter : public SwiftDownloader::Output {
 public:
 
     FileWriter(const char * file_name)
@@ -80,9 +80,9 @@ int main(int argc, char **argv)
     FileWriter local_file(output_file_name);
 
 
-    const auto max_bytes = 32 * 1024;
-    const auto chunk_size = 16 * 1024;
-    SwiftClient client(token, max_bytes, chunk_size, swift_file);
+    //const auto max_bytes = 32 * 1024;
+    //const auto chunk_size = 16 * 1024; // <-- make believe LOL
+    SwiftDownloader client(token, swift_file);
 
     client.read(local_file);
 

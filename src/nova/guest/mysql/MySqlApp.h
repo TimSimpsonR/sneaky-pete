@@ -18,6 +18,8 @@ class MySqlApp {
     public:
 
         MySqlApp(MySqlAppStatusPtr status,
+                 nova::guest::backup::BackupRestoreManagerPtr
+                    backup_restore_manager,
                  int state_change_wait_time,
                  bool skip_install_for_prepare);
 
@@ -27,7 +29,7 @@ class MySqlApp {
         void prepare(
             nova::guest::apt::AptGuest & apt,
             int memory_mb,
-            boost::optional<nova::guest::backup::BackupRestore> restore
+            boost::optional<nova::guest::backup::BackupRestoreInfo> restore
         );
 
         /** Restarts MySQL on this host. */
@@ -48,6 +50,8 @@ class MySqlApp {
         // Do not implement.
         MySqlApp(const MySqlApp &);
         MySqlApp & operator = (const MySqlApp &);
+
+        nova::guest::backup::BackupRestoreManagerPtr backup_restore_manager;
 
         void create_admin_user(MySqlAdmin & sql,
                                const std::string & password);
@@ -98,7 +102,13 @@ class MySqlApp {
         /* Tests that a connection can be made using the my.cnf settings. */
         static bool test_ability_to_connect(bool throw_on_failure);
 
+        void wait_for_initial_connection();
+
+        void wait_for_mysql_initial_stop();
+
         void wait_for_internal_stop(bool update_db);
+
+        void wipe_ib_logfile(const int index);
 
         /* Destroy these files as needed for my.cnf changes. */
         void wipe_ib_logfiles();

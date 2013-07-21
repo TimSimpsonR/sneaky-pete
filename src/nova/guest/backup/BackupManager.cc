@@ -18,12 +18,13 @@
 #include <curl/curl.h>
 #include "nova/utils/swift.h"
 #include "nova/guest/utils.h"
+#include "nova/utils/zlib.h"
 
 using namespace boost::assign;
 using nova::process::CommandList;
+using nova::process::IndependentStdErrAndStdOut;
 using namespace nova::db::mysql;
 using nova::process::Process;
-using nova::process::StdErrAndStdOut;
 using std::string;
 using std::stringstream;
 using namespace boost;
@@ -36,7 +37,9 @@ using nova::utils::JobRunner;
 using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
 using nova::utils::swift::SwiftClient;
 using nova::utils::swift::SwiftFileInfo;
+using nova::utils::swift::SwiftUploader;
 using namespace nova::guest::diagnostics;
+namespace zlib = nova::utils::zlib;
 
 namespace nova { namespace guest { namespace backup {
 
@@ -46,12 +49,72 @@ namespace {  // Begin anonymous namespace
  *- BackupProcessReader
  *---------------------------------------------------------------------------*/
 
-class BackupProcessReader : public SwiftClient::Input {
+/* Calls xtrabackup and presents an interface to be used as a zlib source. */
+class XtraBackupReader : public zlib::InputStream {
+public:
+    XtraBackupReader(CommandList cmds, optional<double> time_out)
+    :   last_stdout_write_length(0),
+        process(cmds),
+        time_out(time_out),
+        xtrabackup_log()
+    {
+        xtrabackup_log.open("/tmp/xtrabackup.log");
+    }
+
+    virtual ~XtraBackupReader() {
+    }
+
+    /** Reads from the process until getting new STDOUT. */
+    virtual zlib::ZlibBufferStatus advance() {
+        optional<zlib::InputStream> stdout;
+        while(true) {
+            if (process.is_finished()) {
+                return zlib::FINISHED;
+            }
+            const auto result = process.read_into(buffer, sizeof(buffer),
+                                                  time_out);
+            if (result.err()) {
+                xtrabackup_log.write(buffer, result.write_length);
+            } else if (result.out()) {
+                last_stdout_write_length = result.write_length;
+                return zlib::OK;
+            } else {
+                NOVA_LOG_ERROR("Time out while looking for output from backup "
+                               "process. Reading again...");
+            }
+        }
+    }
+
+    virtual char * get_buffer() {
+        return buffer;
+    }
+
+    virtual size_t get_buffer_size() {
+        return last_stdout_write_length;
+    }
+
+    bool successful() const {
+        return process.successful();
+    }
+
+private:
+    char buffer[1024];
+    size_t last_stdout_write_length;
+    Process<IndependentStdErrAndStdOut> process;
+    optional<double> time_out;
+    std::ofstream xtrabackup_log;
+};
+
+
+typedef boost::shared_ptr<XtraBackupReader> XtraBackupReaderPtr;
+
+
+class BackupProcessReader : public SwiftUploader::Input {
 public:
 
     BackupProcessReader(CommandList cmds, optional<double> time_out)
-    :   process(cmds),
-        time_out(time_out)
+    :   process(new XtraBackupReader(cmds, time_out)),
+        compressor()
     {
     }
 
@@ -59,20 +122,21 @@ public:
     }
 
     virtual bool successful() const {
-        return process.successful();
+        return process->successful();
     }
 
     virtual bool eof() const {
-        return process.is_finished();
+        return compressor.is_finished();
     }
 
     virtual size_t read(char * buffer, size_t bytes) {
-        return process.read_into(buffer, bytes, time_out);
+        return compressor.run_write_into(process, buffer, bytes);
     }
 
 private:
-    Process<StdErrAndStdOut> process;
-    optional<double> time_out;
+
+    XtraBackupReaderPtr process;
+    zlib::ZlibCompressor compressor;
 };
 
 
@@ -86,6 +150,7 @@ public:
     BackupJob(
         MySqlConnectionWithDefaultDbPtr infra_db,
         const int & chunk_size,
+        const CommandList commands,
         const int & segment_max_size,
         const string & swift_container,
         const string & swift_url,
@@ -96,6 +161,7 @@ public:
     :   backup_id(backup_id),
         infra_db(infra_db),
         chunk_size(chunk_size),
+        commands(commands),
         segment_max_size(segment_max_size),
         swift_container(swift_container),
         swift_url(swift_url),
@@ -110,6 +176,7 @@ public:
     :   backup_id(other.backup_id),
         infra_db(other.infra_db),
         chunk_size(other.chunk_size),
+        commands(other.commands),
         segment_max_size(other.segment_max_size),
         swift_container(other.swift_container),
         swift_url(other.swift_url),
@@ -163,6 +230,7 @@ private:
     const string backup_id;
     MySqlConnectionWithDefaultDbPtr infra_db;
     const int chunk_size;
+    const CommandList commands;
     const int segment_max_size;
     const string swift_container;
     const string swift_url;
@@ -178,25 +246,11 @@ private:
         NOVA_LOG_DEBUG2("Volume used: %d", stats->used);
 
         CommandList cmds;
-        /* BACKUP COMMAND TO RUN
-         * TODO: (rmyers) Make this a config option
-         * 'sudo innobackupex'\
-         * ' --stream=xbstream'\
-         * ' /var/lib/mysql 2>/tmp/innobackupex.log | gzip'
-         */
-        // cmds += "/usr/bin/sudo", "-E", "innobackupex";
-        // cmds += "--stream=xbstream", "/var/lib/mysql";
-        // cmds += "2>/tmp/innobackupex.log", "|", "gzip";
-        //cmds += "/usr/bin/sudo", "-E", "innobackupex";
-        //cmds += "--stream=xbstream", "/var/lib/mysql";
-        cmds += "/usr/bin/sudo", "-E", "/var/lib/nova/backup";
-        // TODO: (rmyers) compress and record errors!
-        //cmds += "2>/tmp/innobackupex.log";
-        BackupProcessReader reader(cmds, time_out);
+        BackupProcessReader reader(commands, time_out);
 
         // Setup SwiftClient
         SwiftFileInfo file_info(swift_url, swift_container, backup_id);
-        SwiftClient writer(token, segment_max_size, chunk_size, file_info);
+        SwiftUploader writer(token, segment_max_size, file_info);
 
         // Write the backup to swift
         auto checksum = writer.write(reader);
@@ -270,16 +324,16 @@ BackupManager::BackupManager(
     MySqlConnectionWithDefaultDbPtr & infra_db,
     JobRunner & runner,
     const int chunk_size,
+    const CommandList commands,
     const int segment_max_size,
     const string swift_container,
-    const bool use_gzip,
     const double time_out)
 :   infra_db(infra_db),
     chunk_size(chunk_size),
+    commands(commands),
     runner(runner),
     segment_max_size(segment_max_size),
     swift_container(swift_container),
-    use_gzip(use_gzip),
     time_out(time_out)
 {
 }
@@ -297,8 +351,9 @@ void BackupManager::run_backup(const string & swift_url,
         NOVA_LOG_INFO2("Token = %s", token.c_str());
     #endif
 
-    BackupJob job(infra_db, chunk_size, segment_max_size, swift_container,
-                  swift_url, time_out, tenant, token, backup_id);
+    BackupJob job(infra_db, chunk_size, commands, segment_max_size,
+                  swift_container, swift_url, time_out, tenant, token,
+                  backup_id);
     runner.run(job);
 }
 

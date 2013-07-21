@@ -134,6 +134,8 @@ void ThreadBasedJobRunner::execute_job() {
 #ifndef _DEBUG
     } catch (const std::exception & e) {
         NOVA_LOG_ERROR2("Error running job!: %s", e.what());
+    } catch(...) {
+        NOVA_LOG_ERROR("Error executing job! Exception type unknown.");
     }
 #endif
     {
@@ -148,9 +150,9 @@ void ThreadBasedJobRunner::operator()() {
     while(!is_shutdown_requested()) {
         NOVA_LOG_INFO("Waiting for job...");
         {
-            boost::unique_lock<boost::mutex> lock(mutex);
-            while (_is_idle() && !shutdown_requested) {
-                condition.wait(lock);
+            while (_is_idle() && !is_shutdown_requested()) {
+                boost::posix_time::seconds time(1);
+                boost::this_thread::sleep(time);
             }
         }
         if (!is_shutdown_requested()) {
@@ -200,7 +202,7 @@ void ThreadBasedJobRunner::shutdown() {
         boost::lock_guard<boost::mutex> lock(mutex);
         shutdown_requested = true;
     }
-    while(is_shutdown_completed()) {
+    while(!is_shutdown_completed()) {
         boost::posix_time::seconds time(1);
         boost::this_thread::sleep(time);
     }

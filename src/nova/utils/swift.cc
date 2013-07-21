@@ -34,14 +34,15 @@ using nova::utils::Md5;
 namespace nova { namespace utils { namespace swift {
 
 
-struct SwiftClient::SegmentInfo {
+struct SwiftUploader::SegmentInfo {
     size_t bytes_read;
     Md5 checksum; // segment checksum
     Md5 file_checksum; // total file checksum
-    SwiftClient::Input & input;
-    SwiftClient & writer;
+    SwiftUploader::Input & input;
+    SwiftUploader & writer;
 
-    SegmentInfo(SwiftClient & writer, SwiftClient::Input & input, Md5 & file_checksum)
+    SegmentInfo(SwiftUploader & writer, SwiftUploader::Input & input,
+                Md5 & file_checksum)
     :   bytes_read(0),
         checksum(),
         file_checksum(file_checksum),
@@ -117,35 +118,16 @@ string SwiftFileInfo::prefix_header() const {
 }
 
 /**---------------------------------------------------------------------------
- *- SwiftClient::Input
- *---------------------------------------------------------------------------*/
-
-SwiftClient::Input::~Input() {
-}
-
-
-/**---------------------------------------------------------------------------
- *- SwiftClient::Output
- *---------------------------------------------------------------------------*/
-
-SwiftClient::Output::~Output() {
-}
-
-
-/**---------------------------------------------------------------------------
  *- SwiftClient
  *---------------------------------------------------------------------------*/
 
-SwiftClient::SwiftClient(const string & token, const size_t & max_bytes,
-                         const int & chunk_size,
-                         const SwiftFileInfo & file_info)
-:   max_bytes(max_bytes),
-    chunk_size(chunk_size), // this should be 65536 once we figure out how!
-    file_checksum(),
-    file_info(file_info),
-    file_number(0),
-    session(),
+SwiftClient::SwiftClient(const string & token)
+:   session(),
     token(token)
+{
+}
+
+SwiftClient::~SwiftClient()
 {
 }
 
@@ -154,11 +136,42 @@ void SwiftClient::add_token() {
     session.add_header(header.c_str());
 }
 
-void SwiftClient::read(SwiftClient::Output & output) {
+void SwiftClient::reset_session() {
+    session.reset();
+    add_token();
+}
+
+
+
+/**---------------------------------------------------------------------------
+ *- SwiftDownloader::Output
+ *---------------------------------------------------------------------------*/
+
+SwiftDownloader::Output::~Output() {
+}
+
+/**---------------------------------------------------------------------------
+ *- SwiftDownloader
+ *---------------------------------------------------------------------------*/
+
+SwiftDownloader::SwiftDownloader(const string & token, const std::string & url)
+:   SwiftClient(token),
+    url(url)
+{
+}
+
+SwiftDownloader::SwiftDownloader(const string & token,
+                                 const SwiftFileInfo & file_info)
+:   SwiftClient(token),
+    url(file_info.manifest_url())
+{
+}
+
+void SwiftDownloader::read(SwiftDownloader::Output & output) {
     reset_session();
 
     NOVA_SWIFT_LOG(format("Reading segment..."));
-    session.set_opt(CURLOPT_URL, file_info.manifest_url().c_str());
+    session.set_opt(CURLOPT_URL, url.c_str());
 
     struct CallBack {
         static size_t curl_callback(void * ptr, size_t size, size_t nmemb,
@@ -186,7 +199,32 @@ void SwiftClient::read(SwiftClient::Output & output) {
     //                    should happen in the Output subclass.
 }
 
-void SwiftClient::write_manifest(int file_number){
+
+/**---------------------------------------------------------------------------
+ *- SwiftUploader:Input
+ *---------------------------------------------------------------------------*/
+
+SwiftUploader::Input::~Input() {
+}
+
+
+/**---------------------------------------------------------------------------
+ *- SwiftUploader
+ *---------------------------------------------------------------------------*/
+
+SwiftUploader::SwiftUploader(const string & token,
+                             const size_t & max_bytes,
+                             const SwiftFileInfo & file_info)
+:   SwiftClient(token),
+    file_checksum(),
+    file_info(file_info),
+    file_number(0),
+    max_bytes(max_bytes)
+{
+}
+
+
+void SwiftUploader::write_manifest(int file_number){
     reset_session();
     session.add_header(file_info.prefix_header().c_str());
     session.add_header(file_info.segment_header(file_number).c_str());
@@ -207,7 +245,7 @@ void SwiftClient::write_manifest(int file_number){
     session.perform(list_of(200)(201)(202));
 }
 
-void SwiftClient::write_container(){
+void SwiftUploader::write_container(){
     reset_session();
     NOVA_SWIFT_LOG(format("Writing container to %s...")
                    % file_info.container_url());
@@ -229,12 +267,8 @@ void SwiftClient::write_container(){
     NOVA_SWIFT_LOG(format("Containing write complete."));
 }
 
-void SwiftClient::reset_session() {
-    session.reset();
-    add_token();
-}
-
-string SwiftClient::write_segment(const string & url, SwiftClient::Input & input) {
+string SwiftUploader::write_segment(const string & url,
+                                    SwiftUploader::Input & input) {
     reset_session();
 
     NOVA_SWIFT_LOG(format("Writing segment..."));
@@ -266,7 +300,7 @@ string SwiftClient::write_segment(const string & url, SwiftClient::Input & input
     return checksum;
 }
 
-bool SwiftClient::validate_segment(const string & url, const string checksum){
+bool SwiftUploader::validate_segment(const string & url, const string checksum){
     // validate the segment against cloud files
     reset_session();
     session.set_opt(CURLOPT_URL, url.c_str());
@@ -275,7 +309,7 @@ bool SwiftClient::validate_segment(const string & url, const string checksum){
 }
 
 
-string SwiftClient::write(SwiftClient::Input & input){
+string SwiftUploader::write(SwiftUploader::Input & input){
     NOVA_LOG_DEBUG("Writing to Swift!");
     write_container();
     while (!input.eof()) {

@@ -2,6 +2,7 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /bin/cp,              \
                       /bin/rm,              \
                       /bin/ln,              \
+                      /bin/ls,              \
                       /bin/kill,            \
                       /bin/chown,           \
                       /usr/sbin/service,    \
@@ -14,10 +15,11 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /var/lib/nova/restore, \
                       /etc/init.d/mysql,    \
                       /usr/bin/mysqld_safe,  \
-                      /etc/init.d/rackspace-monitoring-agent,    \
+                    /etc/init.d/rackspace-monitoring-agent,    \
                       /usr/bin/mysqladmin,  \
                       /bin/ps,              \
-                      /usr/sbin/update-rc.d
+                      /usr/sbin/update-rc.d, \
+                      /usr/bin/xbstream
 
 nova ALL=(root) NOPASSWD: SETENV: NOVACMDS
 

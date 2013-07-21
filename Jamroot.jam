@@ -202,9 +202,7 @@ local rule unit ( name : sources * : dependencies * : test-sources *
 
     if ! $(SKIP_SNEAKY_TESTS) && $(test-sources) > []
     {
-        obj unit_test_$(name) : pch $(sources)
-            : $(test-properties) $(main-properties) ;
-        unit-test __unit_tests_$(name)
+        unit-test unit_test_$(name)
             :   pch
                 __unit_obj_$(name)
                 $(test-sources)
@@ -316,6 +314,14 @@ unit u_nova_utils_threads
     :   u_nova_Log
     :   tests/nova/utils/threads_tests.cc
     ;
+
+unit u_nova_utils_zlib
+    :   src/nova/utils/zlib.cc
+    :   u_nova_Log
+        lib_z
+    :   tests/nova/utils/zlib_tests.cc
+    ;
+
 
 unit u_nova_guest_HeartBeat
     :   src/nova/guest/HeartBeat.cc
@@ -480,6 +486,7 @@ unit u_nova_guest_backup_BackupManager
         u_nova_guest_backup_BackupException
         u_nova_utils_io
         u_nova_utils_regex
+        u_nova_utils_zlib
     ;
 
 unit u_nova_guest_backup_BackupRestore
@@ -487,6 +494,9 @@ unit u_nova_guest_backup_BackupRestore
     :   u_nova_Log
         u_nova_guest_backup_BackupException
         u_nova_process
+        u_nova_utils_regex
+        u_nova_utils_swift
+        u_nova_utils_zlib
     ;
 
 unit u_nova_guest_backup_BackupMessageHandler
@@ -818,6 +828,15 @@ exe centi-pete
         u_nova_guest_monitoring_Monitoring
         u_nova_process
         src/centi_pete.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe list_directories
+    :   pch
+        u_nova_utils_io
+        u_nova_Log
+        src/list_directories.cc
     :
         <linkflags>$(EXE_LINK_FLAGS)
     ;

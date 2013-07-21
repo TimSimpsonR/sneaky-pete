@@ -4,6 +4,7 @@
 #include "nova/ConfigFile.h"
 #include "nova/utils/Curl.h"
 #include "nova/flags.h"
+#include <boost/assign/list_of.hpp>
 #include "nova/LogFlags.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
@@ -38,6 +39,8 @@
 #define END_THREAD_TASK(name)  \
      } catch(const std::exception & e) { \
         NOVA_LOG_ERROR2("Error in " name "! : %s", e.what()); \
+     } catch(...) { \
+        NOVA_LOG_ERROR("Error in " name "! Exception type unknown."); \
      }
 #define CATCH_RPC_METHOD_ERRORS
 // #else
@@ -46,12 +49,16 @@
 // #define CATCH_RPC_METHOD_ERRORS
 // #endif
 
+using namespace boost::assign;
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptGuestPtr;
 using nova::guest::apt::AptMessageHandler;
 using std::auto_ptr;
 using nova::guest::backup::BackupManager;
 using nova::guest::backup::BackupMessageHandler;
+using nova::guest::backup::BackupRestoreManager;
+using nova::guest::backup::BackupRestoreManagerPtr;
+using nova::process::CommandList;
 using nova::utils::CurlScope;
 using boost::format;
 using boost::optional;
@@ -215,7 +222,15 @@ void initialize_and_run(FlagValues & flags) {
         apt_worker, monitoring));
     handlers.push_back(handler_monitoring_app);
 
+    BackupRestoreManagerPtr backup_restore_manager(new BackupRestoreManager(
+        flags.backup_restore_chunk_size(),
+        flags.backup_restore_process_commands(),
+        flags.backup_restore_delete_file_pattern(),
+        flags.backup_restore_restore_directory(),
+        flags.backup_restore_save_file_pattern()
+    ));
     MySqlAppPtr mysqlApp(new MySqlApp(mysql_status_updater,
+                                      backup_restore_manager,
                                       flags.mysql_state_change_wait_time(),
                                       flags.skip_install_for_prepare()));
 
@@ -237,9 +252,9 @@ void initialize_and_run(FlagValues & flags) {
                   nova_db,
                   job_runner,
                   flags.backup_chunk_size(),
+                  flags.backup_process_commands(),
                   flags.backup_segment_max_size(),
                   flags.backup_swift_container(),
-                  flags.backup_use_gzip_compression(),
                   flags.backup_timeout());
     MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
     handlers.push_back(handler_backup);
@@ -274,6 +289,14 @@ void initialize_and_run(FlagValues & flags) {
     optional<const char *> message = flags.message();
     if (message) {
         run_json_method(handlers, message.get());
+        // If a SP is being run with a message, it's possible it needs to run
+        // in the job runner thread. If so, be sure to wait, or else this
+        // thread will shut down the job runner before the request can even
+        // begin.
+        if (!job_runner.is_idle()) {
+            NOVA_LOG_INFO("Sleeping to give the job runner thread a chance.");
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
+        }
     } else {
         NOVA_LOG_INFO("Before we go further, lets chill out and take a nap.");
         // Before we go any further, lets all just chill out and take a nap.
@@ -295,6 +318,11 @@ void initialize_and_run(FlagValues & flags) {
     // Gracefully kill the job runner.
     NOVA_LOG_INFO("Shutting down Sneaky Pete. Killing job runner.");
     job_runner.shutdown();
+    NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+    NOVA_LOG_INFO(" ^           ^ ^                             ^");
+    NOVA_LOG_INFO(" ^           -  -   < Good bye.)             ^");
+    NOVA_LOG_INFO(" ^        /==/`-'\\                           ^");
+    NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 }
 
 void run_json_method(vector<MessageHandlerPtr> & handlers,
@@ -303,11 +331,6 @@ void run_json_method(vector<MessageHandlerPtr> & handlers,
     GuestInput input;
     Receiver::init_input_with_json(input, obj);
     run_method(handlers, input);
-    NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-    NOVA_LOG_INFO(" ^           ^ ^                             ^");
-    NOVA_LOG_INFO(" ^           -  -   < Good bye.)             ^");
-    NOVA_LOG_INFO(" ^        /==/`-'\\                           ^");
-    NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 }
 
 GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input) {

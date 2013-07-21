@@ -63,13 +63,13 @@ namespace {
     {
         public:
             ArgV(const CommandList & cmds)
-            : new_argv(0), new_argv_length(0) {
-                const size_t max = 2048;
-                new_argv_length = cmds.size() + 1;
+            :   new_argv_length(cmds.size() + 1),
+                new_argv(new char * [new_argv_length])
+            {
                 new_argv = new char * [new_argv_length];
                 size_t i = 0;
-                BOOST_FOREACH(const char * cmd, cmds) {
-                    new_argv[i ++] = strndup(cmd, max);
+                BOOST_FOREACH(const string & cmd, cmds) {
+                    new_argv[i ++] = strndup(cmd.c_str(), cmd.size());
                 }
                 new_argv[new_argv_length - 1] = NULL;
             }
@@ -80,7 +80,6 @@ namespace {
                 }
                 delete[] new_argv;
                 new_argv = 0;
-                new_argv_length = 0;
             }
 
             char * * get() {
@@ -88,8 +87,8 @@ namespace {
             }
 
         private:
+            const size_t new_argv_length;
             char * * new_argv;
-            size_t new_argv_length;
     };
 
     const size_t BUFFER_SIZE = 1048;
@@ -102,6 +101,29 @@ namespace {
         FD_SET(file_desc, &file_set);
         return io::select_with_throw(file_desc + 1, &file_set, NULL, NULL, seconds)
                != 0;
+    }
+
+    /* If neither file descriptor has input by the time denoted by "seconds",
+     * boost::none is returned. Otherwise, the filedesc which was ready is
+     * returned. */
+    optional<int> ready(int file_desc1, int file_desc2,
+                        const optional<double> seconds) {
+        fd_set file_set;
+        FD_ZERO(&file_set);
+        FD_SET(file_desc1, &file_set);
+        FD_SET(file_desc2, &file_set);
+        int nfds = std::max(file_desc1, file_desc2) + 1;
+        auto result = io::select_with_throw(nfds, &file_set, NULL,
+                                            NULL, seconds);
+        if (0 == result) {
+            return boost::none;
+        } else {
+            if (FD_ISSET(file_desc1, &file_set)) {
+                return file_desc1;
+            } else {
+                return file_desc2;
+            }
+        }
     }
 
 }  // end anonymous namespace
@@ -153,12 +175,12 @@ namespace {
         if (cmds.size() < 1) {
             throw ProcessException(ProcessException::NO_PROGRAM_GIVEN);
         }
-        const char * program_path = cmds.front();
+        const string program_path = cmds.front();
         ArgV args(cmds);
         {
             stringstream str;
             str << "Running the following process: { ";
-            BOOST_FOREACH(const char * cmd, cmds) {
+            BOOST_FOREACH(const string & cmd, cmds) {
                 str << "'" << cmd << "'";
                 str << " ";
             }
@@ -169,7 +191,7 @@ namespace {
         if (actions != 0) {
             file_actions = actions->get();
         }
-        int status = posix_spawn(pid, program_path, file_actions, NULL,
+        int status = posix_spawn(pid, program_path.c_str(), file_actions, NULL,
                                  args.get(), environ);
         if (status != 0) {
             throw ProcessException(ProcessException::SPAWN_FAILURE);
@@ -184,6 +206,14 @@ namespace {
 
 void execute(const CommandList & cmds, double time_out) {
     Process<> proc(cmds);
+    proc.wait_for_exit(time_out);
+    if (!proc.successful()) {
+        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+    }
+}
+
+void execute_with_stdout_and_stderr(const CommandList & cmds, double time_out) {
+    Process<StdErrAndStdOut> proc(cmds);
     proc.wait_for_exit(time_out);
     if (!proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
@@ -405,6 +435,138 @@ void ProcessBase::wait_forever_for_exit() {
 
 
 /**---------------------------------------------------------------------------
+ *- IndependentStdErrAndStdOut
+ *---------------------------------------------------------------------------*/
+
+IndependentStdErrAndStdOut::IndependentStdErrAndStdOut()
+:   std_err_pipe(),
+    std_out_pipe()
+{
+    ::fcntl(std_out_pipe.in(), F_SETFL, O_NONBLOCK);
+    ::fcntl(std_err_pipe.in(), F_SETFL, O_NONBLOCK);
+    add_io_handler(this);
+}
+
+IndependentStdErrAndStdOut::~IndependentStdErrAndStdOut() {
+}
+
+void IndependentStdErrAndStdOut::drain_io(optional<double> seconds) {
+    if (draining) {
+        return;
+    }
+    NOVA_LOG_TRACE("Draining STDOUT / STDERR...");
+    draining = true;
+    char buffer[1024];
+    std::unique_ptr<Timer> timer;
+    if (seconds) {
+        timer.reset(new Timer(seconds.get()));
+    }
+    ReadResult result;
+    while((result = read_into(buffer, sizeof(buffer), seconds)).write_length
+          != 0) {
+        NOVA_LOG_TRACE2("Draining again! %d", result.write_length);
+    }
+}
+
+void IndependentStdErrAndStdOut::post_spawn_actions() {
+    std_out_pipe.close_out();
+    std_err_pipe.close_out();
+    NOVA_LOG_TRACE("Closing the out side of the stderr/stdout pipe.");
+}
+
+void IndependentStdErrAndStdOut::pre_spawn_stderr_actions(
+    SpawnFileActions & file_actions)
+{
+    NOVA_LOG_TRACE("Opening up stderr pipes.");
+    file_actions.add_dup_to(std_err_pipe.out(), STDERR_FILENO);
+    file_actions.add_close(std_err_pipe.in());
+}
+
+void IndependentStdErrAndStdOut::pre_spawn_stdout_actions(
+    SpawnFileActions & file_actions)
+{
+    NOVA_LOG_TRACE("Opening up stdout pipes.");
+    file_actions.add_dup_to(std_out_pipe.out(), STDOUT_FILENO);
+    file_actions.add_close(std_out_pipe.in());
+}
+
+void IndependentStdErrAndStdOut::set_eof_actions() {
+    std_out_pipe.close_in();
+    std_err_pipe.close_in();
+    NOVA_LOG_TRACE("Closing in side of the stderr and stdout pipes.");
+}
+
+IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
+    char * buffer, const size_t length, const optional<double> seconds)
+{
+    NOVA_LOG_TRACE2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    if (!std_out_pipe.in_is_open()) {
+        if (!std_err_pipe.in_is_open()) {
+            throw ProcessException(ProcessException::PROGRAM_FINISHED);
+        } else {
+            return _read_into(buffer, length, seconds);
+        }
+    }
+    const auto result = ready(this->std_out_pipe.in(), this->std_err_pipe.in(),
+                              seconds);
+    if (!result) {
+        NOVA_LOG_TRACE("ready returned nothing. Returning NA from read_into");
+        return { ReadResult::NA, 0 };
+    }
+    const int file_desc = result.get();
+    const size_t count = io::read_with_throw(file_desc, buffer, length);
+    if (count == 0) {
+        // If read returns zero, it means the filedesc is EOF. Set whichever
+        // one it was to closed and then use the other _read_into method.
+        if (file_desc == std_out_pipe.in()) {
+            std_out_pipe.close_in();
+        } else {
+            std_err_pipe.close_in();
+        }
+        return _read_into(buffer, length, seconds);
+    }
+    // Data was read, so return info on which stream it came from.
+    NOVA_LOG_TRACE2("OUTPUT:~={%.*s}=~", count, buffer);
+    NOVA_LOG_TRACE("Exit read_into");
+    return {
+        (file_desc == std_out_pipe.in() ? ReadResult::StdOut
+                                        : ReadResult::StdErr),
+        count
+    };
+}
+
+IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::_read_into(
+    char * buffer, const size_t length, const optional<double> seconds)
+{
+    int filedesc;
+    ReadResult::FileIndex index;
+    if (std_out_pipe.in_is_open()) {
+        filedesc = std_out_pipe.in();
+        index = ReadResult::FileIndex::StdOut;
+    } else {
+        filedesc = std_err_pipe.in();
+        index = ReadResult::FileIndex::StdErr;
+    }
+    NOVA_LOG_TRACE2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    if (!ready(filedesc, seconds)) {
+        NOVA_LOG_TRACE("ready returned false, returning zero from read_into");
+        return { ReadResult::NA, 0 };
+    }
+    size_t count = io::read_with_throw(filedesc, buffer, length);
+    if (count == 0) {
+        NOVA_LOG_TRACE("read returned 0, EOF");
+        draining = true;  // Avoid re-draining.
+        wait_forever_for_exit();
+        return { ReadResult::NA, 0 };
+    }
+    NOVA_LOG_TRACE("Writing.");
+    //TODO(tim.simpson): Consider eliminating this. It's a mess.
+    NOVA_LOG_TRACE2("OUTPUT:~={%.*s}=~", count, buffer);
+    NOVA_LOG_TRACE("Exit read_into");
+    return { index, count };
+}
+
+/**---------------------------------------------------------------------------
  *- StdIn
  *---------------------------------------------------------------------------*/
 
@@ -452,6 +614,27 @@ void StdIn::write(const char * msg, size_t length) {
         throw ProcessException(ProcessException::GENERAL);
     }
 }
+
+
+/**---------------------------------------------------------------------------
+ *- StdErr
+ *---------------------------------------------------------------------------*/
+
+StdErrToFile::StdErrToFile() {
+}
+
+StdErrToFile::~StdErrToFile() {
+}
+
+void StdErrToFile::post_spawn_actions() {
+    ::close(file_descriptor);
+}
+
+void StdErrToFile::pre_spawn_stderr_actions(SpawnFileActions & file_actions) {
+    file_descriptor = open(log_file_name(), O_WRONLY | O_APPEND | O_CREAT);
+    file_actions.add_dup_to(file_descriptor, STDERR_FILENO);
+}
+
 
 /**---------------------------------------------------------------------------
  *- StdErrAndStdOut

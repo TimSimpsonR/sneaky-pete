@@ -11,7 +11,9 @@ namespace nova { namespace utils {
  *---------------------------------------------------------------------------*/
 
 Regex::Regex(const char * pattern) {
-    regcomp(&regex, pattern, REG_EXTENDED);
+    if (0 != regcomp(&regex, pattern, REG_EXTENDED)) {
+        throw RegexException();
+    }
 }
 
 Regex::~Regex() {
@@ -63,6 +65,21 @@ std::string RegexMatches::get(size_t index) const {
 
 std::string RegexMatches::original_line() const {
     return line;
+}
+
+
+/**---------------------------------------------------------------------------
+ *- RegexException
+ *---------------------------------------------------------------------------*/
+
+RegexException::RegexException() throw() {
+}
+
+RegexException::~RegexException() throw() {
+}
+
+const char * RegexException::what() const throw() {
+    return "Error creating regular expression.";
 }
 
 } }  // end of nova::utils namespace

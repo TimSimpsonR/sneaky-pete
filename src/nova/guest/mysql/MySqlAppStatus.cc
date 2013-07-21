@@ -37,6 +37,10 @@ namespace utils = nova::guest::utils;
 
 namespace nova { namespace guest { namespace mysql {
 
+
+MySqlAppStatusContext::~MySqlAppStatusContext() {
+}
+
 // These are the normal production methods.
 // By defining these the tests can mock out the dependencies.
 void MySqlAppStatusContext::execute(stringstream & out,

@@ -1,6 +1,7 @@
 #include "pch.hpp"
 #include "nova/utils/io.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include "nova/Log.h"
 #include <signal.h>
@@ -9,6 +10,7 @@
 #include <stdlib.h> // exit
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -86,7 +88,9 @@ namespace {
     }
 }
 
+
 namespace nova { namespace utils { namespace io {
+
 
 /**---------------------------------------------------------------------------
  *- IOException
@@ -103,6 +107,8 @@ const char * IOException::what() const throw() {
     switch(code) {
         case ACCESS_DENIED:
             return "Access denied.";
+        case CANNOT_OPEN_DIRECTORY:
+            return "Can't open directory.";
         case PIPE_CREATION_ERROR:
             return "Error creating pipe!";
         case READ_ERROR:
@@ -275,6 +281,7 @@ bool is_file(const char * file_path) {
 bool is_file_sans_logging(const char * file_path) {
     return internal_is_file(file_path, false);
 }
+
 
 // Throws exceptions if errors are detected.
 size_t read_with_throw(int fd, char * const buf, size_t count) {

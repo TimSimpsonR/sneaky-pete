@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <time.h>
 #include <boost/utility.hpp>
+#include <vector>
 
 /**
  *  These functions translate the RAII semantics of Sneaky Pete's code to
@@ -46,7 +47,7 @@ class Pipe : private boost::noncopyable
             return fd[IN];
         }
 
-        inline bool in_is_open() {
+        inline bool in_is_open() const {
             return is_open[IN];
         }
 
@@ -54,7 +55,7 @@ class Pipe : private boost::noncopyable
             return fd[OUT];
         }
 
-        inline bool out_is_open() {
+        inline bool out_is_open() const {
             return is_open[OUT];
         }
 
@@ -65,6 +66,7 @@ class Pipe : private boost::noncopyable
 
         void close(int index);
 };
+
 
 /**
  * Create this to cause the functions here to throw TimeOutExceptions.
@@ -118,6 +120,7 @@ class IOException : public std::exception {
     public:
         enum Code {
             ACCESS_DENIED,
+            CANNOT_OPEN_DIRECTORY,
             GENERAL,
             PIPE_CREATION_ERROR,
             READ_ERROR,

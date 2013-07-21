@@ -34,7 +34,7 @@ using namespace nova::utils::swift;
  */
 
 
-class FileReader : public SwiftClient::Input {
+class FileReader : public SwiftUploader::Input {
 public:
 
   	FileReader(const char * file_name)
@@ -95,8 +95,8 @@ int main(int argc, char **argv)
   CurlScope scope;
 
   const auto max_bytes = 32 * 1024;
-  const auto chunk_size = 16 * 1024;
-  SwiftClient writer(token, max_bytes, chunk_size, file_info);
+  //const auto chunk_size = 16 * 1024; //<-- This is make believe LOL!
+  SwiftUploader writer(token, max_bytes, file_info);
 
   // http://localhost/container/file_0000001
   writer.write(file);

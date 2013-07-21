@@ -6,11 +6,14 @@
 #include <fstream>
 #include <string.h>
 #include <boost/algorithm/string.hpp>
+#include <sstream>
 
 
 using boost::format;
+using std::list;
 using boost::optional;
 using std::string;
+using std::stringstream;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using boost::algorithm::trim;
@@ -233,11 +236,25 @@ optional<bool> get_flag_value<>(FlagMap & map, const char * name) {
     }
 }
 
+std::list<string> get_flag_value_as_string_list(
+    FlagMap & map, const char * name, const char * default_value)
+{
+    optional<const char *> value = get_flag_value<const char *>(map, name);
+    std::list<string> cmds;
+    string full(value.get_value_or(default_value));
+    stringstream ss(full);
+    string cmd;
+    while(std::getline(ss, cmd, ',')) {
+        cmds.push_back(cmd);
+    }
+    return cmds;
+}
 
 template<typename T>
 T get_flag_value(FlagMap & map, const char * name, T default_value) {
     return get_flag_value<T>(map, name).get_value_or(default_value);
 }
+
 
 /**---------------------------------------------------------------------------
  *- FlagValues
@@ -267,8 +284,39 @@ int FlagValues::backup_chunk_size() const {
     return get_flag_value<int>(*map, "backup_chunk_size", 16 * 1024);
 }
 
+size_t FlagValues::backup_restore_chunk_size() const {
+    return get_flag_value<size_t>(*map, "backup_restore_chunk_size", 16 * 1024);
+}
+
+const char * FlagValues::backup_restore_delete_file_pattern() const {
+    return map->get("backup_restore_delete_file_pattern",
+                    "^ib|^xtrabackup|^mysql$|lost|^backup-my.cnf$|^db2/db.opt");
+}
+
+const char * FlagValues::backup_restore_restore_directory() const {
+    return map->get("backup_restore_restore_directory", "/var/lib/mysql");
+}
+
+list<string> FlagValues::backup_process_commands() const {
+    return get_flag_value_as_string_list(*map, "backup_process_commands",
+        "/usr/bin/sudo,-E,/var/lib/nova/backup");
+}
+
+list<string> FlagValues::backup_restore_process_commands() const {
+    return get_flag_value_as_string_list(
+        *map,
+        "backup_restore_process_commands",
+        "/usr/bin/sudo,-E,/var/lib/nova/restore");
+}
+
+const char * FlagValues::backup_restore_save_file_pattern() const {
+    return map->get("backup_restore_save_file_pattern",
+                    "^my.cnf$|^mysql_upgrade_info$|^debian-5.1.flag$");
+}
+
 int FlagValues::backup_segment_max_size() const {
-    return get_flag_value<int>(*map, "backup_segment_max_size", 100 * 1024 * 1024);
+    return get_flag_value<int>(*map, "backup_segment_max_size",
+                               100 * 1024 * 1024);
 }
 
 const char * FlagValues::backup_swift_container() const {
@@ -277,11 +325,6 @@ const char * FlagValues::backup_swift_container() const {
 
 double FlagValues::backup_timeout() const {
     return get_flag_value<double>(*map, "backup_timeout", 60.0);
-}
-
-bool FlagValues::backup_use_gzip_compression() const {
-    const char * value = map->get("backup_use_gzip_compression", "true");
-    return strncmp(value, "true", 4) == 0;
 }
 
 const char * FlagValues::control_exchange() const {

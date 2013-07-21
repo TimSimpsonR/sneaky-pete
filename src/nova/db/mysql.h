@@ -130,6 +130,8 @@ namespace nova { namespace db { namespace mysql {
 
             MySqlResultSetPtr query(const char * text);
 
+            bool test_connection();
+
         private:
             MySqlConnection(const MySqlConnection &);
             MySqlConnection & operator = (const MySqlConnection &);

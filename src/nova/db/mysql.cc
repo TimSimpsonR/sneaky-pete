@@ -476,13 +476,8 @@ MySqlConnection::~MySqlConnection() {
 }
 
 bool MySqlConnection::can_connect_to_localhost_with_mycnf() {
-    try {
-        MySqlConnection con("localhost");
-        con.query("SELECT 'Hello'");
-        return true;
-    } catch(const MySqlException & mse) {
-        return false;
-    }
+    MySqlConnection con("localhost");
+    return con.test_connection();
 }
 
 void MySqlConnection::close() {
@@ -688,6 +683,15 @@ MySqlResultSetPtr MySqlConnection::query(const char * text) {
     }
     MySqlResultSetPtr rtn(new MySqlQueryResultSet(mysql_con(get_con())));
     return rtn;
+}
+
+bool MySqlConnection::test_connection() {
+     try {
+        this->query("SELECT 'Hello'");
+        return true;
+    } catch(const MySqlException & mse) {
+        return false;
+    }
 }
 
 

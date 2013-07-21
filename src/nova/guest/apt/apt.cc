@@ -39,15 +39,6 @@ using nova::utils::io::TimeOutException;
 using nova::utils::io::Timer;
 using std::vector;
 
-#define _VERBOSE_NOVA_GUEST_APT
-#ifdef _VERBOSE_NOVA_GUEST_APT
-#define VERBOSE_LOG(args) NOVA_LOG_DEBUG(args)
-#define VERBOSE_LOG3(a1, a2, a3) NOVA_LOG_DEBUG2(a1, a2, a3)
-#else
-#define VERBOSE_LOG(args) /* args */
-#define VERBOSE_LOG3(a1, a2, a3) /* a1, a2, a3 */
-#endif
-
 
 //TODO(tim.simpson): Make this the actual standard.
 #define PACKAGE_NAME_REGEX "\\S+"
@@ -120,9 +111,9 @@ optional<ProcessResult> match_output(
     Timer timer(seconds);
     while(!process.is_finished()) {
         size_t count = process.read_into(std_out, seconds);
-        VERBOSE_LOG("********************************************************");
-        VERBOSE_LOG(std_out.str().c_str());
-        VERBOSE_LOG("********************************************************");
+        NOVA_LOG_TRACE("******************************************************");
+        NOVA_LOG_TRACE(std_out.str().c_str());
+        NOVA_LOG_TRACE("******************************************************");
         if (count == 0) {
             if (!process.is_finished()) {
                 NOVA_LOG_ERROR("read should not exit until it gets data.");
@@ -133,11 +124,11 @@ optional<ProcessResult> match_output(
         for (size_t index = 0; index < regexes.size(); index ++) {
             RegexPtr & regex = regexes[index];;
             RegexMatchesPtr matches = regex->match(output.c_str());
-            VERBOSE_LOG("____________________________________________________");
-            VERBOSE_LOG(output.c_str());
-            VERBOSE_LOG3("Trying to match %s against regex %s", output.c_str(),
-                        patterns[index].c_str());
-            VERBOSE_LOG("____________________________________________________");
+            NOVA_LOG_TRACE("__________________________________________________");
+            NOVA_LOG_TRACE(output.c_str());
+            NOVA_LOG_TRACE2("Trying to match %s against regex %s",
+                            output.c_str(), patterns[index].c_str());
+            NOVA_LOG_TRACE("__________________________________________________");
             if (!!matches) {
                 ProcessResult result;
                 result.index = index;

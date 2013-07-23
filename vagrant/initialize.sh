@@ -8,35 +8,55 @@ set -o xtrace
 # Bail on errors.
 set -e
 
-BUILD_DIR=${BUILD_DIR:-/home/vagrant}/sneaky_deps
+BUILD_DIR=${BUILD_DIR:-/home/vagrant/}sneaky_deps
 
 pkg_install () {
     echo Installing $@...
     sudo -E DEBIAN_FRONTEND=noninteractive apt-get -y --allow-unauthenticated install $@
 }
 
-# Install deps
-pkg_install mercurial \
-  git-core autoconf libtool uuid-dev libmysqlcppconn-dev g++ valgrind \
- mysql-server-5.1 libboost-dev bjam boost-build libboost-test-dev \
- libboost-thread-dev libconfuse-dev libgc1c2 make \
- libmysqlclient-dev # rabbitmq-server #<-- Reddwarf CI script will install this
+pkg_checkout () {
+    PKG_DIR=$BUILD_DIR/$2
+    if [ ! -d $PKG_DIR ]; then
+        git clone $1 $PKG_DIR
+    fi
+    pushd $PKG_DIR
+    git reset --hard $3
+    git clean -f -d -x
+    git submodule update --init
+    popd
+}
 
-rm -rf $BUILD_DIR
+# Install deps
+pkg_install \
+    autoconf \
+    bjam \
+    boost-build \
+    git-core \
+    g++ \
+    libboost-dev \
+    libboost-test-dev \
+    libboost-thread-dev \
+    libconfuse-dev \
+    libgc1c2 \
+    libmysqlclient-dev \
+    libmysqlcppconn-dev \
+    libtool \
+    make \
+    mercurial \
+    mysql-server-5.1 \
+    uuid-dev \
+    valgrind
+    # rabbitmq-server #<-- Reddwarf CI script will install this
+
 mkdir -p $BUILD_DIR
 
 # Installing Rabbit
-cd $BUILD_DIR
-git clone git://github.com/rabbitmq/rabbitmq-codegen.git
-git clone git://github.com/alanxz/rabbitmq-c.git
+pkg_checkout git://github.com/rabbitmq/rabbitmq-codegen.git rabbitmq-codegen 80fdd87358
+pkg_checkout git://github.com/alanxz/rabbitmq-c.git rabbitmq-c 3ff795807f
 
-cd rabbitmq-c
-git reset --hard 3ff795807f102aa866aec4d0921dd83ab3b9757d
-git submodule init
-git submodule update
-
+cd $BUILD_DIR/rabbitmq-c
 autoreconf -i
-ls
 ./configure
 # Alter librabbitmq/amqp_connection.c, line 416 / 417 to include the flag
 # MSG_NOSIGNAL. I'm having trouble ginoring the SIGPIPE signal in Sneaky-Pete
@@ -48,9 +68,8 @@ make
 sudo make install
 
 # Install json stuff
-cd $BUILD_DIR
-git clone https://github.com/jehiah/json-c.git
-cd json-c
+pkg_checkout https://github.com/jehiah/json-c.git json-c 276123efe0
+cd $BUILD_DIR/json-c
 sh autogen.sh
 ./configure
 make
@@ -64,26 +83,30 @@ sudo cp /usr/local/lib/librabbit* /usr/lib/
 # Install Curl
 set +e
 
-pkg_install libssl-dev
-pkg_install libidn11-dev
-pkg_install libcrypto++-dev
-pkg_install libssh-dev
-pkg_install libgcrypt11-dev
+pkg_install \
+    libcrypto++-dev \
+    libgcrypt11-dev
+    libidn11-dev \
+    libssh-dev \
+    libssl-dev \
 
 set -e
 
 mkdir -p /opt/sp-deps/libcurl
 
 # Now build the library Sneaky Pete will use from source.
-cd $BUILD_DIR
-git clone git://github.com/bagder/curl.git
-cd curl
-git reset --hard e305f5ec715f967bdfaa0c9bf8f102f9185b9aa2
+pkg_checkout git://github.com/bagder/curl.git curl e305f5ec71
+cd $BUILD_DIR/curl
 ./buildconf
 # TODO(tim.simpson): Add SSL / SSH back... of course.
-LIBS="-ldl" ./configure --disable-shared --enable-static \
-     --disable-ldap --disable-ldaps \
-     --without-gnutls --without-libssh2 --prefix=/opt/sp-deps/libcurl
+LIBS="-ldl" ./configure \
+    --disable-shared \
+    --enable-static \
+    --disable-ldap \
+    --disable-ldaps \
+    --without-gnutls \
+    --without-libssh2 \
+    --prefix=/opt/sp-deps/libcurl
 
 make LDFLAGS="-all-static -ldl"
 make install
@@ -91,8 +114,7 @@ make install
 
 # Needed for static compile magic.
 cd $BUILD_DIR
-ln -s `g++ -print-file-name=libstdc++.a`
-
+ln -sf $(g++ -print-file-name=libstdc++.a)
 
 # Implements a fix for Boost Build's precompiled header feature so it will pass
 # necessary C++ flags when building the precompiled header initially.

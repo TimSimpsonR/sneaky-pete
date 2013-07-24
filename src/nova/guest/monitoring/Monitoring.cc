@@ -60,6 +60,21 @@ void Monitoring::install_and_configure_monitoring_agent(
         NOVA_LOG_ERROR2("Couldn't open config file: %s.", TMP_MON_CONF);
         throw MonitoringException(MonitoringException::CANT_WRITE_CONFIG_FILE);
     }
+    NOVA_LOG_DEBUG2("opening the files %s", agent_config_file.c_str());
+    string buffer;
+    ifstream orig_config_file;
+    orig_config_file.open(agent_config_file.c_str());
+
+    if (orig_config_file.is_open()) {
+
+        // get the region line to append to file
+        getline(orig_config_file, buffer);
+        NOVA_LOG_DEBUG2("buffer of orig_config_file: %s", buffer.c_str());
+        config << buffer << endl;
+
+    }
+    orig_config_file.close();
+    config << endl;
     config << "monitoring_id " << guest_id << endl;
     config << "monitoring_token " << monitoring_token << endl;
     if (monitoring_endpoints != "") {

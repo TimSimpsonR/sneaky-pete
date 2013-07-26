@@ -45,7 +45,7 @@ namespace nova { namespace guest { namespace mysql {
 
         public:
             /* NOTE: These *MUST* match the values found in
-             * reddwarf.instance.models.ServiceStatuses! */
+             * trove.instance.models.ServiceStatuses! */
             enum Status {
                 RUNNING = 0x01, // MySQL is active.
                 BLOCKED = 0x02,

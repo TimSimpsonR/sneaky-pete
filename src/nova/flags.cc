@@ -285,7 +285,7 @@ bool FlagValues::backup_use_gzip_compression() const {
 }
 
 const char * FlagValues::control_exchange() const {
-    return map->get("control_exchange", "reddwarf");
+    return map->get("control_exchange", "trove");
 }
 
 const char * FlagValues::db_backend() const {

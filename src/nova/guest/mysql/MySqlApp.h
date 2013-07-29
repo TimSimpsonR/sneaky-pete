@@ -28,7 +28,8 @@ class MySqlApp {
         /** Installs MySql, secures it, and possibly runs a backup. */
         void prepare(
             nova::guest::apt::AptGuest & apt,
-            int memory_mb,
+            const std::string & config_location,
+            const std::string & config_contents,
             boost::optional<nova::guest::backup::BackupRestoreInfo> restore
         );
 
@@ -36,10 +37,12 @@ class MySqlApp {
         void restart();
 
         void start_db_with_conf_changes(nova::guest::apt::AptGuest & apt,
-                                        int updated_memory_mb);
+                                        const std::string & config_location,
+                                        const std::string & config_contents);
 
         void reset_configuration(nova::guest::apt::AptGuest & apt,
-                         int updated_memory_mb);
+                                 const std::string & config_location,
+                                 const std::string & config_contents);
 
         /** Stops MySQL on this host. */
         void stop_db(bool do_not_start_on_reboot=false);
@@ -66,7 +69,8 @@ class MySqlApp {
          **/
 
         void write_mycnf(nova::guest::apt::AptGuest & apt,
-                         int updated_memory_mb,
+                         const std::string & config_location,
+                         const std::string & config_contents,
                          const boost::optional<std::string> & admin_password_arg);
 
         /*

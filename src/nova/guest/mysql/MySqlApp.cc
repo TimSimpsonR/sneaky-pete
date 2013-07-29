@@ -42,11 +42,9 @@ namespace {
 
     const char * const ADMIN_USER_NAME = "os_admin";
     const char * const ORIG_MYCNF = "/etc/mysql/my.cnf";
-    const char * const FINAL_MYCNF ="/var/lib/mysql/my.cnf";
     // There's a permisions issue which necessitates this.
     const char * const HACKY_MYCNF ="/var/lib/nova/my.cnf";
     const char * const TMP_MYCNF = "/tmp/my.cnf.tmp";
-    const char * const DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM";
     const char * const TRUE_DEBIAN_CNF = "/etc/mysql/debian.cnf";
     const char * const TMP_DEBIAN_CNF = "/tmp/debian.cnf";
     const char * const FRESH_INIT_FILE_PATH = "/tmp/init.sql";
@@ -89,22 +87,6 @@ namespace {
         // Always throw if the exit code is bad, since disabling this on
         // start up might be needed in case of a reboot.
         call_update_rc(false, true);
-    }
-
-    /** If there is a file at template_path, back up the current file to a new
-     *  file ending with today's date, and then copy the template file over
-     *  it. */
-    void replace_mycnf_with_template(const char * template_path,
-                                     const char * original_path) {
-        if (io::is_file(template_path)) {
-            IsoTime time;
-            string new_mycnf = str(format("%s.%s") % original_path
-                                   % time.c_str());
-            process::execute(list_of("/usr/bin/sudo")("mv")(original_path)
-                             (new_mycnf.c_str()));
-            process::execute(list_of("/usr/bin/sudo")("cp")(template_path)
-                             (original_path));
-        }
     }
 
     /** Write a new file thats just like the original but with a different
@@ -176,7 +158,9 @@ void MySqlApp::generate_root_password(MySqlAdmin & db) {
     db.set_password("root", "%", mysql::generate_password().c_str());
 }
 
-void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
+void MySqlApp::write_mycnf(AptGuest & apt,
+                           const string & config_location,
+                           const string & config_contents,
                            const optional<string> & admin_password_arg) {
     NOVA_LOG_INFO("Writing my.cnf templates");
     string admin_password;
@@ -186,7 +170,7 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
         // TODO: Maybe in the future, set my.cnf from user_name value?
         string user_name;
         MySqlConnection::get_auth_from_config(
-            HACKY_MYCNF, user_name, admin_password);
+            config_location.c_str(), user_name, admin_password);
     }
 
     /* As of right here, admin_password contains the password to be applied
@@ -194,33 +178,49 @@ void MySqlApp::write_mycnf(AptGuest & apt, int updated_memory_mb,
     or we generated a new one just now (because we didn't pass it in).
     */
 
-    apt.install("dbaas-mycnf", TIME_OUT);
+    /* Backup the existing config file if needed. */
+    if (io::is_file(config_location.c_str())) {
+        NOVA_LOG_INFO("Backing up original configuration file.")
+        IsoTime time;
+        string backup_mycnf = str(format("%s.%s") % config_location
+                                  % time.c_str());
+        process::execute(list_of("/usr/bin/sudo")("cp")(config_location.c_str())
+                         (backup_mycnf.c_str()));
+    }
 
-    NOVA_LOG_INFO("Replacing my.cnf with template.");
-    string template_path = str(format(DBAAS_MYCNF) % updated_memory_mb);
-    replace_mycnf_with_template(template_path.c_str(), ORIG_MYCNF);
+    ofstream mycnf_file;
+    mycnf_file.open(TMP_MYCNF, ofstream::out | ofstream::trunc);
 
-    NOVA_LOG_INFO("Writing new temp my.cnf.");
+    if (!mycnf_file.good()) {
+        NOVA_LOG_ERROR2("Couldn't open mycnf file: %s.", TMP_MYCNF);
+        throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
+    }
+
+    mycnf_file << config_contents << std::endl;
+    mycnf_file.close();
+
+    NOVA_LOG_INFO("Writing auth info to my.cnf.");
     write_temp_mycnf_with_admin_account(ORIG_MYCNF, HACKY_MYCNF, TMP_MYCNF,
                                         admin_password.c_str());
 
     NOVA_LOG_INFO("Copying tmp file so we can log in (permissions work-around).");
     process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
-    NOVA_LOG_INFO("Moving tmp into final.");
-    process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
     NOVA_LOG_INFO("Removing original my.cnf.");
-    process::execute(list_of("/usr/bin/sudo")("rm")(ORIG_MYCNF));
-    NOVA_LOG_INFO("Symlinking final my.cnf.");
-    process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
-                            (ORIG_MYCNF));
+    process::execute(list_of("/usr/bin/sudo")("rm")("-f")(config_location.c_str()));
+    NOVA_LOG_INFO("Moving tmp into final.");
+    process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(config_location.c_str()));
     wipe_ib_logfiles();
 }
 
-void MySqlApp::reset_configuration(AptGuest & apt, int updated_memory_mb) {
-    write_mycnf(apt, updated_memory_mb, boost::none);
+void MySqlApp::reset_configuration(AptGuest & apt,
+                                   const string & config_location,
+                                   const string & config_contents) {
+    write_mycnf(apt, config_location, config_contents, boost::none);
 }
 
-void MySqlApp::prepare(AptGuest & apt, int memory_mb,
+void MySqlApp::prepare(AptGuest & apt,
+                       const string & config_location,
+                       const string & config_contents,
                        optional<BackupRestoreInfo> restore) {
     // This option allows prepare to be run multiple times. In fact, I'm
     // wondering if this newer version might be safe to just run whenever
@@ -258,7 +258,7 @@ void MySqlApp::prepare(AptGuest & apt, int memory_mb,
         write_fresh_init_file(admin_password, !restore);
 
         NOVA_LOG_INFO("Writing my.cnf...");
-        write_mycnf(apt, memory_mb, admin_password);
+        write_mycnf(apt, config_location, config_contents, admin_password);
 
         NOVA_LOG_INFO("Starting MySQL with init file...");
         run_mysqld_with_init();
@@ -433,7 +433,8 @@ void MySqlApp::start_mysql(bool update_db) {
 }
 
 void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
-                                             int updated_memory_mb) {
+                                          const string & config_location,
+                                          const string & config_contents) {
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
     if (status->is_mysql_running()) {
@@ -444,7 +445,7 @@ void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
     NOVA_LOG_INFO("Initiating config.");
     // Make sure dbaas package is upgraded during the install in write_mycnf.
     apt.update(TIME_OUT);
-    write_mycnf(apt, updated_memory_mb, boost::none);
+    write_mycnf(apt, config_location, config_contents, boost::none);
     start_mysql(true);
     guarantee_enable_starting_mysql_on_boot();
 }

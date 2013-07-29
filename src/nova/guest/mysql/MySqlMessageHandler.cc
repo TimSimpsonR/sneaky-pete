@@ -457,7 +457,8 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
-        int memory_mb = input.args->get_int("memory_mb");
+        string config_location = input.args->get_string("config_location");
+        string config_contents = input.args->get_string("config_contents");
         // Restore the database?
         optional<BackupRestoreInfo> restore;
         const auto backup_url = input.args->get_optional_string("backup_url");
@@ -471,7 +472,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             restore = optional<BackupRestoreInfo>(
                 BackupRestoreInfo(token.get(), backup_url.get()));
         }
-        app->prepare(*this->apt, memory_mb, restore);
+        app->prepare(*this->apt, config_location, config_contents, restore);
 
         // The argument signature is the same as create_database so just
         // forward the method.
@@ -501,16 +502,18 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     } else if (input.method_name == "start_db_with_conf_changes") {
         NOVA_LOG_INFO("Calling start with conf changes...");
         MySqlAppPtr app = this->create_mysql_app();
-        int memory_mb = input.args->get_int("updated_memory_size");
+        string config_location = input.args->get_string("config_location");
+        string config_contents = input.args->get_string("config_contents");
         app->start_db_with_conf_changes(*this->apt,
-                                        memory_mb);
+                                        config_location, config_contents);
         return JsonData::from_null();
     } else if (input.method_name == "reset_configuration") {
         NOVA_LOG_INFO("Resetting config file...");
         MySqlAppPtr app = this->create_mysql_app();
         JsonObjectPtr config = input.args->get_object("configuration");
-        int memory_mb = config->get_int("memory_mb");
-        app->reset_configuration(*this->apt, memory_mb);
+        string config_location = config->get_string("config_location");
+        string config_contents = config->get_string("config_contents");
+        app->reset_configuration(*this->apt, config_location, config_contents);
         return JsonData::from_null();
     } else if (input.method_name == "stop_db") {
         NOVA_LOG_INFO("Calling stop...");

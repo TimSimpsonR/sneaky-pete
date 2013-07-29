@@ -2,7 +2,7 @@
 #include "pch.hpp"
 #include "nova/utils/zlib.h"
 
-#include <nova/log.h>
+#include <nova/Log.h>
 #include <memory>
 #include <zlib.h>
 

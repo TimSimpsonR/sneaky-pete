@@ -177,17 +177,6 @@ void MySqlApp::write_mycnf(AptGuest & apt,
                          (backup_mycnf.c_str()));
     }
 
-    // ofstream mycnf_file;
-    // mycnf_file.open(TMP_MYCNF, ofstream::out | ofstream::trunc);
-
-    // if (!mycnf_file.good()) {
-    //     NOVA_LOG_ERROR2("Couldn't open mycnf file: %s.", TMP_MYCNF);
-    //     throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
-    // }
-
-    // mycnf_file << config_contents << std::endl;
-    // mycnf_file.close();
-
     NOVA_LOG_INFO("Writing info and auth to my.cnf.");
     write_temp_mycnf_with_admin_account(TMP_MYCNF, config_contents,
                                         admin_password.c_str());

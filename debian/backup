@@ -2,4 +2,7 @@
 set -e
 ulimit -s unlimited
 
-/usr/bin/innobackupex --stream=xbstream /var/lib/mysql
+/usr/bin/innobackupex \
+    --stream=xbstream \
+    --ibbackup=xtrabackup \
+    /var/lib/mysql

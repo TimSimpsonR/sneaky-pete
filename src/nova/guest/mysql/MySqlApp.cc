@@ -4,6 +4,7 @@
 #include <exception>
 #include <boost/format.hpp>
 #include <fstream>
+#include <sstream>
 #include "nova/utils/io.h"
 //#include <boost/assign/std/list.hpp>
 #include <boost/assign/list_of.hpp>
@@ -91,18 +92,13 @@ namespace {
 
     /** Write a new file thats just like the original but with a different
      *  password. */
-    void write_temp_mycnf_with_admin_account(const char * original_file_path,
-                                             const char * alt_file_path,
-                                             const char * temp_file_path,
+    void write_temp_mycnf_with_admin_account(const char * temp_file_path,
+                                             const string & config_contents,
                                              const char * password) {
-        ifstream mycnf_file;
-        mycnf_file.open(original_file_path);
-        if (mycnf_file.fail()) {
-            NOVA_LOG_ERROR2("Error reading from my.cnf file %s, switching "
-                            "to %s.", original_file_path, alt_file_path);
-            mycnf_file.close();
-            mycnf_file.open(alt_file_path);
-        }
+        stringstream mycnf_file;
+
+        mycnf_file << config_contents;
+
         ofstream tmp_file;
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
@@ -110,13 +106,7 @@ namespace {
             throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
         }
         string line;
-        while(!mycnf_file.eof()) {
-            if (mycnf_file.fail()) {
-                NOVA_LOG_ERROR2("Error reading from my.cnf file: %s.",
-                                original_file_path);
-                throw MySqlGuestException(
-                    MySqlGuestException::CANT_READ_ORIGINAL_MYCNF);
-            }
+        while(mycnf_file.good()) {
             std::getline(mycnf_file, line);
             tmp_file << line << std::endl;
             if (line.find("[client]", 0) != string::npos) {
@@ -124,7 +114,6 @@ namespace {
                 tmp_file << "password\t= " << password << std::endl;
             }
         }
-        mycnf_file.close();
         tmp_file.close();
     }
 }  // end anonymous namespace
@@ -184,29 +173,27 @@ void MySqlApp::write_mycnf(AptGuest & apt,
         IsoTime time;
         string backup_mycnf = str(format("%s.%s") % config_location
                                   % time.c_str());
-        process::execute(list_of("/usr/bin/sudo")("cp")(config_location.c_str())
+        process::execute(list_of("/usr/bin/sudo")("mv")(config_location.c_str())
                          (backup_mycnf.c_str()));
     }
 
-    ofstream mycnf_file;
-    mycnf_file.open(TMP_MYCNF, ofstream::out | ofstream::trunc);
+    // ofstream mycnf_file;
+    // mycnf_file.open(TMP_MYCNF, ofstream::out | ofstream::trunc);
 
-    if (!mycnf_file.good()) {
-        NOVA_LOG_ERROR2("Couldn't open mycnf file: %s.", TMP_MYCNF);
-        throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
-    }
+    // if (!mycnf_file.good()) {
+    //     NOVA_LOG_ERROR2("Couldn't open mycnf file: %s.", TMP_MYCNF);
+    //     throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
+    // }
 
-    mycnf_file << config_contents << std::endl;
-    mycnf_file.close();
+    // mycnf_file << config_contents << std::endl;
+    // mycnf_file.close();
 
-    NOVA_LOG_INFO("Writing auth info to my.cnf.");
-    write_temp_mycnf_with_admin_account(ORIG_MYCNF, HACKY_MYCNF, TMP_MYCNF,
+    NOVA_LOG_INFO("Writing info and auth to my.cnf.");
+    write_temp_mycnf_with_admin_account(TMP_MYCNF, config_contents,
                                         admin_password.c_str());
 
     NOVA_LOG_INFO("Copying tmp file so we can log in (permissions work-around).");
     process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
-    NOVA_LOG_INFO("Removing original my.cnf.");
-    process::execute(list_of("/usr/bin/sudo")("rm")("-f")(config_location.c_str()));
     NOVA_LOG_INFO("Moving tmp into final.");
     process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(config_location.c_str()));
     wipe_ib_logfiles();

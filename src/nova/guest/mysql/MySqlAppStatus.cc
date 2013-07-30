@@ -97,11 +97,12 @@ optional<string> MySqlAppStatus::find_mysql_pid_file() const {
         NOVA_LOG_ERROR2("Error running mysqld --print-defaults! %s", pe.what());
         return boost::none;
     }
-    Regex pattern("--pid-file=([a-z0-9A-Z/]+\\.pid)");
+    Regex pattern("--pid[_-]file=([a-z0-9A-Z/]+\\.pid)");
     RegexMatchesPtr matches = pattern.match(out.str().c_str());
     if (!matches || !matches->exists_at(1)) {
         NOVA_LOG_ERROR("No match found in output of "
                        "\"mysqld --print-defaults\".");
+        NOVA_LOG_ERROR(out.str().c_str())
         return boost::none;
     }
     optional<string> rtn(matches->get(1));

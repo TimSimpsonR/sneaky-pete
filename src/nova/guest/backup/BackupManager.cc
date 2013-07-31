@@ -253,7 +253,9 @@ private:
         SwiftFileInfo file_info(swift_url, swift_container, backup_id);
         SwiftUploader writer(token, segment_max_size, file_info);
 
-        // Write the backup to swift
+        // Write the backup to swift.
+        // The checksum returned is the swift checksum of the concatenated
+        // segment checksums.
         auto checksum = writer.write(reader);
 
         // check the process was successful
@@ -293,7 +295,7 @@ private:
             (!extra_info) ? "UPDATE backups SET updated=?, state=? "
                             "WHERE id=? AND tenant_id=?"
                           : "UPDATE backups SET updated=?, state=?, "
-                            "checksum=NULL, backup_type=?, location=?, "
+                            "checksum=?, backup_type=?, location=?, "
                             "size=? "
                             "WHERE id=? AND tenant_id=?";
         auto stmt = infra_db->prepare_statement(text);
@@ -302,8 +304,7 @@ private:
         stmt->set_string(index ++, now.c_str());
         stmt->set_string(index ++, state.c_str());
         if (extra_info) {
-            //TODO(tim.simpson): Update the checksum once we actually have one.
-            //stmt->set_string(index ++, extra_info->checksum.c_str());
+            stmt->set_string(index ++, extra_info->checksum.c_str());
             stmt->set_string(index ++, extra_info->type.c_str());
             stmt->set_string(index ++, extra_info->location.c_str());
             stmt->set_float(index ++, extra_info->size);

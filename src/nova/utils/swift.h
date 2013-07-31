@@ -12,6 +12,7 @@
 #include "nova/utils/Md5.h"
 #include "nova/Log.h"
 #include <boost/utility.hpp>
+#include <exception>
 
 
 namespace nova { namespace utils { namespace swift {
@@ -43,6 +44,9 @@ struct SwiftFileInfo {
 
     /* Write the number of segments to the metadata */
     std::string segment_header(int file_number) const;
+
+    /* Write the actual checksum of file to the metadata. */
+    std::string file_checksum_header(const std::string & final_file_checksum) const;
 };
 
 
@@ -112,17 +116,39 @@ private:
     struct SegmentInfo;
 
     Md5 file_checksum;
+    Md5 swift_checksum;
     SwiftFileInfo file_info;
     int file_number;
 
     const size_t max_bytes;
 
-    bool validate_segment(const std::string & url, const std::string checksum);
     void write_container();
-    void write_manifest(int file_number);
+    void write_manifest(int file_number,
+                        const std::string & final_file_checksum,
+                        const std::string & concatenated_checksum);
+
 
     /* Returns a MD5 checksum. */
     std::string write_segment(const std::string & url, Input & input);
+};
+
+
+class SwiftException : public std::exception {
+
+    public:
+        enum Code {
+            SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL,
+            SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL
+        };
+
+        SwiftException(Code code) throw();
+
+        virtual ~SwiftException() throw();
+
+        virtual const char * what() const throw();
+
+    private:
+        Code code;
 };
 
 

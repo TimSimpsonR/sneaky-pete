@@ -83,3 +83,24 @@ BOOST_AUTO_TEST_CASE(md5_update_after_finalization)
     });
 
 }
+
+BOOST_AUTO_TEST_CASE(md5_multiple_updates)
+{
+    string a, b;
+
+    string x = "HELLO";
+    string y = "WORLD";
+    string z = x + y;
+
+    Md5 md5_parts, md5_whole;
+
+    md5_parts.update(x.c_str(), x.size());
+    md5_parts.update(y.c_str(), y.size());
+    a = md5_parts.finalize();
+
+    md5_whole.update(z.c_str(), z.size());
+    b = md5_whole.finalize();
+
+    BOOST_CHECK_EQUAL(a, b);
+
+}

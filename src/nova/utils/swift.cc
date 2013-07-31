@@ -37,7 +37,7 @@ namespace nova { namespace utils { namespace swift {
 struct SwiftUploader::SegmentInfo {
     size_t bytes_read;
     Md5 checksum; // segment checksum
-    Md5 file_checksum; // total file checksum
+    Md5 & file_checksum; // total file checksum
     SwiftUploader::Input & input;
     SwiftUploader & writer;
 
@@ -117,6 +117,10 @@ string SwiftFileInfo::prefix_header() const {
                          % container % base_file_name);
 }
 
+string SwiftFileInfo::file_checksum_header(const string & final_file_checksum) const {
+    return str(format("X-Object-Meta-File-Checksum: %s") % final_file_checksum);
+}
+
 /**---------------------------------------------------------------------------
  *- SwiftClient
  *---------------------------------------------------------------------------*/
@@ -194,9 +198,6 @@ void SwiftDownloader::read(SwiftDownloader::Output & output) {
 
     /* Let's do this! */
     session.perform(list_of(200));
-
-    // TODO(tim.simpson): Compare with checksum somehow. Although, Maybe that
-    //                    should happen in the Output subclass.
 }
 
 
@@ -217,6 +218,7 @@ SwiftUploader::SwiftUploader(const string & token,
                              const SwiftFileInfo & file_info)
 :   SwiftClient(token),
     file_checksum(),
+    swift_checksum(),
     file_info(file_info),
     file_number(0),
     max_bytes(max_bytes)
@@ -224,10 +226,14 @@ SwiftUploader::SwiftUploader(const string & token,
 }
 
 
-void SwiftUploader::write_manifest(int file_number){
+void SwiftUploader::write_manifest(int file_number,
+                                   const string & final_file_checksum,
+                                   const string & concatenated_checksum)
+{
     reset_session();
     session.add_header(file_info.prefix_header().c_str());
     session.add_header(file_info.segment_header(file_number).c_str());
+    session.add_header(file_info.file_checksum_header(final_file_checksum).c_str());
     /* enable uploading */
     session.set_opt(CURLOPT_UPLOAD, 1L);
 
@@ -243,6 +249,22 @@ void SwiftUploader::write_manifest(int file_number){
 
     /* Make it happen */
     session.perform(list_of(200)(201)(202));
+
+    Curl::HeadersPtr headers = session.head(file_info.manifest_url(), list_of(200)(202));
+    // So it looks like HEAD of the manifest file returns an etag that is double quoted
+    // e.g. 'etag': '"c4bf3693422e0e5a3350dac64e002987"'
+    // hence we start substr at position 1
+    string etag = (*headers)["etag"].substr(1, 32);
+    // string etag = (*headers)["etag"].c_str();
+    NOVA_LOG_DEBUG2("Manifest etag: %s", etag.c_str());
+
+    if (concatenated_checksum != etag) {
+        NOVA_LOG_ERROR2("Checksum match failed for checksum of concatenated segment "
+                        "checksums. Expected: %s, Actual: %s.",
+                        concatenated_checksum.c_str(), etag.c_str());
+        throw SwiftException(SwiftException::SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL);
+    }
+
 }
 
 void SwiftUploader::write_container(){
@@ -290,24 +312,15 @@ string SwiftUploader::write_segment(const string & url,
     Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
     const string checksum = info.checksum.finalize();
     string etag = (*headers)["etag"].substr(0, 32);
-    NOVA_LOG_ERROR2("What was etag? %s", etag.c_str());
+    NOVA_LOG_DEBUG2("Response etag: %s", etag.c_str());
+    NOVA_LOG_DEBUG2("Our calculated checksum: %s", checksum.c_str());
     if (checksum != etag) {
         NOVA_LOG_ERROR2("Checksum match failed on segment. Expected %s, "
                         "actual %s.", checksum.c_str(), etag.c_str());
-        // TODO: (rmyers) Make checksum work for real!!
-        //throw std::exception();
+        throw SwiftException(SwiftException::SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL);
     }
     return checksum;
 }
-
-bool SwiftUploader::validate_segment(const string & url, const string checksum){
-    // validate the segment against cloud files
-    reset_session();
-    session.set_opt(CURLOPT_URL, url.c_str());
-    // TODO(tim.simpson): Finish this.
-    return true;
-}
-
 
 string SwiftUploader::write(SwiftUploader::Input & input){
     NOVA_LOG_DEBUG("Writing to Swift!");
@@ -317,12 +330,46 @@ string SwiftUploader::write(SwiftUploader::Input & input){
         const string url = file_info.formatted_url(file_number);
         NOVA_LOG_DEBUG2("Time to write segment %d.", file_number);
         string md5 = write_segment(url, input);
-        // Head the file to check the checksum
         NOVA_LOG_DEBUG2("checksum: %s", md5.c_str());
+        // The swift checksum is the checksum of the concatenated segment checksums
+        // Instead of holding a vector of segment checksums and then joining them
+        // to calculate the checksum at the end, lets just continuously calculate
+        // the checksum with md5.update to keep a minimal memory footprint.
+        // Currently we have no use for all the segment checksums other than for this.
+        swift_checksum.update(md5.c_str(), md5.size());
     }
+
     NOVA_LOG_DEBUG("Finalizing files...");
-    write_manifest(file_number);
-    return file_checksum.finalize();
+    const string final_file_checksum = file_checksum.finalize();
+    NOVA_LOG_DEBUG2("Checksum for entire file: %s", final_file_checksum.c_str());
+    const string final_swift_checksum = swift_checksum.finalize();
+    NOVA_LOG_DEBUG2("Checksum of concatenated segment checksums: %s", final_swift_checksum.c_str());
+
+    write_manifest(file_number, final_file_checksum, final_swift_checksum);
+    return final_swift_checksum;
+}
+
+
+/**---------------------------------------------------------------------------
+ *- SwiftException
+ *---------------------------------------------------------------------------*/
+
+SwiftException::SwiftException(Code code) throw()
+:   code(code) {
+}
+
+SwiftException::~SwiftException() throw() {
+}
+
+const char * SwiftException::what() const throw() {
+    switch(code) {
+        case SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL:
+            return "Failure matching segment checksum of swift upload!";
+        case SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL:
+            return "Failure matching checksum of concatenated segment checksums of swift upload!";
+        default:
+            return "A Swift Error occurred!";
+    }
 }
 
 

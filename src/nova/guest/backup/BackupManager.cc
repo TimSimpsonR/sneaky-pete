@@ -225,6 +225,7 @@ private:
         const string checksum;
         const string type;
         const string location;
+        const float size;
     };
 
     const string backup_id;
@@ -243,7 +244,7 @@ private:
         Interrogator question;
         FileSystemStatsPtr stats = question.get_filesystem_stats("/var/lib/mysql");
 
-        NOVA_LOG_DEBUG2("Volume used: %d", stats->used);
+        NOVA_LOG_DEBUG2("Volume used: %f", stats->used);
 
         CommandList cmds;
         BackupProcessReader reader(commands, time_out);
@@ -265,7 +266,8 @@ private:
             DbInfo info = {
                 checksum,
                 "xtrabackup_v1",
-                file_info.manifest_url()
+                file_info.manifest_url(),
+                stats->used
             };
             update_db("COMPLETED", info);
         }
@@ -291,7 +293,8 @@ private:
             (!extra_info) ? "UPDATE backups SET updated=?, state=? "
                             "WHERE id=? AND tenant_id=?"
                           : "UPDATE backups SET updated=?, state=?, "
-                            "checksum=NULL, backup_type=?, location=? "
+                            "checksum=NULL, backup_type=?, location=?, "
+                            "size=? "
                             "WHERE id=? AND tenant_id=?";
         auto stmt = infra_db->prepare_statement(text);
         IsoDateTime now;
@@ -303,6 +306,7 @@ private:
             //stmt->set_string(index ++, extra_info->checksum.c_str());
             stmt->set_string(index ++, extra_info->type.c_str());
             stmt->set_string(index ++, extra_info->location.c_str());
+            stmt->set_float(index ++, extra_info->size);
         }
         stmt->set_string(index ++, backup_id.c_str());
         stmt->set_string(index ++, tenant.c_str());

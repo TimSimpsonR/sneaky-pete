@@ -24,6 +24,7 @@ namespace nova { namespace guest { namespace diagnostics {
         std::string version;
     };
 
+    const float BYTES2GB = 1024.0*1024.0*1024.0;
 
     class DiagnosticsMessageHandler : public MessageHandler {
         public:
@@ -45,7 +46,7 @@ namespace nova { namespace guest { namespace diagnostics {
         unsigned long free_blocks;
         unsigned long total;
         unsigned long free;
-        unsigned long used;
+        float used;
     };
 
     struct HwInfo {

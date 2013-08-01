@@ -370,6 +370,11 @@ void MySqlPreparedStatement::set_int(int index, int value) {
     set_string(index, string_value.c_str());
 }
 
+void MySqlPreparedStatement::set_float(int index, float value) {
+    string string_value = str(format("%.2f") % value);
+    set_string(index, string_value.c_str());
+}
+
 /**---------------------------------------------------------------------------
  *- MySqlPreparedStatementImpl
  *---------------------------------------------------------------------------*/

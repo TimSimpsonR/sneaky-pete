@@ -198,6 +198,7 @@ namespace nova { namespace db { namespace mysql {
             virtual int get_parameter_count() const = 0;
             virtual void set_bool(int index, bool value);
             virtual void set_int(int index, int value);
+            virtual void set_float(int index, float value);
             virtual void set_string(int index, const char * value) = 0;
     };
 

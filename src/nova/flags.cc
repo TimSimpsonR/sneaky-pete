@@ -86,14 +86,15 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
     if (line.size() > 0 && line.substr(0, 1) == "#") {
         return;
     }
-    if (line.size() < 2 || line.substr(0, 2) != "--") {
-        if (ignore_mismatch) {
-            return;
-        } else {
-            throw FlagException(FlagException::NO_STARTING_DASHES, line.c_str());
-        }
+
+    // Set index to default of "=" location.
+    size_t index = line.find("=");
+
+    // If has "--", try to find the index after the "--" instead of default.
+    if (line.size() > 2 && line.substr(0, 2) == "--") {
+        index = line.find("=", 2);
     }
-    size_t index = line.find("=", 2);
+
     if (index == string::npos) {
         if (ignore_mismatch) {
             return;
@@ -101,7 +102,15 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
             throw FlagException(FlagException::NO_EQUAL_SIGN, line.c_str());
         }
     }
-    string name = line.substr(2, index - 2);
+
+    // Set the default name to the value before the "=".
+    string name = line.substr(0, index);
+
+    // If has "--" then adjust to account.
+    if (line.size() > 2 && line.substr(0, 2) == "--") {
+        string name = line.substr(2, index - 2);
+    }
+
     string value = line.substr(index + 1, line.size() - 1);
     trim(name);
     trim(value);

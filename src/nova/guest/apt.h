@@ -33,9 +33,6 @@ namespace nova { namespace guest { namespace apt {
             /** Updates this very program. */
             void install_self_update();
 
-            /** Purge the given package. */
-            void purge(const char * package_name, const double time_out);
-
             /** Remove the given package. If apt-get output is not received for
              *  the duration of time_out, an exception is raised. */
             void remove(const char * package_name, const double time_out);
@@ -54,8 +51,8 @@ namespace nova { namespace guest { namespace apt {
 
             pid_t _install_new_self();
 
-            void resilient_remove_or_purge(const char * package_name,
-                                         const double time_out, bool use_purge);
+            void resilient_remove(const char * package_name,
+                                  const double time_out);
 
             std::string self_package_name;
             int self_update_time_out;

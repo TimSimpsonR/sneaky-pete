@@ -85,10 +85,10 @@ set +e
 
 pkg_install \
     libcrypto++-dev \
-    libgcrypt11-dev
+    libgcrypt11-dev \
     libidn11-dev \
     libssh-dev \
-    libssl-dev \
+    libssl-dev
 
 set -e
 

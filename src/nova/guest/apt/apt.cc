@@ -255,14 +255,14 @@ void AptGuest::install_self_update() {
 }
 
 
-OperationResult _call_remove_or_purge(bool with_sudo, const char * package_name,
-                                      double time_out, bool use_purge) {
+OperationResult _call_remove(bool with_sudo, const char * package_name,
+                             double time_out) {
     proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
     }
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
-    cmds += use_purge ? "purge" : "remove";
+    cmds += "remove";
     cmds += package_name;
     proc::Process<proc::StdErrAndStdOut> process(cmds);
 
@@ -327,31 +327,25 @@ OperationResult _call_remove_or_purge(bool with_sudo, const char * package_name,
     throw AptException(AptException::GENERAL);
 }
 
-void AptGuest::resilient_remove_or_purge(const char * package_name,
-                                         const double time_out, bool use_purge) {
-    OperationResult result = _call_remove_or_purge(with_sudo, package_name,
-                                                   time_out, use_purge);
+void AptGuest::resilient_remove(const char * package_name,
+                                const double time_out) {
+    OperationResult result = _call_remove(with_sudo, package_name,
+                                                   time_out);
     if (result != OK) {
         if (result == REINSTALL_FIRST) {
             _install(with_sudo, package_name, time_out);
         } else if (result == RUN_DPKG_FIRST) {
             fix(time_out);
         }
-        result = _call_remove_or_purge(with_sudo, package_name, time_out,
-                                       use_purge);
+        result = _call_remove(with_sudo, package_name, time_out);
         if (result != OK) {
             throw AptException(AptException::PACKAGE_STATE_ERROR);
         }
     }
 }
 
-
-void AptGuest::purge(const char * package_name, const double time_out) {
-    resilient_remove_or_purge(package_name, time_out, true);
-}
-
 void AptGuest::remove(const char * package_name, const double time_out) {
-    resilient_remove_or_purge(package_name, time_out, false);
+    resilient_remove(package_name, time_out);
 }
 
 void AptGuest::update(const double time_out) {

@@ -30,8 +30,8 @@ BOOST_AUTO_TEST_CASE(adding_an_arg)
 BOOST_AUTO_TEST_CASE(when_no_dashes)
 {
     FlagMapPtr flags(new FlagMap());
-    CHECK_EXCEPTION({flags->add_from_arg("blah=10");},
-                    NO_STARTING_DASHES);
+    flags->add_from_arg("blah=10");
+    BOOST_CHECK_EQUAL(flags->get("blah"), "10");
 }
 
 BOOST_AUTO_TEST_CASE(when_no_equal_sign)

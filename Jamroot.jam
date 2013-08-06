@@ -831,12 +831,3 @@ exe centi-pete
     :
         <linkflags>$(EXE_LINK_FLAGS)
     ;
-
-exe list_directories
-    :   pch
-        u_nova_utils_io
-        u_nova_Log
-        src/list_directories.cc
-    :
-        <linkflags>$(EXE_LINK_FLAGS)
-    ;

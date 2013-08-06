@@ -1,5 +1,6 @@
 #include "pch.hpp"
 #include "BackupRestore.h"
+#include <boost/foreach.hpp>
 #include "nova/utils/io.h"
 #include <boost/assign/list_of.hpp>
 #include <boost/assign/std/list.hpp>

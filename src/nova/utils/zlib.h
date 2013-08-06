@@ -4,6 +4,7 @@
 #include <exception>
 #include <memory>
 #include <boost/optional.hpp>
+#include <boost/shared_ptr.hpp>
 
 
 namespace nova { namespace utils { namespace zlib {

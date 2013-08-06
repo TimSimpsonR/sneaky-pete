@@ -49,6 +49,40 @@ namespace {  // Begin anonymous namespace
  *- BackupProcessReader
  *---------------------------------------------------------------------------*/
 
+
+/* Checks that the last bit of output is the XtraBackup success message. */
+class CabooseChecker {
+    public:
+        CabooseChecker()
+        :   success_string("completed OK!"),
+            trail()
+        {
+        }
+
+        inline bool successful() const {
+            return trail == success_string;
+        }
+
+        inline void write(const char * const buffer, const size_t length) {
+            if (length >= success_string.size()) {
+                const size_t diff = length - success_string.length();
+                const char * start = buffer + diff;
+                trail.replace(trail.begin(), trail.end(),
+                              start, success_string.size());
+            } else {
+                trail.append(buffer, length);
+                const signed int diff = trail.size() - success_string.length();
+                if (diff > 0) {
+                    trail.erase(0, diff);
+                }
+            }
+        }
+    private:
+        const string success_string;
+        string trail;
+};
+
+
 /* Calls xtrabackup and presents an interface to be used as a zlib source. */
 class XtraBackupReader : public zlib::InputStream {
 public:
@@ -74,6 +108,7 @@ public:
             const auto result = process.read_into(buffer, sizeof(buffer),
                                                   time_out);
             if (result.err()) {
+                caboose.write(buffer, result.write_length);
                 xtrabackup_log.write(buffer, result.write_length);
             } else if (result.out()) {
                 last_stdout_write_length = result.write_length;
@@ -94,11 +129,12 @@ public:
     }
 
     bool successful() const {
-        return process.successful();
+        return process.successful() && caboose.successful();
     }
 
 private:
     char buffer[1024];
+    CabooseChecker caboose;
     size_t last_stdout_write_length;
     Process<IndependentStdErrAndStdOut> process;
     optional<double> time_out;

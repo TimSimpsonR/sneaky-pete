@@ -103,7 +103,8 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
 
     // If has "--" then adjust to account.
     if (line.size() > 2 && line.substr(0, 2) == "--") {
-        name = line.substr(2, index - 2);
+        // Erase the "--" from the command.
+        name.erase(0, 2);
     }
 
     string value = line.substr(index + 1, line.size() - 1);

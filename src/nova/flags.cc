@@ -88,12 +88,7 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
     }
 
     // Set index to default of "=" location.
-    size_t index = line.find("=");
-
-    // If has "--", try to find the index after the "--" instead of default.
-    if (line.size() > 2 && line.substr(0, 2) == "--") {
-        index = line.find("=", 2);
-    }
+    const size_t index = line.find('=');
 
     if (index == string::npos) {
         if (ignore_mismatch) {
@@ -108,7 +103,7 @@ void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
 
     // If has "--" then adjust to account.
     if (line.size() > 2 && line.substr(0, 2) == "--") {
-        string name = line.substr(2, index - 2);
+        name = line.substr(2, index - 2);
     }
 
     string value = line.substr(index + 1, line.size() - 1);

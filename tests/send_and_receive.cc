@@ -11,7 +11,7 @@
 #include <string>
 #include <stdlib.h>
 
-#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); NOVA_LOG_DEBUG2("At line %d...", __LINE__);
+#define CHECK_POINT() BOOST_CHECK_EQUAL(2,2); NOVA_LOG_DEBUG("At line %d...", __LINE__);
 using nova::flags::FlagMap;
 using nova::flags::FlagMapPtr;
 using nova::flags::FlagValues;

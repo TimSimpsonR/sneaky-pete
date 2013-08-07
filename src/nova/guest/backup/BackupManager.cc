@@ -191,7 +191,7 @@ public:
     virtual void operator()() {
         auto state = get_state();
         if (!state || "NEW" != state.get()) {
-            NOVA_LOG_ERROR2("State was not NEW, but %s!",
+            NOVA_LOG_ERROR("State was not NEW, but %s!",
                             state.get_value_or("<not found>").c_str());
             throw BackupException(BackupException::INVALID_STATE);
         }
@@ -205,7 +205,7 @@ public:
             NOVA_LOG_INFO("Backup comleted without throwing errors.");
         } catch(const std::exception & ex) {
             NOVA_LOG_ERROR("Error running backup!");
-            NOVA_LOG_ERROR2("Exception: %s", ex.what());
+            NOVA_LOG_ERROR("Exception: %s", ex.what());
             update_db("FAILED");
         } catch(...) {
             NOVA_LOG_ERROR("Error running backup!");
@@ -244,7 +244,7 @@ private:
         Interrogator question;
         FileSystemStatsPtr stats = question.get_filesystem_stats("/var/lib/mysql");
 
-        NOVA_LOG_DEBUG2("Volume used: %f", stats->used);
+        NOVA_LOG_DEBUG("Volume used: %f", stats->used);
 
         CommandList cmds;
         BackupProcessReader reader(commands, time_out);
@@ -312,7 +312,7 @@ private:
         stmt->set_string(index ++, backup_id.c_str());
         stmt->set_string(index ++, tenant.c_str());
         stmt->execute(0);
-        NOVA_LOG_INFO2("Updating backup %s to state %s", backup_id.c_str(),
+        NOVA_LOG_INFO("Updating backup %s to state %s", backup_id.c_str(),
                        state.c_str());
     }
 };
@@ -350,10 +350,10 @@ void BackupManager::run_backup(const string & swift_url,
                         const string & tenant,
                         const string & token,
                         const string & backup_id) {
-    NOVA_LOG_INFO2("Starting backup for tenant %s, backup_id=%d",
+    NOVA_LOG_INFO("Starting backup for tenant %s, backup_id=%d",
                    tenant.c_str(), backup_id.c_str());
     #ifdef _DEBUG
-        NOVA_LOG_INFO2("Token = %s", token.c_str());
+        NOVA_LOG_INFO("Token = %s", token.c_str());
     #endif
 
     BackupJob job(infra_db, chunk_size, commands, segment_max_size,

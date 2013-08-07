@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(should_throw_if_uninitialized)
     nova::Log::shutdown();
 
     CHECK_LOG_EXCEPTION({
-        NOVA_LOG_DEBUG2("Arrggghhh!");
+        NOVA_LOG_DEBUG("Arrggghhh!");
     }, NOT_INITIALIZED);
 }
 
@@ -233,9 +233,9 @@ struct Worker {
             if (id == 50) {
                 nova::Log::rotate_logs_if_needed();
             }
-            NOVA_LOG_DEBUG2("id=%d stage=%c", id, stage);
-            NOVA_LOG_ERROR2("id=%d stage=%c", id, stage);
-            NOVA_LOG_INFO2("id=%d stage=%c", id, stage);
+            NOVA_LOG_DEBUG("id=%d stage=%c", id, stage);
+            NOVA_LOG_ERROR("id=%d stage=%c", id, stage);
+            NOVA_LOG_INFO("id=%d stage=%c", id, stage);
             boost::posix_time::milliseconds time(100);
             boost::this_thread::sleep(time);
         }

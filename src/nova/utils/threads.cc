@@ -133,7 +133,7 @@ void ThreadBasedJobRunner::execute_job() {
         NOVA_LOG_INFO("Job finished successfully.");
 #ifndef _DEBUG
     } catch (const std::exception & e) {
-        NOVA_LOG_ERROR2("Error running job!: %s", e.what());
+        NOVA_LOG_ERROR("Error running job!: %s", e.what());
     } catch(...) {
         NOVA_LOG_ERROR("Error executing job! Exception type unknown.");
     }

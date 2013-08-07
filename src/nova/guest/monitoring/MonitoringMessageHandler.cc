@@ -82,7 +82,7 @@ JsonDataPtr MonitoringMessageHandler::handle_message(const GuestInput & input) {
         if (result) {
             string output = monitoring_status_to_string(result->get<0>(),
                                                         result->get<1>());
-            NOVA_LOG_DEBUG2("output = %s", output.c_str());
+            NOVA_LOG_DEBUG("output = %s", output.c_str());
             JsonDataPtr rtn(new JsonObject(output.c_str()));
             return rtn;
         } else {

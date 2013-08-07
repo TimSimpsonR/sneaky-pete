@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <memory>
+#include <boost/format.hpp>
 #include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
 #include <string>
@@ -95,6 +96,10 @@ namespace nova {
              * of rotation. */
             static LogPtr get_instance();
 
+            void handle_fmt_error(const char * filename, const int line_number,
+                                  const char * fmt_string,
+                                  const boost::io::format_error & fe);
+
             static void initialize(const LogOptions & options);
 
             /** Saves the current log to name.1, after first renaming all other
@@ -108,8 +113,19 @@ namespace nova {
             void write(const char * file_name, int line_number,
                        Level level, const char * message);
 
-            LogLine write_fmt(const char * file_name, int line_number,
-                              Level level);
+            template<typename... Types>
+            void write(const char * filename, const int line_number,
+                       const nova::Log::Level level, const char * fmt_string,
+                       const Types... args) {
+                try {
+                    boost::format fmt = boost::format(fmt_string);
+                    const std::string msg(boost::str(decompose_fmt(fmt, args...)));
+                    nova::Log::get_instance()->write(__FILE__, __LINE__, level,
+                                                     msg.c_str());
+                } catch (const boost::io::format_error & fe) {
+                    handle_fmt_error(filename, line_number, fmt_string, fe);
+                }
+            }
 
             bool should_rotate_logs();
 
@@ -123,6 +139,21 @@ namespace nova {
         private:
 
             void close_file();
+
+            template<typename T>
+            static boost::format & decompose_fmt(boost::format & fmt,
+                                                 const T & arg) {
+                return fmt % arg;
+            }
+
+            template<typename HeadType, typename... TailTypes>
+            static boost::format & decompose_fmt(
+                boost::format & fmt,
+                const HeadType & head,
+                const TailTypes... tail)
+            {
+                return decompose_fmt(fmt % head, tail...);
+            }
 
             static LogPtr & _get_instance();
 
@@ -158,32 +189,19 @@ namespace nova {
             LogPtr log;
     };
 
-
-
-    /* For repeated calls to the log, grab a Log instance once and then use
-     * this. */
-    #define NOVA_LOG_WRITE(log, level) log->write_fmt(__FILE__, __LINE__, \
-                                                      nova::Log::level)
-
-    /** These Macros call get_instance() and give the line numbers. */
-    #define NOVA_LOG_DEBUG(arg) { nova::Log::get_instance()->write( \
-        __FILE__, __LINE__, nova::Log::LEVEL_DEBUG, arg); }
-    #define NOVA_LOG_INFO(arg) { nova::Log::get_instance()->write( \
-        __FILE__, __LINE__, nova::Log::LEVEL_INFO, arg); }
-    #define NOVA_LOG_ERROR(arg) { nova::Log::get_instance()->write( \
-        __FILE__, __LINE__, nova::Log::LEVEL_ERROR, arg); }
-    #define NOVA_LOG_TRACE(arg) { nova::Log::get_instance()->write( \
-        __FILE__, __LINE__, nova::Log::LEVEL_TRACE, arg); }
-
-    #define NOVA_LOG_DEBUG2 nova::Log::get_instance()->write_fmt( \
-        __FILE__, __LINE__, nova::Log::LEVEL_DEBUG)
-    #define NOVA_LOG_INFO2 nova::Log::get_instance()->write_fmt( \
-        __FILE__, __LINE__, nova::Log::LEVEL_INFO)
-    #define NOVA_LOG_ERROR2 nova::Log::get_instance()->write_fmt( \
-        __FILE__, __LINE__, nova::Log::LEVEL_ERROR)
-    #define NOVA_LOG_TRACE2 nova::Log::get_instance()->write_fmt( \
-        __FILE__, __LINE__, nova::Log::LEVEL_TRACE)
 }
+
+/* It is necessary to use macros here to automatically insert the file
+ * name and line numbers. */
+#define NOVA_LOG_DEBUG(fmt, ...) { ::nova::Log::get_instance()->write( \
+    __FILE__, __LINE__, nova::Log::LEVEL_DEBUG, fmt, ##__VA_ARGS__); }
+#define NOVA_LOG_INFO(fmt, ...) { ::nova::Log::get_instance()->write( \
+    __FILE__, __LINE__, nova::Log::LEVEL_INFO, fmt, ##__VA_ARGS__); }
+#define NOVA_LOG_ERROR(fmt, ...) { ::nova::Log::get_instance()->write( \
+    __FILE__, __LINE__, nova::Log::LEVEL_ERROR, fmt, ##__VA_ARGS__); }
+#define NOVA_LOG_TRACE(fmt, ...) { ::nova::Log::get_instance()->write( \
+    __FILE__, __LINE__, nova::Log::LEVEL_TRACE, fmt, ##__VA_ARGS__); }
+
 
 #endif
 

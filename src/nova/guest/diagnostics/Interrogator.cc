@@ -66,7 +66,7 @@ HwInfoPtr Interrogator::get_hwinfo() {
 
 int Interrogator::get_mem_total() {
     string proc_meminfo_file = "/proc/meminfo";
-    NOVA_LOG_DEBUG2("getting memory info from : %s", proc_meminfo_file.c_str());
+    NOVA_LOG_DEBUG("getting memory info from : %s", proc_meminfo_file.c_str());
 
     int mem_total = 0;
     string mem_total_line;
@@ -82,7 +82,7 @@ int Interrogator::get_mem_total() {
         RegexMatchesPtr matches = regex.match(mem_total_line.c_str());
 
         if (matches) {
-            NOVA_LOG_DEBUG2("line : %s", mem_total_line.c_str());
+            NOVA_LOG_DEBUG("line : %s", mem_total_line.c_str());
 
             if (!matches->exists_at(2)) {
                 throw InterrogatorException(
@@ -99,7 +99,7 @@ int Interrogator::get_mem_total() {
                 mem_total = boost::lexical_cast<int>(value);
             }
 
-            NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());
+            NOVA_LOG_DEBUG("%s : %s", key.c_str(), value.c_str());
         }
     }
     meminfo_file.close();
@@ -108,7 +108,7 @@ int Interrogator::get_mem_total() {
 
 int Interrogator::get_num_cpus() {
     string proc_cpuinfo_file = "/proc/cpuinfo";
-    NOVA_LOG_DEBUG2("getting cpu info from : %s", proc_cpuinfo_file.c_str());
+    NOVA_LOG_DEBUG("getting cpu info from : %s", proc_cpuinfo_file.c_str());
 
     int num_cpus = 0;
     string processor_line;
@@ -124,7 +124,7 @@ int Interrogator::get_num_cpus() {
         RegexMatchesPtr matches = regex.match(processor_line.c_str());
 
         if (matches) {
-            NOVA_LOG_DEBUG2("line : %s", processor_line.c_str());
+            NOVA_LOG_DEBUG("line : %s", processor_line.c_str());
 
             if (!matches->exists_at(2)) {
                 throw InterrogatorException(
@@ -141,7 +141,7 @@ int Interrogator::get_num_cpus() {
                 num_cpus += 1;
             }
 
-            NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());
+            NOVA_LOG_DEBUG("%s : %s", key.c_str(), value.c_str());
         }
     }
     cpuinfo_file.close();
@@ -150,7 +150,7 @@ int Interrogator::get_num_cpus() {
 
 void Interrogator::get_proc_status(pid_t pid, ProcStatus & process_info) {
     string proc_status_file = str(format("/proc/%s/status") % pid);
-    NOVA_LOG_DEBUG2("proc status file location : %s",
+    NOVA_LOG_DEBUG("proc status file location : %s",
                     proc_status_file.c_str());
 
     string stat_line;
@@ -166,7 +166,7 @@ void Interrogator::get_proc_status(pid_t pid, ProcStatus & process_info) {
         RegexMatchesPtr matches = regex.match(stat_line.c_str());
 
         if (matches) {
-            NOVA_LOG_DEBUG2("line : %s", stat_line.c_str());
+            NOVA_LOG_DEBUG("line : %s", stat_line.c_str());
 
             if (!matches->exists_at(2)) {
                 throw InterrogatorException(
@@ -204,14 +204,14 @@ void Interrogator::get_proc_status(pid_t pid, ProcStatus & process_info) {
                 process_info.threads=convert_value;
             }
 
-            NOVA_LOG_DEBUG2("%s : %s", key.c_str(), value.c_str());
+            NOVA_LOG_DEBUG("%s : %s", key.c_str(), value.c_str());
         }
     }
     status_file.close();
 }
 
 FileSystemStatsPtr Interrogator::get_filesystem_stats(std::string fs_path) {
-    NOVA_LOG_DEBUG2("Retrieving FileSystem Stats for : %s", fs_path.c_str());
+    NOVA_LOG_DEBUG("Retrieving FileSystem Stats for : %s", fs_path.c_str());
     struct statvfs stats_buf;
     FileSystemStatsPtr fs_stats(new FileSystemStats());
     if (!statvfs(fs_path.c_str(), &stats_buf)) {

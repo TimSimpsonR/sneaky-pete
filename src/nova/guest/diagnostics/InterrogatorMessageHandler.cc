@@ -72,7 +72,7 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
         if (diagnostics.get() != 0) {
             //convert from map to string
             string output = diagnostics_to_stream(diagnostics);
-            NOVA_LOG_DEBUG2("output = %s", output.c_str());
+            NOVA_LOG_DEBUG("output = %s", output.c_str());
             JsonDataPtr rtn(new JsonObject(output.c_str()));
             return rtn;
         } else {
@@ -91,7 +91,7 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
         NOVA_LOG_DEBUG("returned from get_hwinfo");
         if (hwinfo.get() != 0) {
             string output = hwinfo_to_stream(hwinfo);
-            NOVA_LOG_DEBUG2("output = %s", output.c_str());
+            NOVA_LOG_DEBUG("output = %s", output.c_str());
             JsonDataPtr rtn(new JsonObject(output.c_str()));
             return rtn;
         } else {

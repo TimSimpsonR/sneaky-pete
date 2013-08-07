@@ -101,12 +101,12 @@ void Receiver::finish_message(const GuestOutput & output) {
                   % JsonData::json_string(output.failure.get().c_str()));
     }
     if (msg.find("password") == string::npos) {
-        NOVA_LOG_INFO2("Replying with the following: %s", msg.c_str());
+        NOVA_LOG_INFO("Replying with the following: %s", msg.c_str());
     } else {
         NOVA_LOG_INFO("Replying to message...");
         #ifdef _DEBUG
             NOVA_LOG_INFO("Showing the message because SP is in debug mode.");
-            NOVA_LOG_INFO2("(DEBUG) Replying with the following: %s",
+            NOVA_LOG_INFO("(DEBUG) Replying with the following: %s",
                            msg.c_str());
         #endif
     }
@@ -114,7 +114,7 @@ void Receiver::finish_message(const GuestOutput & output) {
     rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
 
     // This is like telling Nova "roger."
-    NOVA_LOG_INFO2("Replying with 'end' message: %s", END_MESSAGE);
+    NOVA_LOG_INFO("Replying with 'end' message: %s", END_MESSAGE);
     rtn_ex_channel->publish(exchange_name, routing_key, END_MESSAGE);
 }
 
@@ -161,7 +161,7 @@ GuestInput Receiver::next_message() {
         try {
             raw = _next_message();
         } catch(const JsonException & je) {
-            NOVA_LOG_ERROR2("Message was not JSON! %s", je.what());
+            NOVA_LOG_ERROR("Message was not JSON! %s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
         JsonObjectPtr msg;
@@ -169,7 +169,7 @@ GuestInput Receiver::next_message() {
             msg.reset(new JsonObject(raw->get_string("oslo.message")));
         } catch (const JsonException & je) {
             NOVA_LOG_ERROR("Oslo message could not be converted to dictionary.");
-            NOVA_LOG_ERROR2("%s", je.what());
+            NOVA_LOG_ERROR("%s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
         try {
@@ -182,7 +182,7 @@ GuestInput Receiver::next_message() {
              init_input_with_json(input, *msg);
              return input;
          } catch(const JsonException & je) {
-            NOVA_LOG_ERROR2("Json message was malformed:", msg->to_string());
+            NOVA_LOG_ERROR("Json message was malformed:", msg->to_string());
              throw GuestException(GuestException::MALFORMED_INPUT);
          }
     }
@@ -225,7 +225,7 @@ void ResilentReceiver::finish_message(const GuestOutput & output) {
             receiver->finish_message(output);
             return;
         } catch(const AmqpException & amqpe) {
-            NOVA_LOG_ERROR2("Error with AMQP connection! : %s", amqpe.what());
+            NOVA_LOG_ERROR("Error with AMQP connection! : %s", amqpe.what());
             reset();
         }
     }
@@ -237,7 +237,7 @@ GuestInput ResilentReceiver::next_message() {
             NOVA_LOG_INFO("Waiting for next message...");
             return receiver->next_message();
         } catch(const AmqpException & amqpe) {
-            NOVA_LOG_ERROR2("Error with AMQP connection! : %s", amqpe.what());
+            NOVA_LOG_ERROR("Error with AMQP connection! : %s", amqpe.what());
             reset();
         }
     }
@@ -258,7 +258,7 @@ void ResilentReceiver::open(bool wait_first) {
                                         exchange_name.c_str()));
             return;
         } catch(const AmqpException & amqpe) {
-            NOVA_LOG_ERROR2("Error establishing AMQP connection: %s",
+            NOVA_LOG_ERROR("Error establishing AMQP connection: %s",
                             amqpe.what());
             wait_first = true;
         }

@@ -38,6 +38,6 @@ void Sender::send(const char * publish_string) {
 }
 
 void Sender::send(const JsonObject & publish_object) {
-    NOVA_LOG_INFO2("Sending message: %s", publish_object.to_string());
+    NOVA_LOG_INFO("Sending message: %s", publish_object.to_string());
     send(publish_object.to_string());
 }

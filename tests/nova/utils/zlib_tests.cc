@@ -104,7 +104,7 @@ void compress_test(std::stringstream & compressed_buffer, size_t source_size) {
 
             virtual ZlibBufferStatus advance() {
                 if (alphabet.finished()) {
-                    NOVA_LOG_DEBUG2("Reader: FINISHED");
+                    NOVA_LOG_DEBUG("Reader: FINISHED");
                     return FINISHED;
                 }
                 current_read_count = alphabet.write(buffer, sizeof(buffer) - 1);
@@ -209,7 +209,7 @@ void compress_test2(std::stringstream & compressed_buffer, size_t source_size) {
 
             virtual ZlibBufferStatus advance() {
                 if (alphabet.finished()) {
-                    NOVA_LOG_DEBUG2("Reader: FINISHED");
+                    NOVA_LOG_DEBUG("Reader: FINISHED");
                     return FINISHED;
                 }
                 current_read_count = alphabet.write(buffer, sizeof(buffer) - 1);
@@ -264,13 +264,13 @@ void decompress_test(std::stringstream & compressed_buffer,
 
             virtual ZlibBufferStatus advance() {
                 if (!compressed_buffer.good()) {
-                    NOVA_LOG_DEBUG2("Decompress FINISHED");
+                    NOVA_LOG_DEBUG("Decompress FINISHED");
                     return FINISHED;
                 }
                 compressed_buffer.read(buffer, sizeof(buffer) - 1);
                 read_count = compressed_buffer.gcount();
                 buffer[read_count] = '\0';
-                NOVA_LOG_DEBUG2("Decompress reader:%s!", buffer);
+                NOVA_LOG_DEBUG("Decompress reader:%s!", buffer);
                 // if (read_count == 0) {
                 //     if (!compressed_buffer.good()) {
                 //         return FINISHED;
@@ -465,7 +465,7 @@ BOOST_AUTO_TEST_CASE(compress_and_decompress)
     const size_t original = source_size;
     const size_t zipped = compressed_buffer.str().size();
     const double ratio = (double) zipped / (double) original;
-    NOVA_LOG_DEBUG2("Ratio is %d", ratio);
+    NOVA_LOG_DEBUG("Ratio is %d", ratio);
     BOOST_REQUIRE_MESSAGE(ratio < .014, "Compression was less than expected.");
 }
 
@@ -493,7 +493,7 @@ BOOST_AUTO_TEST_CASE(compress_and_decompress_2)
     const size_t original = source_size;
     const size_t zipped = compressed_buffer.str().size();
     const double ratio = (double) zipped / (double) original;
-    NOVA_LOG_DEBUG2("Ratio is %d", ratio);
+    NOVA_LOG_DEBUG("Ratio is %d", ratio);
     BOOST_REQUIRE_MESSAGE(ratio < .014, "Compression was less than expected.");
 }
 
@@ -521,6 +521,6 @@ BOOST_AUTO_TEST_CASE(compress_and_decompress_3)
     const size_t original = source_size;
     const size_t zipped = compressed_buffer.str().size();
     const double ratio = (double) zipped / (double) original;
-    NOVA_LOG_DEBUG2("Ratio is %d", ratio);
+    NOVA_LOG_DEBUG("Ratio is %d", ratio);
     BOOST_REQUIRE_MESSAGE(ratio < .014, "Compression was less than expected.");
 }

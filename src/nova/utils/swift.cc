@@ -256,12 +256,12 @@ void SwiftUploader::write_manifest(int file_number,
     // hence we start substr at position 1
     string etag = (*headers)["etag"].substr(1, 32);
     // string etag = (*headers)["etag"].c_str();
-    NOVA_LOG_DEBUG2("Manifest etag: %s", etag.c_str());
+    NOVA_LOG_DEBUG("Manifest etag: %s", etag);
 
     if (concatenated_checksum != etag) {
-        NOVA_LOG_ERROR2("Checksum match failed for checksum of concatenated segment "
-                        "checksums. Expected: %s, Actual: %s.",
-                        concatenated_checksum.c_str(), etag.c_str());
+        NOVA_LOG_ERROR("Checksum match failed for checksum of concatenated segment "
+                       "checksums. Expected: %s, Actual: %s.",
+                       concatenated_checksum, etag);
         throw SwiftException(SwiftException::SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL);
     }
 
@@ -312,25 +312,25 @@ string SwiftUploader::write_segment(const string & url,
     Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
     const string checksum = info.checksum.finalize();
     string etag = (*headers)["etag"].substr(0, 32);
-    NOVA_LOG_DEBUG2("Response etag: %s", etag.c_str());
-    NOVA_LOG_DEBUG2("Our calculated checksum: %s", checksum.c_str());
+    NOVA_LOG_DEBUG("Response etag: %s", etag);
+    NOVA_LOG_DEBUG("Our calculated checksum: %s", checksum);
     if (checksum != etag) {
-        NOVA_LOG_ERROR2("Checksum match failed on segment. Expected %s, "
+        NOVA_LOG_ERROR("Checksum match failed on segment. Expected %s, "
                         "actual %s.", checksum.c_str(), etag.c_str());
         throw SwiftException(SwiftException::SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL);
     }
     return checksum;
-}
 
+}
 string SwiftUploader::write(SwiftUploader::Input & input){
     NOVA_LOG_DEBUG("Writing to Swift!");
     write_container();
     while (!input.eof()) {
         file_number += 1;
         const string url = file_info.formatted_url(file_number);
-        NOVA_LOG_DEBUG2("Time to write segment %d.", file_number);
+        NOVA_LOG_DEBUG("Time to write segment %d.", file_number);
         string md5 = write_segment(url, input);
-        NOVA_LOG_DEBUG2("checksum: %s", md5.c_str());
+        NOVA_LOG_DEBUG("checksum: %s", md5);
         // The swift checksum is the checksum of the concatenated segment checksums
         // Instead of holding a vector of segment checksums and then joining them
         // to calculate the checksum at the end, lets just continuously calculate
@@ -341,9 +341,10 @@ string SwiftUploader::write(SwiftUploader::Input & input){
 
     NOVA_LOG_DEBUG("Finalizing files...");
     const string final_file_checksum = file_checksum.finalize();
-    NOVA_LOG_DEBUG2("Checksum for entire file: %s", final_file_checksum.c_str());
+    NOVA_LOG_DEBUG("Checksum for entire file: %s", final_file_checksum);
     const string final_swift_checksum = swift_checksum.finalize();
-    NOVA_LOG_DEBUG2("Checksum of concatenated segment checksums: %s", final_swift_checksum.c_str());
+    NOVA_LOG_DEBUG("Checksum of concatenated segment checksums: %s",
+                   final_swift_checksum);
 
     write_manifest(file_number, final_file_checksum, final_swift_checksum);
     return final_swift_checksum;

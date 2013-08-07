@@ -387,7 +387,7 @@ void ZlibDecompressor::run() {
         if (Z_OK != result && Z_STREAM_END != result) {
             NOVA_LOG_ERROR("Error inflating zlib stream!");
             if (Z_NULL != MY_Z_STREAM->msg) {
-                NOVA_LOG_ERROR2("Zlib error: %s", MY_Z_STREAM->msg);
+                NOVA_LOG_ERROR("Zlib error: %s", MY_Z_STREAM->msg);
             }
             throw ZlibException();
         }
@@ -414,7 +414,7 @@ void ZlibDecompressor::finalize(bool can_throw) {
     if (Z_OK != inflateEnd(MY_Z_STREAM)) {
         NOVA_LOG_ERROR("Error ending inflate operation!");
         if (Z_NULL != MY_Z_STREAM->msg) {
-            NOVA_LOG_ERROR2("Zlib error: %s", MY_Z_STREAM->msg);
+            NOVA_LOG_ERROR("Zlib error: %s", MY_Z_STREAM->msg);
         }
         if (can_throw) {
             throw ZlibException();

@@ -102,7 +102,7 @@ namespace {
         ofstream tmp_file;
         tmp_file.open(temp_file_path);
         if (!tmp_file.good()) {
-            NOVA_LOG_ERROR2("Couldn't open temp file: %s.", temp_file_path);
+            NOVA_LOG_ERROR("Couldn't open temp file: %s.", temp_file_path);
             throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_MYCNF);
         }
         string line;
@@ -250,7 +250,7 @@ void MySqlApp::prepare(AptGuest & apt,
         status->end_install_or_restart();
         NOVA_LOG_INFO("Dbaas preparation complete.");
     } catch(const std::exception & e) {
-        NOVA_LOG_ERROR2("Error installing MySQL!: %s", e.what());
+        NOVA_LOG_ERROR("Error installing MySQL!: %s", e.what());
         status->end_failed_install();
         throw;
     }
@@ -264,7 +264,7 @@ string fetch_debian_sys_maint_password() {
     string user, password;
     MySqlConnection::get_auth_from_config(TMP_DEBIAN_CNF, user, password);
     if (user != "debian-sys-maint") {
-        NOVA_LOG_ERROR2("Error! user found was not debian-sys-maint but %s!",
+        NOVA_LOG_ERROR("Error! user found was not debian-sys-maint but %s!",
                         user.c_str());
         throw MySqlGuestException(MySqlGuestException::DEBIAN_SYS_MAINT_USER_NOT_FOUND);
     }
@@ -414,7 +414,7 @@ void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
     if (status->is_mysql_running()) {
-        NOVA_LOG_ERROR2("Cannot execute start_db_with_conf_changes because "
+        NOVA_LOG_ERROR("Cannot execute start_db_with_conf_changes because "
             "MySQL state == %s!", status->get_current_status_string());
         throw MySqlGuestException(MySqlGuestException::MYSQL_NOT_STOPPED);
     }
@@ -451,7 +451,7 @@ void MySqlApp::wait_for_mysql_initial_stop() {
             internal_stop_mysql();
             stopped = true;
         } catch(std::exception & ex) {
-            NOVA_LOG_ERROR2("Attempt #%d to stop MySQL failed!", attempts);
+            NOVA_LOG_ERROR("Attempt #%d to stop MySQL failed!", attempts);
             ++ attempts;
         }
     }

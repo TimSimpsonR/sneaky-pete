@@ -38,7 +38,7 @@
 #define START_THREAD_TASK() try {
 #define END_THREAD_TASK(name)  \
      } catch(const std::exception & e) { \
-        NOVA_LOG_ERROR2("Error in " name "! : %s", e.what()); \
+        NOVA_LOG_ERROR("Error in " name "! : %s", e.what()); \
      } catch(...) { \
         NOVA_LOG_ERROR("Error in " name "! Exception type unknown."); \
      }
@@ -126,7 +126,7 @@ public:
         while(!quit) {
             unsigned long wait_time = next_periodic_task < next_reporting ?
                 next_periodic_task : next_reporting;
-            NOVA_LOG_TRACE2("Waiting for %lu seconds...", wait_time);
+            NOVA_LOG_TRACE("Waiting for %lu seconds...", wait_time);
             boost::posix_time::seconds time(wait_time);
             boost::this_thread::sleep(time);
             next_periodic_task -= wait_time;
@@ -145,7 +145,7 @@ public:
 
     void periodic_tasks() {
         START_THREAD_TASK();
-            NOVA_LOG_TRACE2("Running periodic tasks...");
+            NOVA_LOG_TRACE("Running periodic tasks...");
             status_updater->update();
             Log::rotate_logs_if_needed();
         END_THREAD_TASK("periodic_tasks()");
@@ -352,7 +352,7 @@ GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input)
         output.failure = boost::none;
     #ifdef CATCH_RPC_METHOD_ERRORS
     } catch(const std::exception & e) {
-        NOVA_LOG_ERROR2("Error running method %s : %s",
+        NOVA_LOG_ERROR("Error running method %s : %s",
                    input.method_name.c_str(), e.what());
         NOVA_LOG_ERROR(e.what());
         output.result.reset();
@@ -370,14 +370,14 @@ void message_loop(ResilentReceiver & receiver,
     try {
 #endif
         GuestInput input = receiver.next_message();
-        NOVA_LOG_INFO2("method=%s", input.method_name.c_str());
+        NOVA_LOG_INFO("method=%s", input.method_name.c_str());
 
         GuestOutput output(run_method(handlers, input));
 
         receiver.finish_message(output);
 #ifndef _DEBUG
         } catch (const std::exception & e) {
-            NOVA_LOG_ERROR2("std::exception error: %s", e.what());
+            NOVA_LOG_ERROR("std::exception error: %s", e.what());
         } catch (...) {
             NOVA_LOG_ERROR("An exception ocurred of unknown origin!");
         }
@@ -408,7 +408,7 @@ int main(int argc, char* argv[]) {
             initialize_and_run(flags);
         #ifndef _DEBUG
             } catch (const std::exception & e) {
-                NOVA_LOG_ERROR2("Error: %s", e.what());
+                NOVA_LOG_ERROR("Error: %s", e.what());
             }
         #endif
 

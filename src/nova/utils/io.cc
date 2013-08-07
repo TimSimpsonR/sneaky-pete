@@ -26,10 +26,9 @@ namespace {
         static int instance_count = 0;
         instance_count += increment;
         if (instance_count > 1 || instance_count < 0) {
-            NOVA_LOG_ERROR2("\n\n\n\tERROR!\n\n\n"
-                            "Two timers cannot be used at a time. Destroy one "
-                            "before creating another.");
-            NOVA_LOG_ERROR2("Count = %d", instance_count);
+            NOVA_LOG_ERROR("Two timers cannot be used at a time. Destroy one "
+                           "before creating another.");
+            NOVA_LOG_ERROR("Count = %d", instance_count);
             #ifdef _DEBUG
                 std::abort();  // This is what you get, criminal!
             #endif
@@ -39,7 +38,7 @@ namespace {
     inline void checkGE0(LogPtr & log, const int return_code,
                          IOException::Code code = IOException::GENERAL) {
         if (return_code < 0) {
-            NOVA_LOG_ERROR2("System error : %s", strerror(errno));
+            NOVA_LOG_ERROR("System error : %s", strerror(errno));
             throw IOException(code);
         }
     }
@@ -47,8 +46,7 @@ namespace {
     inline void checkEqual0(LogPtr & log, const int return_code,
                             IOException::Code code = IOException::GENERAL) {
         if (return_code != 0) {
-            NOVA_LOG_WRITE(log, LEVEL_ERROR)("System error : %s",
-                                             strerror(errno));
+            NOVA_LOG_ERROR("System error : %s", strerror(errno));
             throw IOException(code);
         }
     }
@@ -74,12 +72,12 @@ namespace {
             return false;
         } else if (errno == EACCES) {
             if (log) {
-                NOVA_LOG_ERROR2("Can not access file at path %s.", file_path);
+                NOVA_LOG_ERROR("Can not access file at path %s.", file_path);
             }
             throw IOException(IOException::ACCESS_DENIED);
         } else  {
             if (log) {
-                NOVA_LOG_ERROR2("stat for path %s returned < 0. errno = %d: "
+                NOVA_LOG_ERROR("stat for path %s returned < 0. errno = %d: "
                                 "%s\n EINTR=%d", file_path, errno,
                                 strerror(errno), EINTR);
             }
@@ -133,7 +131,7 @@ const char * IOException::what() const throw() {
 
 Pipe::Pipe() {
     if (0 != pipe(fd)) {
-        NOVA_LOG_ERROR2("System error : %s", strerror(errno));
+        NOVA_LOG_ERROR("System error : %s", strerror(errno));
         throw IOException(IOException::PIPE_CREATION_ERROR);
     }
     is_open[0] = is_open[1] = true;
@@ -147,7 +145,7 @@ Pipe::~Pipe() {
 void Pipe::close(int index) {
     if (is_open[index]) {
         if (0 != ::close(fd[index])) {
-            NOVA_LOG_ERROR2("Error closing pipe! %s", strerror(errno));
+            NOVA_LOG_ERROR("Error closing pipe! %s", strerror(errno));
         }
         is_open[index] = false;
     }
@@ -205,8 +203,7 @@ Timer::~Timer() {
     assert_only_one_timer(-1);
     LogPtr log = Log::get_instance();
     if (0 != ::timer_delete(id)) {
-        NOVA_LOG_WRITE(log, LEVEL_ERROR)
-            ("Error deleting timer! OH NO! : %s", strerror(errno));
+        NOVA_LOG_ERROR("Error deleting timer! OH NO! : %s", strerror(errno));
     }
     time_out_occurred() = false;
     remove_interrupt_handler();
@@ -296,8 +293,8 @@ size_t read_with_throw(int fd, char * const buf, size_t count) {
 // ProcessTimeOutExceptions if they happen.
 int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * errorfds, optional<double> seconds) {
-    NOVA_LOG_TRACE2("select_with_throw, seconds for timeout? %f",
-                    (seconds ? seconds.get() : -99));
+    NOVA_LOG_TRACE("select_with_throw, seconds for timeout? %f",
+                   (seconds ? seconds.get() : -99));
     if (Timer::time_out_occurred()) {
         NOVA_LOG_ERROR("Not even attempting a select call as an unhandled"
                        "time out exception is being thrown.");
@@ -323,7 +320,7 @@ int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
                     NOVA_LOG_ERROR("pselect was interrupted, restarting.");
                 }
             } else {
-                NOVA_LOG_ERROR2("Select returned < 0. errno = %d: %s\n "
+                NOVA_LOG_ERROR("Select returned < 0. errno = %d: %s\n "
                                 "EINTR=%d", errno, strerror(errno), EINTR);
                 throw IOException(IOException::GENERAL);
             }
@@ -348,7 +345,7 @@ int wait_pid_with_throw(pid_t pid, int * status, int options) {
                 NOVA_LOG_ERROR("waitpid was interrupted, retrying.");
             }
         } else {
-            NOVA_LOG_ERROR2("Error calling waitpid:%s", strerror(errno));
+            NOVA_LOG_ERROR("Error calling waitpid:%s", strerror(errno));
             throw IOException(IOException::WAITPID_ERROR);
         }
     }

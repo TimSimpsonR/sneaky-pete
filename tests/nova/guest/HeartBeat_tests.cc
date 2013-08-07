@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         BOOST_REQUIRE_MESSAGE(attempts >= 0, "IsoDateTime is not updating.");
         boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_time));
         now.set_to_now();
-        NOVA_LOG_INFO2("%s != %s", now.c_str(), before.c_str());
+        NOVA_LOG_INFO("%s != %s", now.c_str(), before.c_str());
     } while(now == before);
 
 
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE(integration_tests)
         BOOST_CHECK(matches->exists_at(0));
 
         // Make sure it wasn't the same time as before.
-        NOVA_LOG_INFO2("%s != %s", result.get().c_str(), result2.get().c_str());
+        NOVA_LOG_INFO("%s != %s", result.get().c_str(), result2.get().c_str());
         BOOST_CHECK(result.get() != result2.get());
     }
 }

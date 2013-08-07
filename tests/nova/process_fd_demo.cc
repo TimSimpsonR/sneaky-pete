@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
                                 ("/usr/bin/mysqladmin")
                                 ("ping"));
             NOVA_LOG_INFO("Ping complete.");
-            NOVA_LOG_INFO2("Current count = %d", count);
+            NOVA_LOG_INFO("Current count = %d", count);
         } catch(const std::exception & ex) {
             NOVA_LOG_ERROR(ex.what());
         }

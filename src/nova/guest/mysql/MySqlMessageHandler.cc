@@ -75,7 +75,7 @@ namespace {
     void db_list_from_array(MySqlDatabaseListPtr db_list, JsonArrayPtr array) {
         for (int i = 0; i < array->get_length(); i ++) {
             JsonObjectPtr db_obj = array->get_object(i);
-            NOVA_LOG_INFO2("database json info:%s", db_obj->to_string());
+            NOVA_LOG_INFO("database json info:%s", db_obj->to_string());
             db_list->push_back(db_from_obj(db_obj));
         };
     }
@@ -142,7 +142,7 @@ namespace {
             db_stream << "[";
             bool once = false;
             BOOST_FOREACH(MySqlDatabasePtr & database, *dbs) {
-                NOVA_LOG_INFO2("dbs_to_stream: %s", database->get_name().c_str());
+                NOVA_LOG_INFO("dbs_to_stream: %s", database->get_name().c_str());
                 if (once) {
                     db_stream << ", ";
                 }
@@ -154,12 +154,12 @@ namespace {
                           << " }";
             }
             db_stream << "]";
-            NOVA_LOG_INFO2("returning: %s", db_stream.str().c_str());
+            NOVA_LOG_INFO("returning: %s", db_stream.str().c_str());
             out << db_stream.str().c_str();
     }
 
     JsonDataPtr _create_database(MySqlAdminPtr sql, JsonObjectPtr args) {
-        NOVA_LOG_INFO2("guest create_database"); //", guest->create_database().c_str());
+        NOVA_LOG_INFO("guest create_database"); //", guest->create_database().c_str());
         MySqlDatabaseListPtr databases(new MySqlDatabaseList());
         JsonArrayPtr array = args->get_array("databases");
         db_list_from_array(databases, array);
@@ -168,7 +168,7 @@ namespace {
     }
 
     JsonDataPtr _create_user(MySqlAdminPtr sql, JsonObjectPtr args) {
-        NOVA_LOG_INFO2("guest create_user");
+        NOVA_LOG_INFO("guest create_user");
         MySqlUserListPtr users(new MySqlUserList());
         JsonArrayPtr array = args->get_array("users");
         for (int i = 0; i < array->get_length(); i ++) {
@@ -345,7 +345,7 @@ namespace {
         MySqlDatabaseListPtr dbs = user->get_databases();
         std::stringstream json;
         dbs_to_stream(json, dbs);
-        NOVA_LOG_INFO2("list access: %s", json.str().c_str());
+        NOVA_LOG_INFO("list access: %s", json.str().c_str());
         JsonDataPtr rtn(new JsonArray(json.str().c_str()));
         return rtn;
 
@@ -406,7 +406,7 @@ MySqlMessageHandler::MySqlMessageHandler()
     };
     const MethodEntry * itr = static_method_entries;
     while(itr->name != 0) {
-        NOVA_LOG_INFO2( "Registering method %s", itr->name);
+        NOVA_LOG_INFO( "Registering method %s", itr->name);
         methods[itr->name] = itr->ptr;
         itr ++;
     }
@@ -417,7 +417,7 @@ JsonDataPtr MySqlMessageHandler::handle_message(const GuestInput & input) {
     if (method_itr != methods.end()) {
         // Make sure our connection is fresh.
         MethodPtr & method = method_itr->second;  // value
-        NOVA_LOG_INFO2( "Executing method %s", input.method_name.c_str());
+        NOVA_LOG_INFO( "Executing method %s", input.method_name.c_str());
         JsonDataPtr result = (*(method))(this, input.args);
         return result;
     } else {

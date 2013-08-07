@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE(test_giga_flood) {
             ? '1' : '2';
         for (size_t i = 0; i < result.write_length; i ++) {
             if (expected_char != buffer[i]) {
-                NOVA_LOG_ERROR2("Failure at index %d", i);
+                NOVA_LOG_ERROR("Failure at index %d", i);
                 BOOST_REQUIRE_EQUAL(true, false);
             }
         }

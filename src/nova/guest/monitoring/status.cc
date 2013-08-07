@@ -41,7 +41,7 @@ MonitoringStatus::get_monitoring_status(AptGuest & apt) {
 }
 
 MonitoringStatus::Status MonitoringStatus::get_current_status() {
-    NOVA_LOG_INFO2("opening the pid file (%s)", MONITORING_PID_FILE);
+    NOVA_LOG_INFO("opening the pid file (%s)", MONITORING_PID_FILE);
 
     if (!is_file(MONITORING_BIN_PATH)) {
         return REMOVED;
@@ -64,7 +64,7 @@ MonitoringStatus::Status MonitoringStatus::get_current_status() {
         NOVA_LOG_INFO("Got a monitoring pid (empty) setting status to SHUTDOWN");
         return SHUTDOWN;
     }
-    NOVA_LOG_INFO2("Got a monitoring pid of (%s)", monitoring_agent_pid.c_str());
+    NOVA_LOG_INFO("Got a monitoring pid of (%s)", monitoring_agent_pid.c_str());
 
     // it does? now does /proc/{pid} folder exist?
     string monitoring_agent_pid_path = "/proc/" + monitoring_agent_pid;

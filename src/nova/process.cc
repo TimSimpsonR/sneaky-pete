@@ -41,14 +41,14 @@ namespace {
     inline void checkEqual0(const int return_code,
                             ProcessException::Code code = ProcessException::GENERAL) {
         if (return_code != 0) {
-            NOVA_LOG_ERROR2("System error : %s", strerror(errno));
+            NOVA_LOG_ERROR("System error : %s", strerror(errno));
             throw ProcessException(code);
         }
     }
 
     void kill_with_throw(pid_t pid, int sig, bool allow_not_found=false) {
         if (0 != ::kill(pid, sig)) {
-            NOVA_LOG_ERROR2("Couldn't send kill signal!! %s", strerror(errno));
+            NOVA_LOG_ERROR("Couldn't send kill signal!! %s", strerror(errno));
             if (allow_not_found && ESRCH == errno){
                 NOVA_LOG_INFO("errno was ESRCH and that's OK.");
                 return;
@@ -226,7 +226,7 @@ void execute(std::stringstream & out, const CommandList & cmds,
     try {
         proc.read_into_until_exit(out, time_out);
     } catch(const TimeOutException & toe) {
-        NOVA_LOG_ERROR2("Timeout error occurred reading until eof.");
+        NOVA_LOG_ERROR("Timeout error occurred reading until eof.");
         // This is what the code used to do, but maybe it would be good to
         // double check that this is desired.
         proc.wait_forever_for_exit();
@@ -249,8 +249,8 @@ bool is_pid_alive(pid_t pid) {
     // actually send a signal.
     int result = ::kill(pid, 0);
     if (result == EINVAL && result == EPERM) {
-        NOVA_LOG_ERROR2("Error calling kill with null signal: %s",
-                        strerror(errno));
+        NOVA_LOG_ERROR("Error calling kill with null signal: %s",
+                       strerror(errno));
         throw ProcessException(ProcessException::GENERAL);
     }
     // ESRCH means o such process found.
@@ -325,15 +325,15 @@ void ProcessStatusWatcher::wait_for_exit_code(bool wait_forever) {
             child_pid = call_waitpid(&status);
         }
         #ifdef _NOVA_PROCESS_VERBOSE
-            NOVA_LOG_TRACE2("Child exited. wait_forever=%s child_pid=%d, "
-                            "pid=%d, Pid==pid=%s, "
-                            "WIFEXITED=%d, WEXITSTATUS=%d, "
-                            "WIFSIGNALED=%d, WIFSTOPPED=%d",
-                            (wait_forever ? "true" : "false"),
-                            child_pid, pid,
-                            (child_pid == pid ? "true" : "false"),
-                            WIFEXITED(status), (int) WEXITSTATUS(status),
-                            WIFSIGNALED(status), WIFSTOPPED(status));
+            NOVA_LOG_TRACE("Child exited. wait_forever=%s child_pid=%d, "
+                           "pid=%d, Pid==pid=%s, "
+                           "WIFEXITED=%d, WEXITSTATUS=%d, "
+                           "WIFSIGNALED=%d, WIFSTOPPED=%d",
+                           (wait_forever ? "true" : "false"),
+                           child_pid, pid,
+                           (child_pid == pid ? "true" : "false"),
+                           WIFEXITED(status), (int) WEXITSTATUS(status),
+                           WIFSIGNALED(status), WIFSTOPPED(status));
         #endif
         success = child_pid == pid && WIFEXITED(status)
                   && WEXITSTATUS(status) == 0;
@@ -421,7 +421,7 @@ void ProcessBase::_wait_for_exit_code(bool wait_forever) {
 }
 
 void ProcessBase::wait_for_exit(double seconds) {
-    NOVA_LOG_DEBUG2("Waiting for %f seconds for EOF...", seconds);
+    NOVA_LOG_DEBUG("Waiting for %f seconds for EOF...", seconds);
     drain_io_from_file_handlers(seconds);
     Timer timer(seconds);
     wait_forever_for_exit();
@@ -464,7 +464,7 @@ void IndependentStdErrAndStdOut::drain_io(optional<double> seconds) {
     ReadResult result;
     while((result = read_into(buffer, sizeof(buffer), seconds)).write_length
           != 0) {
-        NOVA_LOG_TRACE2("Draining again! %d", result.write_length);
+        NOVA_LOG_TRACE("Draining again! %d", result.write_length);
     }
 }
 
@@ -499,7 +499,7 @@ void IndependentStdErrAndStdOut::set_eof_actions() {
 IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
     char * buffer, const size_t length, const optional<double> seconds)
 {
-    NOVA_LOG_TRACE2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (!std_out_pipe.in_is_open()) {
         if (!std_err_pipe.in_is_open()) {
             throw ProcessException(ProcessException::PROGRAM_FINISHED);
@@ -526,8 +526,6 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
         return _read_into(buffer, length, seconds);
     }
     // Data was read, so return info on which stream it came from.
-    NOVA_LOG_TRACE2("OUTPUT:~={%.*s}=~", count, buffer);
-    NOVA_LOG_TRACE("Exit read_into");
     return {
         (file_desc == std_out_pipe.in() ? ReadResult::StdOut
                                         : ReadResult::StdErr),
@@ -547,7 +545,7 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::_read_into(
         filedesc = std_err_pipe.in();
         index = ReadResult::FileIndex::StdErr;
     }
-    NOVA_LOG_TRACE2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (!ready(filedesc, seconds)) {
         NOVA_LOG_TRACE("ready returned false, returning zero from read_into");
         return { ReadResult::NA, 0 };
@@ -559,10 +557,6 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::_read_into(
         wait_forever_for_exit();
         return { ReadResult::NA, 0 };
     }
-    NOVA_LOG_TRACE("Writing.");
-    //TODO(tim.simpson): Consider eliminating this. It's a mess.
-    NOVA_LOG_TRACE2("OUTPUT:~={%.*s}=~", count, buffer);
-    NOVA_LOG_TRACE("Exit read_into");
     return { index, count };
 }
 
@@ -604,13 +598,13 @@ void StdIn::write(const char * msg) {
 
 void StdIn::write(const char * msg, size_t length) {
     //::write(std_in_fd[0], msg, length);
-    NOVA_LOG_TRACE2("Writing msg with %d bytes.", length);
+    NOVA_LOG_TRACE("Writing msg with %d bytes.", length);
     ssize_t count = ::write(this->std_in_pipe.out(), msg, length);
     if (count < 0) {
-        NOVA_LOG_ERROR2("write failed. errno = %d", errno);
+        NOVA_LOG_ERROR("write failed. errno = %d", errno);
         throw ProcessException(ProcessException::GENERAL);
     } else if (count != ((ssize_t)length)) {
-        NOVA_LOG_ERROR2("Did not write our message! errno = %d", errno);
+        NOVA_LOG_ERROR("Did not write our message! errno = %d", errno);
         throw ProcessException(ProcessException::GENERAL);
     }
 }
@@ -665,7 +659,7 @@ void StdErrAndStdOut::drain_io(optional<double> seconds) {
         timer.reset(new Timer(seconds.get()));
     }
     while (0 != (count = read_into(buffer, sizeof(buffer) - 1, seconds))) {
-        NOVA_LOG_TRACE2("Draining again! %d", count);
+        NOVA_LOG_TRACE("Draining again! %d", count);
     };
 }
 
@@ -695,14 +689,14 @@ size_t StdErrAndStdOut::read_into(stringstream & std_out,
     size_t count = read_into(buf, BUFFER_SIZE-1, seconds);
     buf[count] = 0;  // Have to do this or Valgrind fails.
     std_out.write(buf, count);
-    NOVA_LOG_TRACE2("buffer output:%s", buf);
-    NOVA_LOG_TRACE2("count = %d, SO FAR %d", count, std_out.str().length());
+    NOVA_LOG_TRACE("buffer output:%s", buf);
+    NOVA_LOG_TRACE("count = %d, SO FAR %d", count, std_out.str().length());
     return count;
 }
 
 size_t StdErrAndStdOut::read_into(char * buffer, const size_t length,
                                   const optional<double> seconds) {
-    NOVA_LOG_TRACE2("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (!std_out_pipe.in_is_open()) {
         throw ProcessException(ProcessException::PROGRAM_FINISHED);
     }
@@ -717,20 +711,16 @@ size_t StdErrAndStdOut::read_into(char * buffer, const size_t length,
         wait_forever_for_exit();
         return 0; // eof
     }
-    NOVA_LOG_TRACE("Writing.");
-    //TODO(tim.simpson): Consider eliminating this. It's a mess.
-    NOVA_LOG_TRACE2("OUTPUT:~={%.*s}=~", count, buffer);
-    NOVA_LOG_TRACE("Exit read_into");
     return (size_t) count;
 }
 
 void StdErrAndStdOut::read_into_until_exit(stringstream & out,
                                            double seconds) {
-    NOVA_LOG_TRACE2("wait_for_eof, timeout=%f", seconds);
+    NOVA_LOG_TRACE("wait_for_eof, timeout=%f", seconds);
     while(read_into(out, optional<double>(seconds)));
     if (std_out_pipe.in_is_open()) {
-        NOVA_LOG_ERROR2("Something went wrong, EOF not reached! Time out=%f",
-                        seconds);
+        NOVA_LOG_ERROR("Something went wrong, EOF not reached! Time out=%f",
+                       seconds);
         throw TimeOutException();
     }
 }

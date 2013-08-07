@@ -55,7 +55,7 @@ void crash_via_heap() {
 void crash_via_stack() {
     NOVA_LOG_DEBUG("Stack exhaustion time!");
     const auto answer = cursed_recursion();
-    NOVA_LOG_DEBUG2("Answer from pointless function: %d", answer);
+    NOVA_LOG_DEBUG("Answer from pointless function: %d", answer);
 }
 
 

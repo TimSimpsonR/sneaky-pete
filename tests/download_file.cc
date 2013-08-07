@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 
     if (argc < 6) {
         const char * program_name = (argc > 0 ? argv[0] : "download_file");
-        NOVA_LOG_ERROR2("Usage: %s  output_file token base_url container "
+        NOVA_LOG_ERROR("Usage: %s  output_file token base_url container "
                         "base_file_name", program_name);
       return 1;
     }

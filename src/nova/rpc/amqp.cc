@@ -135,7 +135,7 @@ AmqpConnection::~AmqpConnection() {
 }
 
 void AmqpConnection::check_references(AmqpConnection * ref) {
-    NOVA_LOG_DEBUG2("Checking the references to AmqpConnection, which has "
+    NOVA_LOG_DEBUG("Checking the references to AmqpConnection, which has "
                     "a reference_count of %d and owns %d channels.",
                     ref->reference_count, ref->channels.size());
     if (ref->reference_count <= 0 && ref->channels.size() <= 0) {
@@ -177,7 +177,7 @@ AmqpConnectionPtr AmqpConnection::create(const char * host_name, const int port,
 void AmqpConnection::attempt_declare_exchange(const char * exchange_name,
                                               const char * type) {
     AmqpChannelPtr channel = new_channel();
-    NOVA_LOG_INFO2("Attempting to declare exchange %s.", exchange_name);
+    NOVA_LOG_INFO("Attempting to declare exchange %s.", exchange_name);
     try {
         channel->declare_exchange(exchange_name, type, true);
         NOVA_LOG_INFO("Exchange already declared.");
@@ -196,13 +196,13 @@ void AmqpConnection::attempt_declare_queue(const char * queue_name,
                                            bool exclusive,
                                            bool auto_delete) {
     AmqpChannelPtr channel = new_channel();
-    NOVA_LOG_INFO2("Attempting to declare queue %s.", queue_name);
+    NOVA_LOG_INFO("Attempting to declare queue %s.", queue_name);
     try {
         channel->declare_queue(queue_name, true);
         NOVA_LOG_INFO("Queue already declared.");
     } catch(const AmqpException & ae) {
         if (ae.code == AmqpException::DECLARE_QUEUE_FAILURE) {
-            NOVA_LOG_INFO2("Could not declare queue %s. Trying non-passive.",
+            NOVA_LOG_INFO("Could not declare queue %s. Trying non-passive.",
                            queue_name);
             new_channel()->declare_queue(queue_name, false);
         } else {
@@ -259,7 +259,7 @@ void AmqpConnection::remove_channel(AmqpChannel * channel) {
             try {
                 channel->close();
             } catch(const AmqpException & ae) {
-                NOVA_LOG_ERROR2("AmqpException during channel close, removing "
+                NOVA_LOG_ERROR("AmqpException during channel close, removing "
                                 "anyway. Exception message: ", ae.what());
             }
             delete channel;
@@ -294,7 +294,7 @@ void intrusive_ptr_add_ref(AmqpChannel * ref) {
 void intrusive_ptr_release(AmqpChannel * ref) {
     ref->reference_count --;
     if (ref->reference_count <= 0) {
-        NOVA_LOG_DEBUG2("Releasing reference to channel # %d. "
+        NOVA_LOG_DEBUG("Releasing reference to channel # %d. "
                         "Reference count is now %d.",
                         ref->channel_number, ref->reference_count);
         ref->parent->remove_channel(ref);
@@ -306,7 +306,7 @@ AmqpChannel::AmqpChannel(AmqpConnection * parent, const int channel_number)
   reference_count(0)
 {
     amqp_connection_state_t conn = parent->get_connection();
-    NOVA_LOG_DEBUG2("Opening new channel with # %d.", channel_number);
+    NOVA_LOG_DEBUG("Opening new channel with # %d.", channel_number);
     amqp_channel_open(conn, channel_number);
     amqp_check(amqp_get_rpc_reply(conn), AmqpException::OPEN_CHANNEL_FAILED);
     is_open = true;
@@ -347,7 +347,7 @@ void AmqpChannel::check(const amqp_rpc_reply_t reply,
 
 void AmqpChannel::close() {
     if (is_open) {
-        NOVA_LOG_DEBUG2("Closing channel #%d", channel_number);
+        NOVA_LOG_DEBUG("Closing channel #%d", channel_number);
         amqp_connection_state_t conn = parent->get_connection();
 
         //TODO(tim.simpson): I can't seem to block the SIGPIPE signal no matter
@@ -493,7 +493,7 @@ AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
                            "frame method is received when the current channel "
                            "connection is closed.");
         } else {
-            NOVA_LOG_ERROR2("Warning: amqp_simple_wait_frame returned frame whose "
+            NOVA_LOG_ERROR("Warning: amqp_simple_wait_frame returned frame whose "
                             "id was not AMQP_BASIC_DELIVER_METHOD, but %d.",
                             frame.payload.method.id);
         }

@@ -126,8 +126,8 @@ optional<ProcessResult> match_output(
             RegexMatchesPtr matches = regex->match(output.c_str());
             NOVA_LOG_TRACE("__________________________________________________");
             NOVA_LOG_TRACE(output.c_str());
-            NOVA_LOG_TRACE2("Trying to match %s against regex %s",
-                            output.c_str(), patterns[index].c_str());
+            NOVA_LOG_TRACE("Trying to match %s against regex %s",
+                           output, patterns[index]);
             NOVA_LOG_TRACE("__________________________________________________");
             if (!!matches) {
                 ProcessResult result;
@@ -186,7 +186,7 @@ OperationResult _install(bool with_sudo, const char * package_name,
         if (index == 0) {
             throw AptException(AptException::PERMISSION_ERROR);
         } else if (index == 1 || index == 2) {
-            NOVA_LOG_ERROR2("Could not find package %s.", package_name);
+            NOVA_LOG_ERROR("Could not find package %s.", package_name);
             throw AptException(AptException::PACKAGE_NOT_FOUND);
         } else if (index == 3) {
             return RUN_DPKG_FIRST;
@@ -214,7 +214,7 @@ void AptGuest::install(const char * package_name, const double time_out) {
         }
         result = _install(with_sudo, package_name, time_out);
         if (result != OK) {
-            NOVA_LOG_ERROR2("Package %s is in a bad state.", package_name);
+            NOVA_LOG_ERROR("Package %s is in a bad state.", package_name);
             throw AptException(AptException::PACKAGE_STATE_ERROR);
         }
     }
@@ -234,7 +234,7 @@ pid_t AptGuest::_install_new_self() {
     try {
         return proc::execute_and_abandon(cmds);
     } catch(const proc::ProcessException & pe) {
-        NOVA_LOG_ERROR2("An error occurred calling apt-get update:%s",
+        NOVA_LOG_ERROR("An error occurred calling apt-get update:%s",
                         pe.what());
         throw AptException(AptException::UPDATE_FAILED);
     }
@@ -297,7 +297,7 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
         if (index == 0) {
             throw AptException(AptException::PERMISSION_ERROR);
         } else if (index == 1 || index == 2) {
-            NOVA_LOG_ERROR2("Could not find package %s.", package_name);
+            NOVA_LOG_ERROR("Could not find package %s.", package_name);
             throw AptException(AptException::PACKAGE_NOT_FOUND);
         } else if (index == 3 || index == 4) {
             return REINSTALL_FIRST;
@@ -309,7 +309,7 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
             if (index == 7 || index == 8) {
                 string output_package_name = result.get().matches->get(1);
                 if (output_package_name != package_name) {
-                    NOVA_LOG_ERROR2("Wait, saw 'Setting up' but it wasn't our "
+                    NOVA_LOG_ERROR("Wait, saw 'Setting up' but it wasn't our "
                                     "package! %s != %s", package_name,
                                     output_package_name.c_str());
                     throw AptException(AptException::GENERAL);
@@ -359,8 +359,8 @@ void AptGuest::update(const double time_out) {
     } catch(const TimeOutException & toe) {
         throw AptException(AptException::PROCESS_TIME_OUT);
     } catch(const proc::ProcessException & pe) {
-        NOVA_LOG_ERROR2("An error occurred calling apt-get update:%s",
-                        pe.what());
+        NOVA_LOG_ERROR("An error occurred calling apt-get update:%s",
+                       pe.what());
         throw AptException(AptException::UPDATE_FAILED);
     }
 }
@@ -370,7 +370,7 @@ typedef boost::optional<std::string> optional_string;
 
 optional<string> AptGuest::version(const char * package_name,
                                    const double time_out) {
-    NOVA_LOG_DEBUG2("Getting version of %s", package_name);
+    NOVA_LOG_DEBUG("Getting version of %s", package_name);
     proc::CommandList cmds = list_of("/usr/bin/dpkg-query")("-W")(package_name);
     proc::Process<proc::StdErrAndStdOut> process(cmds);
 
@@ -389,24 +389,24 @@ optional<string> AptGuest::version(const char * package_name,
     if (!!result) {
         // 0 and 1 should return the package name as the first regex match.
         string output_package_name = result.get().matches->get(1);
-        NOVA_LOG_DEBUG2("Got the output_package_name: %s", output_package_name.c_str());
+        NOVA_LOG_DEBUG("Got the output_package_name: %s", output_package_name.c_str());
         if (result.get().matches->get(1) != package_name) {
-            NOVA_LOG_ERROR2("dpkg called the package something different. "
+            NOVA_LOG_ERROR("dpkg called the package something different. "
                         "%s != %s", package_name, output_package_name.c_str());
             throw AptException(AptException::GENERAL);
         }
-        NOVA_LOG_DEBUG2("Got the result index: %d", result.get().index);
+        NOVA_LOG_DEBUG("Got the result index: %d", result.get().index);
         if (result.get().index == 0) {
             return boost::none;
         }
         else if (result.get().index == 1) {
             string version = result.get().matches->get(2);
-            NOVA_LOG_DEBUG2("Got the version: %s", version.c_str());
+            NOVA_LOG_DEBUG("Got the version: %s", version.c_str());
             if (version == "<none>" || version.empty()) {
                 NOVA_LOG_DEBUG("No version found.");
                 return boost::none;
             } else {
-                NOVA_LOG_DEBUG2("Retruning version %s.", version.c_str());
+                NOVA_LOG_DEBUG("Retruning version %s.", version.c_str());
                 return optional<string>(version);
             }
         }

@@ -94,7 +94,7 @@ optional<string> MySqlAppStatus::find_mysql_pid_file() const {
         context->execute(out, list_of("/usr/bin/sudo")("/usr/sbin/mysqld")
                         ("--print-defaults"));
     } catch(const process::ProcessException & pe) {
-        NOVA_LOG_ERROR2("Error running mysqld --print-defaults! %s", pe.what());
+        NOVA_LOG_ERROR("Error running mysqld --print-defaults! %s", pe.what());
         return boost::none;
     }
     Regex pattern("--pid[_-]file=([a-z0-9A-Z/]+\\.pid)");
@@ -220,8 +220,8 @@ void MySqlAppStatus::repeatedly_attempt_mysql_method(
             f();
             success = true;
         } catch(const MySqlException & mse) {
-            NOVA_LOG_ERROR2("Error communicating to Nova database: %s", mse.what());
-            NOVA_LOG_ERROR2("Waiting %lu seconds to try again...",
+            NOVA_LOG_ERROR("Error communicating to Nova database: %s", mse.what());
+            NOVA_LOG_ERROR("Waiting %lu seconds to try again...",
                             nova_db_reconnect_wait_time);
             success = false;
             boost::posix_time::seconds time(nova_db_reconnect_wait_time);
@@ -234,7 +234,7 @@ void MySqlAppStatus::repeatedly_attempt_mysql_method(
 void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
     const char * description = status_name(status);
     Status state = status;
-    NOVA_LOG_INFO2("Updating MySQL app status to %d (%s).", ((int)status),
+    NOVA_LOG_INFO("Updating MySQL app status to %d (%s).", ((int)status),
                    description);
     IsoDateTime now;
     MySqlPreparedStatementPtr stmt;
@@ -309,10 +309,10 @@ bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
     for (int time = 0; time < max_time; time += wait_time) {
         boost::this_thread::sleep(boost::posix_time::seconds(wait_time));
         time += 1;
-        NOVA_LOG_INFO2("Waiting for MySQL status to change to %s...",
+        NOVA_LOG_INFO("Waiting for MySQL status to change to %s...",
                        MySqlAppStatus::status_name(status));
         const MySqlAppStatus::Status actual_status = get_actual_db_status();
-        NOVA_LOG_INFO2("MySQL status was %s after %d seconds.",
+        NOVA_LOG_INFO("MySQL status was %s after %d seconds.",
                        MySqlAppStatus::status_name(actual_status), time);
         if (actual_status == status)
         {

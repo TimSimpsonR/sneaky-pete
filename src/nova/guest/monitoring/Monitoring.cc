@@ -57,10 +57,10 @@ void Monitoring::install_and_configure_monitoring_agent(
     ofstream config;
     config.open(TMP_MON_CONF);
     if (!config.good()) {
-        NOVA_LOG_ERROR2("Couldn't open config file: %s.", TMP_MON_CONF);
+        NOVA_LOG_ERROR("Couldn't open config file: %s.", TMP_MON_CONF);
         throw MonitoringException(MonitoringException::CANT_WRITE_CONFIG_FILE);
     }
-    NOVA_LOG_DEBUG2("opening the files %s", agent_config_file.c_str());
+    NOVA_LOG_DEBUG("opening the files %s", agent_config_file);
     string buffer;
     ifstream orig_config_file;
     orig_config_file.open(agent_config_file.c_str());
@@ -69,7 +69,7 @@ void Monitoring::install_and_configure_monitoring_agent(
 
         // get the region line to append to file
         getline(orig_config_file, buffer);
-        NOVA_LOG_DEBUG2("buffer of orig_config_file: %s", buffer.c_str());
+        NOVA_LOG_DEBUG("buffer of orig_config_file: %s", buffer);
         config << buffer << endl;
 
     }
@@ -111,7 +111,7 @@ void Monitoring::stop_monitoring_agent() const {
                                 ("stop"));
     }
     catch (process::ProcessException &e) {
-        NOVA_LOG_ERROR2("Failed to stop monitoring agent: %s" , e.what());
+        NOVA_LOG_ERROR("Failed to stop monitoring agent: %s" , e.what());
         NOVA_LOG_ERROR("Trying to killall rackspace-monitoring-agent");
         try{
             process::execute(list_of("/usr/bin/sudo")
@@ -119,8 +119,9 @@ void Monitoring::stop_monitoring_agent() const {
                                     ("rackspace-monitoring-agent"));
         }
         catch (process::ProcessException &e) {
-            NOVA_LOG_ERROR2("Failed to killall monitoring agent: %s" , e.what());
-            NOVA_LOG_ERROR("Giving up because nothing else we can do to stop monitoring agent");
+            NOVA_LOG_ERROR("Failed to killall monitoring agent: %s" , e.what());
+            NOVA_LOG_ERROR("Giving up because nothing else we can do to stop "
+                           "monitoring agent");
             throw MonitoringException(MonitoringException::ERROR_STOPPING_AGENT);
         }
     }

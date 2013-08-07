@@ -172,6 +172,21 @@ LogPtr Log::get_instance() {
     return _get_instance();
 }
 
+void Log::handle_fmt_error(const char * filename, const int line_number,
+                           const char * fmt_string,
+                           const boost::io::format_error & fe) {
+    boost::format fmt("! FORMAT ERROR for sting %s: %s");
+    const std::string msg(str(fmt % fmt_string % fe.what()));
+    nova::Log::get_instance()->write(filename, line_number, LEVEL_ERROR,
+                                     msg.c_str());
+    #if defined(_DEBUG) || defined(BOOST_TEST_MODULE)
+        // Throw the exception only if we can afford to.
+        // Don't crash the app or a method over something
+        // like this.
+        throw fe;
+    #endif
+}
+
 void Log::open_file() {
     if (options.file) {
         file.open(options.file.get().path.c_str(),
@@ -259,17 +274,11 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
     }
 }
 
-LogLine Log::write_fmt(const char * file_name, int line_number,
-                       Log::Level level) {
-    LogLine line(LogPtr(this), file_name, line_number, level);
-    return line;
-}
-
 void Log::shutdown() {
     if (_get_instance().get() != 0 && _get_instance()->reference_count > 1) {
-        _get_instance()->write_fmt(__FILE__, __LINE__, LEVEL_ERROR)
-            ("On shutdown, %d instances of the logger remain.",
-             _get_instance()->reference_count);
+        _get_instance()->write(__FILE__, __LINE__, LEVEL_ERROR,
+            "On shutdown, %d instances of the logger remain.",
+            _get_instance()->reference_count);
         throw LogException(LogException::STRAY_LOG_EXCEPTION);
     }
     _get_instance().reset(0);

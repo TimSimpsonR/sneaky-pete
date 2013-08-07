@@ -79,11 +79,11 @@ private:
         ls(restore_dir, directory_contents);
         BOOST_FOREACH(const std::string & file, directory_contents) {
             if (manager.save_file_pattern.has_match(file)) {
-                NOVA_LOG_DEBUG2("Skipping removal of file %s.", file.c_str());
+                NOVA_LOG_DEBUG("Skipping removal of file %s.", file);
             } else if (manager.delete_file_pattern.has_match(file)) {
                 rm_rf(str(boost::format("%s/%s") % restore_dir % file));
             } else {
-                NOVA_LOG_ERROR2("Error: unknown file: %s", file.c_str());
+                NOVA_LOG_ERROR("Error: unknown file: %s", file);
             }
         }
     }
@@ -222,7 +222,7 @@ private:
     }
 
     void rm_rf(const string & path) {
-        NOVA_LOG_DEBUG2("rm -rf %s", path.c_str());
+        NOVA_LOG_DEBUG("rm -rf %s", path);
         CommandList cmds = list_of("/usr/bin/sudo")("-E")("rm")("-rf")
                                   (path.c_str());
         Process<> proc(cmds);

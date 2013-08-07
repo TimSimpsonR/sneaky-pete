@@ -46,7 +46,7 @@ string extract_user(const string & user) {
     if (matches && matches->exists_at(1)) {
         return matches->get(1);
     } else {
-        NOVA_LOG_ERROR2("Failed to parse the grantee: %s", user.c_str());
+        NOVA_LOG_ERROR("Failed to parse the grantee: %s", user.c_str());
         throw MySqlGuestException(MySqlGuestException::GENERAL);
     }
 }
@@ -57,7 +57,7 @@ string extract_host(const string & user) {
     if (matches && matches->exists_at(1)) {
         return matches->get(1);
     } else {
-        NOVA_LOG_ERROR2("Failed to parse the grantee: %s", user.c_str());
+        NOVA_LOG_ERROR("Failed to parse the grantee: %s", user.c_str());
         throw MySqlGuestException(MySqlGuestException::GENERAL);
     }
 }
@@ -223,7 +223,7 @@ MySqlUserPtr MySqlAdmin::find_user(const std::string & username, const std::stri
 
     MySqlResultSetPtr res = con->query(query.c_str());
     if (!res->next()) {
-        NOVA_LOG_ERROR2("Could not find a user named %s@%s", username.c_str(), hostname.c_str());
+        NOVA_LOG_ERROR("Could not find a user named %s@%s", username.c_str(), hostname.c_str());
         throw MySqlGuestException(MySqlGuestException::USER_NOT_FOUND);
     }
 

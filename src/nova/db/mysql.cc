@@ -222,8 +222,8 @@ optional<bool> MySqlResultSet::get_bool(int index) const {
         bool b_value = boost::lexical_cast<bool>(value.get());
         return optional<bool>(b_value);
     } catch(const boost::bad_lexical_cast & blc) {
-        NOVA_LOG_ERROR2("Could not convert the result field at index %d with "
-                        "value %s to a bool.", index, value.get().c_str());
+        NOVA_LOG_ERROR("Could not convert the result field at index %d with "
+                       "value %s to a bool.", index, value.get().c_str());
         throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_BOOL);
     }
 }
@@ -237,8 +237,8 @@ optional<int> MySqlResultSet::get_int(int index) const {
         int i_value = boost::lexical_cast<int>(value.get());
         return optional<int>(i_value);
     } catch(const boost::bad_lexical_cast & blc) {
-        NOVA_LOG_ERROR2("Could not convert the result field at index %d with "
-                        "value \"%s\" to an int.", index, value.get().c_str());
+        NOVA_LOG_ERROR("Could not convert the result field at index %d with "
+                       "value \"%s\" to an int.", index, value.get().c_str());
         throw MySqlException(MySqlException::COULD_NOT_CONVERT_TO_INT);
     }
 }
@@ -275,8 +275,8 @@ public:
                 started = true;
                 finished = true;
             } else {
-                NOVA_LOG_ERROR2("Error getting store result from query: %s",
-                                mysql_error(con));
+                NOVA_LOG_ERROR("Error getting store result from query: %s",
+                               mysql_error(con));
                 throw MySqlException(MySqlException::GET_QUERY_RESULT_FAILED);
             }
         } else {
@@ -332,7 +332,7 @@ public:
                 close();
                 return false;
             } else {
-                NOVA_LOG_ERROR2("Fetch next row failed:%s", mysql_error(con));
+                NOVA_LOG_ERROR("Fetch next row failed:%s", mysql_error(con));
                 throw MySqlException(MySqlException::QUERY_FETCH_RESULT_FAILED);
             }
         }
@@ -393,7 +393,7 @@ public:
         }
         size_t statement_length = strnlen(statement, 1028);
         if (mysql_stmt_prepare(stmt, statement, statement_length) != 0) {
-            NOVA_LOG_ERROR2("An error occurred preparing statement:%s",
+            NOVA_LOG_ERROR("An error occurred preparing statement:%s",
                             mysql_stmt_error(stmt));
             throw MySqlException(MySqlException::PREPARE_FAILED);
         }
@@ -408,7 +408,7 @@ public:
             parameter_buffer[index].bind(bind[index]);
         }
         if (mysql_stmt_bind_param(stmt, bind) != 0) {
-            NOVA_LOG_ERROR2("Prepared statement bind parm failed: %s",
+            NOVA_LOG_ERROR("Prepared statement bind parm failed: %s",
                             mysql_stmt_error(stmt));
             throw MySqlException(MySqlException::PREPARE_BIND_FAILED);
         }
@@ -435,7 +435,7 @@ public:
 
     virtual void execute(int result_count) {
         if (mysql_stmt_execute(stmt) != 0) {
-            NOVA_LOG_ERROR2("execute failed: %s", mysql_stmt_error(stmt));
+            NOVA_LOG_ERROR("execute failed: %s", mysql_stmt_error(stmt));
             throw MySqlException(MySqlException::PREPARE_STATEMENT_FAILED);
         }
     }
@@ -537,12 +537,12 @@ void MySqlConnection::get_auth_from_config(const char * file_path,
     // TODO(tim.simpson): This should be the normal my.cnf, but we can't
     // read it from there... yet.
     if (!my_cnf.is_open()) {
-        NOVA_LOG_ERROR2("Couldn't read config file %s!", file_path);
+        NOVA_LOG_ERROR("Couldn't read config file %s!", file_path);
         throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
     }
     optional<MySqlConfigCreds> result = get_creds_from_file(my_cnf);
     if (!result) {
-        NOVA_LOG_ERROR2("Couldn't find creds in config file %s!", file_path);
+        NOVA_LOG_ERROR("Couldn't find creds in config file %s!", file_path);
         throw MySqlException(MySqlException::MY_CNF_FILE_NOT_FOUND);
     } else {
         user = result.get().user;
@@ -648,7 +648,7 @@ void MySqlConnection::init() {
 
     con = mysql_init(NULL);
     if (con == NULL) {
-        NOVA_LOG_ERROR2("Error %u: %s\n", mysql_errno(0), mysql_error(0));
+        NOVA_LOG_ERROR("Error %u: %s\n", mysql_errno(0), mysql_error(0));
         throw MySqlException(MySqlException::GENERAL);
     }
 
@@ -659,7 +659,7 @@ void MySqlConnection::init() {
                            password.c_str(),
                            get_db_name(), /*port*/ 0, /* socket */NULL,
                            /* Flag */0) == NULL) {
-        NOVA_LOG_ERROR2("Error %u: %s\n", mysql_errno(mysql_con(con)),
+        NOVA_LOG_ERROR("Error %u: %s\n", mysql_errno(mysql_con(con)),
                         mysql_error(mysql_con(con)));
         throw MySqlException(MySqlException::COULD_NOT_CONNECT);
     }
@@ -683,7 +683,7 @@ MySqlPreparedStatementPtr MySqlConnection::prepare_statement(
 
 MySqlResultSetPtr MySqlConnection::query(const char * text) {
     if (mysql_query(mysql_con(get_con()), text) != 0) {
-        NOVA_LOG_ERROR2("Query failed:%s", mysql_error(mysql_con(con)));
+        NOVA_LOG_ERROR("Query failed:%s", mysql_error(mysql_con(con)));
         throw MySqlException(MySqlException::QUERY_FAILED);
     }
     MySqlResultSetPtr rtn(new MySqlQueryResultSet(mysql_con(get_con())));

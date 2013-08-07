@@ -48,7 +48,7 @@ Curl::~Curl()
 }
 
 void Curl::add_header(const char * header) {
-    NOVA_LOG_DEBUG2("Adding header: %s", header);
+    NOVA_LOG_DEBUG("Adding header: %s", header);
     headers = curl_slist_append(headers, header);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 }
@@ -94,7 +94,7 @@ void Curl::perform(const Curl::HttpCodeList & expected_http_codes,
     CURLcode result = CURLE_FAILED_INIT;
     while(CURLE_OK != (result = curl_easy_perform(curl))) {
         -- num_retries;
-        NOVA_LOG_ERROR2("curl_easy_perform() failed (will retry %d times): %s",
+        NOVA_LOG_ERROR("curl_easy_perform() failed (will retry %d times): %s",
                         num_retries, curl_easy_strerror(result));
         if (num_retries <= 0) {
             NOVA_LOG_ERROR("Maximum retries reached!");

@@ -43,6 +43,7 @@ namespace {
 
     const char * const ADMIN_USER_NAME = "os_admin";
     const char * const ORIG_MYCNF = "/etc/mysql/my.cnf";
+    const char * const FINAL_MYCNF ="/var/lib/mysql/my.cnf";
     // There's a permisions issue which necessitates this.
     const char * const HACKY_MYCNF ="/var/lib/nova/my.cnf";
     const char * const TMP_MYCNF = "/tmp/my.cnf.tmp";
@@ -159,7 +160,7 @@ void MySqlApp::write_mycnf(AptGuest & apt,
         // TODO: Maybe in the future, set my.cnf from user_name value?
         string user_name;
         MySqlConnection::get_auth_from_config(
-            config_location.c_str(), user_name, admin_password);
+            HACKY_MYCNF, user_name, admin_password);
     }
 
     /* As of right here, admin_password contains the password to be applied
@@ -184,7 +185,12 @@ void MySqlApp::write_mycnf(AptGuest & apt,
     NOVA_LOG_INFO("Copying tmp file so we can log in (permissions work-around).");
     process::execute(list_of("/usr/bin/sudo")("cp")(TMP_MYCNF)(HACKY_MYCNF));
     NOVA_LOG_INFO("Moving tmp into final.");
-    process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(config_location.c_str()));
+    process::execute(list_of("/usr/bin/sudo")("mv")(TMP_MYCNF)(FINAL_MYCNF));
+    NOVA_LOG_INFO("Removing original my.cnf.");
+    process::execute(list_of("/usr/bin/sudo")("rm")("-f")(ORIG_MYCNF));
+    NOVA_LOG_INFO("Symlinking final my.cnf.");
+    process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
+                            (ORIG_MYCNF));
     wipe_ib_logfiles();
 }
 

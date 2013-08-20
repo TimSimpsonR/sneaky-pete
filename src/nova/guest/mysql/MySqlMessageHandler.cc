@@ -469,8 +469,9 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
                 throw GuestException(GuestException::MALFORMED_INPUT);
             }
             const auto token = input.token;
+            const auto backup_checksum = input.args->get_optional_string("backup_checksum");
             restore = optional<BackupRestoreInfo>(
-                BackupRestoreInfo(token.get(), backup_url.get()));
+                BackupRestoreInfo(token.get(), backup_url.get(), backup_checksum.get()));
         }
         app->prepare(*this->apt, config_location, config_contents, restore);
 

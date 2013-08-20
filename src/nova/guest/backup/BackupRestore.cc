@@ -39,9 +39,12 @@ namespace {
  *- BackupRestoreInfo
  *---------------------------------------------------------------------------*/
 
-BackupRestoreInfo::BackupRestoreInfo(const string & token, const string & backup_url)
-:   backup_url(backup_url),
-    token(token)
+BackupRestoreInfo::BackupRestoreInfo(const string & token,
+                                     const string & backup_url,
+                                     const string & backup_checksum)
+:   token(token),
+    backup_url(backup_url),
+    backup_checksum(backup_checksum)
 {
 }
 
@@ -168,7 +171,8 @@ private:
                                             decompressor_source);
                 SwiftDownloader swift_downloader(
                     info.get_token(),
-                    info.get_backup_url());
+                    info.get_backup_url(),
+                    info.get_backup_checksum());
                 swift_downloader.read(swift_output);
             }
 

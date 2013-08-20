@@ -60,9 +60,9 @@ int main(int argc, char **argv)
     CurlScope scope;
     LogApiScope log(LogOptions::simple());
 
-    if (argc < 6) {
+    if (argc < 7) {
         const char * program_name = (argc > 0 ? argv[0] : "download_file");
-        NOVA_LOG_ERROR("Usage: %s  output_file token base_url container "
+        NOVA_LOG_ERROR("Usage: %s  output_file token base_url container checksum "
                         "base_file_name", program_name);
       return 1;
     }
@@ -74,6 +74,7 @@ int main(int argc, char **argv)
     swift_file.base_url = argv[3];
     swift_file.container = argv[4];
     swift_file.base_file_name = argv[5];
+    const auto checksum = argv[6];
 
     NOVA_LOG_DEBUG("Writing output file.")
 
@@ -82,7 +83,7 @@ int main(int argc, char **argv)
 
     //const auto max_bytes = 32 * 1024;
     //const auto chunk_size = 16 * 1024; // <-- make believe LOL
-    SwiftDownloader client(token, swift_file);
+    SwiftDownloader client(token, swift_file, checksum);
 
     client.read(local_file);
 

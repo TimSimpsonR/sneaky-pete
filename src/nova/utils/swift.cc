@@ -158,16 +158,21 @@ SwiftDownloader::Output::~Output() {
  *- SwiftDownloader
  *---------------------------------------------------------------------------*/
 
-SwiftDownloader::SwiftDownloader(const string & token, const std::string & url)
+SwiftDownloader::SwiftDownloader(const string & token,
+                                 const std::string & url,
+                                 const std::string & checksum)
 :   SwiftClient(token),
-    url(url)
+    url(url),
+    checksum(checksum)
 {
 }
 
 SwiftDownloader::SwiftDownloader(const string & token,
-                                 const SwiftFileInfo & file_info)
+                                 const SwiftFileInfo & file_info,
+                                 const std::string & checksum)
 :   SwiftClient(token),
-    url(file_info.manifest_url())
+    url(file_info.manifest_url()),
+    checksum(checksum)
 {
 }
 
@@ -198,6 +203,19 @@ void SwiftDownloader::read(SwiftDownloader::Output & output) {
 
     /* Let's do this! */
     session.perform(list_of(200));
+
+    Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
+    // So it looks like HEAD of the manifest file returns an etag that is double quoted
+    // e.g. 'etag': '"c4bf3693422e0e5a3350dac64e002987"'
+    // hence we start substr at position 1
+    string etag = (*headers)["etag"].substr(1, 32);
+    NOVA_LOG_DEBUG("Verifying swift download etag: %s", etag);
+    if (checksum != etag) {
+        NOVA_LOG_ERROR("Checksum match failed for swift download."
+                       "Original Swift Upload Checksum: %s, Swift Download Checksum: %s.",
+                       checksum, etag);
+        throw SwiftException(SwiftException::SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL);
+    }
 }
 
 
@@ -262,7 +280,7 @@ void SwiftUploader::write_manifest(int file_number,
         NOVA_LOG_ERROR("Checksum match failed for checksum of concatenated segment "
                        "checksums. Expected: %s, Actual: %s.",
                        concatenated_checksum, etag);
-        throw SwiftException(SwiftException::SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL);
+        throw SwiftException(SwiftException::SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL);
     }
 
 }
@@ -317,7 +335,7 @@ string SwiftUploader::write_segment(const string & url,
     if (checksum != etag) {
         NOVA_LOG_ERROR("Checksum match failed on segment. Expected %s, "
                         "actual %s.", checksum.c_str(), etag.c_str());
-        throw SwiftException(SwiftException::SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL);
+        throw SwiftException(SwiftException::SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL);
     }
     return checksum;
 
@@ -364,10 +382,12 @@ SwiftException::~SwiftException() throw() {
 
 const char * SwiftException::what() const throw() {
     switch(code) {
-        case SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL:
+        case SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL:
             return "Failure matching segment checksum of swift upload!";
-        case SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL:
+        case SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL:
             return "Failure matching checksum of concatenated segment checksums of swift upload!";
+        case SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL:
+            return "Failure matching checksum of swift download and original swift upload!!!";
         default:
             return "A Swift Error occurred!";
     }

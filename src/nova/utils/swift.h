@@ -78,15 +78,18 @@ public:
     };
 
     SwiftDownloader(const std::string & token,
-                    const std::string & url);
+                    const std::string & url,
+                    const std::string & checksum);
 
     SwiftDownloader(const std::string & token,
-                    const SwiftFileInfo & file_info);
+                    const SwiftFileInfo & file_info,
+                    const std::string & checksum);
 
     void read(Output & writer);
 
 private:
     std::string url;
+    std::string checksum;
 };
 
 
@@ -137,8 +140,9 @@ class SwiftException : public std::exception {
 
     public:
         enum Code {
-            SWIFT_SEGMENT_CHECKSUM_MATCH_FAIL,
-            SWIFT_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL
+            SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL,
+            SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL,
+            SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL
         };
 
         SwiftException(Code code) throw();

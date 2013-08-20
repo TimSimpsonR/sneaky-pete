@@ -168,16 +168,6 @@ void MySqlApp::write_mycnf(AptGuest & apt,
     or we generated a new one just now (because we didn't pass it in).
     */
 
-    /* Backup the existing config file if needed. */
-    if (io::is_file(config_location.c_str())) {
-        NOVA_LOG_INFO("Backing up original configuration file.")
-        IsoTime time;
-        string backup_mycnf = str(format("%s.%s") % config_location
-                                  % time.c_str());
-        process::execute(list_of("/usr/bin/sudo")("mv")(config_location.c_str())
-                         (backup_mycnf.c_str()));
-    }
-
     NOVA_LOG_INFO("Writing info and auth to my.cnf.");
     write_temp_mycnf_with_admin_account(TMP_MYCNF, config_contents,
                                         admin_password.c_str());

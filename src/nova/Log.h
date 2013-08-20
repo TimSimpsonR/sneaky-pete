@@ -120,7 +120,7 @@ namespace nova {
                 try {
                     boost::format fmt = boost::format(fmt_string);
                     const std::string msg(boost::str(decompose_fmt(fmt, args...)));
-                    nova::Log::get_instance()->write(__FILE__, __LINE__, level,
+                    nova::Log::get_instance()->write(filename, line_number, level,
                                                      msg.c_str());
                 } catch (const boost::io::format_error & fe) {
                     handle_fmt_error(filename, line_number, fmt_string, fe);

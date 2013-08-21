@@ -220,7 +220,7 @@ FileSystemStatsPtr Interrogator::get_filesystem_stats(std::string fs_path) {
         fs_stats->free_blocks = stats_buf.f_bfree;
         fs_stats->total = fs_stats->total_blocks * fs_stats->block_size;
         fs_stats->free = fs_stats->free_blocks * fs_stats->block_size;
-        int used_bytes = fs_stats->total - fs_stats->free;
+        unsigned long used_bytes = fs_stats->total - fs_stats->free;
         fs_stats->used = used_bytes / BYTES2GB;
         return fs_stats;
     } else {

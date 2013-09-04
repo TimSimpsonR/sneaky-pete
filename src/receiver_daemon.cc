@@ -251,11 +251,11 @@ void initialize_and_run(FlagValues & flags) {
     BackupManager backup(
                   nova_db,
                   job_runner,
-                  flags.backup_chunk_size(),
                   flags.backup_process_commands(),
                   flags.backup_segment_max_size(),
                   flags.backup_swift_container(),
-                  flags.backup_timeout());
+                  flags.backup_timeout(),
+                  flags.backup_zlib_buffer_size());
     MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
     handlers.push_back(handler_backup);
 

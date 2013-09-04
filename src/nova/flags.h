@@ -98,7 +98,7 @@ class FlagValues {
 
         int apt_self_update_time_out() const;
 
-        int backup_chunk_size() const;
+        size_t backup_zlib_buffer_size() const;
 
         std::list<std::string> backup_process_commands() const;
 

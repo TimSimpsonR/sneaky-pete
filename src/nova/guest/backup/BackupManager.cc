@@ -88,9 +88,12 @@ class CabooseChecker {
 /* Calls xtrabackup and presents an interface to be used as a zlib source. */
 class XtraBackupReader : public zlib::InputStream {
 public:
-    XtraBackupReader(CommandList cmds, optional<double> time_out)
-    :   last_stdout_write_length(0),
+    XtraBackupReader(CommandList cmds, size_t zlib_buffer_size, 
+        optional<double> time_out)
+    :   buffer(new char [zlib_buffer_size]),
+        last_stdout_write_length(0),
         process(cmds),
+        zlib_buffer_size(zlib_buffer_size),
         time_out(time_out),
         xtrabackup_log()
     {
@@ -98,6 +101,7 @@ public:
     }
 
     virtual ~XtraBackupReader() {
+        delete[] buffer;
     }
 
     /** Reads from the process until getting new STDOUT. */
@@ -107,7 +111,7 @@ public:
             if (process.is_finished()) {
                 return zlib::FINISHED;
             }
-            const auto result = process.read_into(buffer, sizeof(buffer),
+            const auto result = process.read_into(buffer, zlib_buffer_size,
                                                   time_out);
             if (result.err()) {
                 caboose.write(buffer, result.write_length);
@@ -135,10 +139,11 @@ public:
     }
 
 private:
-    char buffer[1024];
+    char* buffer;
     CabooseChecker caboose;
     size_t last_stdout_write_length;
     Process<IndependentStdErrAndStdOut> process;
+    size_t zlib_buffer_size;
     optional<double> time_out;
     std::ofstream xtrabackup_log;
 };
@@ -150,8 +155,8 @@ typedef boost::shared_ptr<XtraBackupReader> XtraBackupReaderPtr;
 class BackupProcessReader : public SwiftUploader::Input {
 public:
 
-    BackupProcessReader(CommandList cmds, optional<double> time_out)
-    :   process(new XtraBackupReader(cmds, time_out)),
+    BackupProcessReader(CommandList cmds, size_t zlib_buffer_size, optional<double> time_out)
+    :   process(new XtraBackupReader(cmds, zlib_buffer_size, time_out)),
         compressor()
     {
     }
@@ -187,7 +192,6 @@ class BackupJob : public nova::utils::Job {
 public:
     BackupJob(
         MySqlConnectionWithDefaultDbPtr infra_db,
-        const int & chunk_size,
         const CommandList commands,
         const int & segment_max_size,
         const string & swift_container,
@@ -195,17 +199,18 @@ public:
         const double time_out,
         const string & tenant,
         const string & token,
+        const size_t & zlib_buffer_size,
         const string & backup_id)
     :   backup_id(backup_id),
         infra_db(infra_db),
-        chunk_size(chunk_size),
         commands(commands),
         segment_max_size(segment_max_size),
         swift_container(swift_container),
         swift_url(swift_url),
         tenant(tenant),
         time_out(time_out),
-        token(token) {
+        token(token),
+        zlib_buffer_size(zlib_buffer_size) {
     }
 
     // Copy constructor is designed mainly so we can pass instances
@@ -213,14 +218,14 @@ public:
     BackupJob(const BackupJob & other)
     :   backup_id(other.backup_id),
         infra_db(other.infra_db),
-        chunk_size(other.chunk_size),
         commands(other.commands),
         segment_max_size(other.segment_max_size),
         swift_container(other.swift_container),
         swift_url(other.swift_url),
         tenant(other.tenant),
         time_out(other.time_out),
-        token(other.token) {
+        token(other.token),
+        zlib_buffer_size(other.zlib_buffer_size) {
     }
 
     ~BackupJob() {
@@ -268,7 +273,6 @@ private:
 
     const string backup_id;
     MySqlConnectionWithDefaultDbPtr infra_db;
-    const int chunk_size;
     const CommandList commands;
     const int segment_max_size;
     const string swift_container;
@@ -276,16 +280,17 @@ private:
     const string tenant;
     const double time_out;
     const string token;
+    const int zlib_buffer_size;
 
     void dump() {
         // Record the filesystem stats before the backup is run
         Interrogator question;
         FileSystemStatsPtr stats = question.get_filesystem_stats("/var/lib/mysql");
 
-        NOVA_LOG_DEBUG("Volume used: %f", stats->used);
+        NOVA_LOG_DEBUG("Volume used: %.2f", stats->used);
 
         CommandList cmds;
-        BackupProcessReader reader(commands, time_out);
+        BackupProcessReader reader(commands, zlib_buffer_size, time_out);
 
         // Setup SwiftClient
         SwiftFileInfo file_info(swift_url, swift_container, backup_id);
@@ -301,7 +306,6 @@ private:
             update_db("FAILED");
             NOVA_LOG_ERROR("Reader was unsuccessful! Setting backup to FAILED!");
         } else {
-            // TODO: (rmyers) Add in the file space used
             // stats.used
             DbInfo info = {
                 checksum,
@@ -366,18 +370,18 @@ private:
 BackupManager::BackupManager(
     MySqlConnectionWithDefaultDbPtr & infra_db,
     JobRunner & runner,
-    const int chunk_size,
     const CommandList commands,
     const int segment_max_size,
     const string swift_container,
-    const double time_out)
+    const double time_out,
+    const int zlib_buffer_size)
 :   infra_db(infra_db),
-    chunk_size(chunk_size),
     commands(commands),
     runner(runner),
     segment_max_size(segment_max_size),
     swift_container(swift_container),
-    time_out(time_out)
+    time_out(time_out),
+    zlib_buffer_size(zlib_buffer_size)
 {
 }
 
@@ -394,9 +398,9 @@ void BackupManager::run_backup(const string & swift_url,
         NOVA_LOG_INFO("Token = %s", token.c_str());
     #endif
 
-    BackupJob job(infra_db, chunk_size, commands, segment_max_size,
+    BackupJob job(infra_db, commands, segment_max_size,
                   swift_container, swift_url, time_out, tenant, token,
-                  backup_id);
+                  zlib_buffer_size, backup_id);
     runner.run(job);
 }
 

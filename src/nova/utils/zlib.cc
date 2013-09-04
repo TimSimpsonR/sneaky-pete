@@ -256,7 +256,7 @@ ZlibCompressor::ZlibCompressor()
     MY_Z_STREAM->zalloc = Z_NULL;
     MY_Z_STREAM->zfree = Z_NULL;
     MY_Z_STREAM->opaque = Z_NULL;
-    const int result = deflateInit(MY_Z_STREAM, Z_BEST_COMPRESSION);
+    const int result = deflateInit(MY_Z_STREAM, Z_DEFAULT_COMPRESSION);
     if (Z_OK != result) {
         NOVA_LOG_ERROR("Error initializing deflate operation!");
         throw ZlibException();
@@ -345,7 +345,9 @@ ZlibDecompressor::ZlibDecompressor()
     MY_Z_STREAM->avail_in = 0;
     MY_Z_STREAM->next_in = 0;
 
-    const int result = inflateInit(MY_Z_STREAM);
+    // zlib can handle both zlib and gzip files by adding 32 to the windowBits
+    // http://stackoverflow.com/questions/1838699/how-can-i-decompress-a-gzip-stream-with-zlib
+    const int result = inflateInit2(MY_Z_STREAM, 32+MAX_WBITS);
     if (Z_OK != result) {
         NOVA_LOG_ERROR("Error initializing inflate operation!");
         throw ZlibException();

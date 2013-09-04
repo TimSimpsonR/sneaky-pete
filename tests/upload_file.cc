@@ -94,7 +94,8 @@ int main(int argc, char **argv)
   /* In windows, this will init the winsock stuff */
   CurlScope scope;
 
-  const auto max_bytes = 32 * 1024;
+  // TODO: make this a argument
+  const auto max_bytes = 100 * 1024 * 1024;
   //const auto chunk_size = 16 * 1024; //<-- This is make believe LOL!
   SwiftUploader writer(token, max_bytes, file_info);
 

@@ -21,11 +21,11 @@ namespace nova { namespace guest { namespace backup {
             BackupManager(
                    nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,
                    nova::utils::JobRunner & runner,
-                   const int chunk_size,
                    const nova::process::CommandList commands,
                    const int segment_max_size,
                    const std::string swift_container,
-                   const double time_out);
+                   const double time_out,
+                   const int zlib_buffer_size);
 
             ~BackupManager();
 
@@ -37,13 +37,13 @@ namespace nova { namespace guest { namespace backup {
 
         private:
             nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
-            const int chunk_size;
             const nova::process::CommandList commands;
             nova::utils::JobRunner & runner;
             const int segment_max_size;
             const std::string swift_container;
             const std::string swift_url;
             const double time_out;
+            const int zlib_buffer_size;
     };
 
 } } }  // end namespace

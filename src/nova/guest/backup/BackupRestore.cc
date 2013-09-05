@@ -103,11 +103,17 @@ private:
          * the given process's stdin stream. */
         struct ZlibOutput : public zlib::OutputStream {
 
-            ZlibOutput(Process<StdIn, StdErrToLogFile> & process)
-            :   process(process)
+            ZlibOutput(Process<StdIn, StdErrToLogFile> & process,
+                       const size_t zlib_buffer_size)
+            :   process(process),
+                output_buffer(new char [zlib_buffer_size])
             {
             }
 
+            virtual ~ZlibOutput() {
+                delete[] output_buffer;
+            }
+            
             virtual zlib::ZlibBufferStatus advance() {
                 return zlib::OK;
             }
@@ -126,8 +132,8 @@ private:
                 return zlib::OK;
             }
 
-            char output_buffer[1024];
             Process<StdIn, StdErrToLogFile> & process;
+            char * output_buffer;
         };
 
         /* A target for a SwiftDownloader, which, on getting data,
@@ -163,7 +169,7 @@ private:
             zlib::ZlibDecompressor decompressor;
             zlib::OutputStreamPtr decompressor_source(
                 static_cast<zlib::OutputStream *>(
-                    new ZlibOutput(xbstream_proc)));
+                    new ZlibOutput(xbstream_proc, manager.zlib_buffer_size)));
 
             // Download content, unzip it to xbstream in the process.
             {
@@ -240,16 +246,16 @@ private:
  *---------------------------------------------------------------------------*/
 
 BackupRestoreManager::BackupRestoreManager(
-    const int chunk_size,
     const CommandList command_list,
     const std::string & delete_file_pattern,
     const std::string & restore_directory,
-    const std::string & save_file_pattern)
-:   chunk_size(chunk_size),
-    commands(command_list),
+    const std::string & save_file_pattern,
+    const size_t zlib_buffer_size)
+:   commands(command_list),
     delete_file_pattern(delete_file_pattern.c_str()),
     restore_directory(restore_directory),
-    save_file_pattern(save_file_pattern.c_str())
+    save_file_pattern(save_file_pattern.c_str()),
+    zlib_buffer_size(zlib_buffer_size)
 {
 }
 

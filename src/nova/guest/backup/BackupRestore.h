@@ -36,22 +36,22 @@ namespace nova { namespace guest { namespace backup {
 
     class BackupRestoreManager {
         public:
-            BackupRestoreManager(const int chunk_size,
-                                 const nova::process::CommandList command_list,
+            BackupRestoreManager(const nova::process::CommandList command_list,
                                  const std::string & delete_file_pattern,
                                  const std::string & restore_directory,
-                                 const std::string & save_file_pattern);
+                                 const std::string & save_file_pattern,
+                                 const size_t zlib_buffer_size);
 
             void run(const BackupRestoreInfo & restore);
 
         private:
             class BackupRestoreJob;
 
-            const int chunk_size;
             const nova::process::CommandList commands;
             const nova::utils::Regex delete_file_pattern;
             const std::string restore_directory;
             const nova::utils::Regex save_file_pattern;
+            const size_t zlib_buffer_size;
     };
 
 

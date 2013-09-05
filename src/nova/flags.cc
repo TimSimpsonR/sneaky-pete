@@ -289,8 +289,8 @@ size_t FlagValues::backup_zlib_buffer_size() const {
     return get_flag_value<size_t>(*map, "backup_zlib_buffer_size", 1 * 1024 * 1024);
 }
 
-size_t FlagValues::backup_restore_chunk_size() const {
-    return get_flag_value<size_t>(*map, "backup_restore_chunk_size", 16 * 1024);
+size_t FlagValues::backup_restore_zlib_buffer_size() const {
+    return get_flag_value<size_t>(*map, "backup_restore_zlib_buffer_size", 1 * 1024 * 1024);
 }
 
 const char * FlagValues::backup_restore_delete_file_pattern() const {

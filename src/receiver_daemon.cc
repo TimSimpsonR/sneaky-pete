@@ -223,11 +223,11 @@ void initialize_and_run(FlagValues & flags) {
     handlers.push_back(handler_monitoring_app);
 
     BackupRestoreManagerPtr backup_restore_manager(new BackupRestoreManager(
-        flags.backup_restore_chunk_size(),
         flags.backup_restore_process_commands(),
         flags.backup_restore_delete_file_pattern(),
         flags.backup_restore_restore_directory(),
-        flags.backup_restore_save_file_pattern()
+        flags.backup_restore_save_file_pattern(),
+        flags.backup_restore_zlib_buffer_size()
     ));
     MySqlAppPtr mysqlApp(new MySqlApp(mysql_status_updater,
                                       backup_restore_manager,

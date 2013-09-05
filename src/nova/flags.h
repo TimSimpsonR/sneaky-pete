@@ -102,7 +102,7 @@ class FlagValues {
 
         std::list<std::string> backup_process_commands() const;
 
-        size_t backup_restore_chunk_size() const;
+        size_t backup_restore_zlib_buffer_size() const;
 
         const char * backup_restore_delete_file_pattern() const;
 

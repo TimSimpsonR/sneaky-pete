@@ -395,12 +395,20 @@ void MySqlApp::start_mysql(bool update_db) {
     // As a precaution, make sure MySQL will run on boot.
     process::CommandList cmds = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
                                        ("start");
-    process::execute_with_stdout_and_stderr(cmds, this->state_change_wait_time);
+    process::execute_with_stdout_and_stderr(cmds, this->state_change_wait_time,
+                                            false);
+    // Wait for MySQL to become pingable. Don't update the database until we're
+    // positive of success (this is to follow what's expected by the Trove
+    // resize code)
     if (!status->wait_for_real_state_to_change_to(
-        MySqlAppStatus::RUNNING, this->state_change_wait_time, update_db)) {
+        MySqlAppStatus::RUNNING, this->state_change_wait_time, false)) {
         NOVA_LOG_ERROR("Start up of MySQL failed!");
         status->end_install_or_restart();
         throw MySqlGuestException(MySqlGuestException::COULD_NOT_START_MYSQL);
+    }
+    if (update_db) {
+        status->wait_for_real_state_to_change_to(
+            MySqlAppStatus::RUNNING, this->state_change_wait_time, true);
     }
 }
 

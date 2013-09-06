@@ -212,10 +212,10 @@ void execute(const CommandList & cmds, double time_out) {
     }
 }
 
-void execute_with_stdout_and_stderr(const CommandList & cmds, double time_out) {
+void execute_with_stdout_and_stderr(const CommandList & cmds, double time_out, bool check_proc) {
     Process<StdErrAndStdOut> proc(cmds);
     proc.wait_for_exit(time_out);
-    if (!proc.successful()) {
+    if (check_proc && !proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
     }
 }

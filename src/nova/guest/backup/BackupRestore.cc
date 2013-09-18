@@ -103,17 +103,11 @@ private:
          * the given process's stdin stream. */
         struct ZlibOutput : public zlib::OutputStream {
 
-            ZlibOutput(Process<StdIn, StdErrToLogFile> & process,
-                       const size_t zlib_buffer_size)
-            :   process(process),
-                output_buffer(new char [zlib_buffer_size])
+            ZlibOutput(Process<StdIn, StdErrToLogFile> & process)
+            :   process(process)
             {
             }
 
-            virtual ~ZlibOutput() {
-                delete[] output_buffer;
-            }
-            
             virtual zlib::ZlibBufferStatus advance() {
                 return zlib::OK;
             }
@@ -132,8 +126,8 @@ private:
                 return zlib::OK;
             }
 
+            char output_buffer[1024 * 1024];
             Process<StdIn, StdErrToLogFile> & process;
-            char * output_buffer;
         };
 
         /* A target for a SwiftDownloader, which, on getting data,
@@ -169,7 +163,7 @@ private:
             zlib::ZlibDecompressor decompressor;
             zlib::OutputStreamPtr decompressor_source(
                 static_cast<zlib::OutputStream *>(
-                    new ZlibOutput(xbstream_proc, manager.zlib_buffer_size)));
+                    new ZlibOutput(xbstream_proc)));
 
             // Download content, unzip it to xbstream in the process.
             {

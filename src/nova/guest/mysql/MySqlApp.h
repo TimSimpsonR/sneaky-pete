@@ -28,25 +28,29 @@ class MySqlApp {
         /** Installs MySql, secures it, and possibly runs a backup. */
         void prepare(
             nova::guest::apt::AptGuest & apt,
-            const std::string & config_location,
             const std::string & config_contents,
+            const boost::optional<std::string> & overrides,
             boost::optional<nova::guest::backup::BackupRestoreInfo> restore
         );
+
+        // Removes the overrides file.
+        void remove_overrides();
 
         /** Restarts MySQL on this host. */
         void restart();
 
         void start_db_with_conf_changes(nova::guest::apt::AptGuest & apt,
-                                        const std::string & config_location,
                                         const std::string & config_contents);
 
         void reset_configuration(nova::guest::apt::AptGuest & apt,
-                                 const std::string & config_location,
                                  const std::string & config_contents);
 
         /** Stops MySQL on this host. */
         void stop_db(bool do_not_start_on_reboot=false);
 
+        /** Writes an optional overrides file which lives near the normal
+         *  my.cnf. */
+        void write_config_overrides(const std::string & overrides_content);
 
     private:
 
@@ -56,21 +60,14 @@ class MySqlApp {
 
         nova::guest::backup::BackupRestoreManagerPtr backup_restore_manager;
 
-        void create_admin_user(MySqlAdmin & sql,
-                               const std::string & password);
-
-        /** Generate and set a random root password and forget about it. */
-        void generate_root_password(MySqlAdmin & sql);
-
         /** Install the set of mysql my.cnf templates from dbaas-mycnf package.
          *  The package generates a template suited for the current
          *  container flavor. Update the os_admin user and password
          * to the my.cnf file for direct login from localhost
          **/
-
         void write_mycnf(nova::guest::apt::AptGuest & apt,
-                         const std::string & config_location,
                          const std::string & config_contents,
+                         const boost::optional<std::string> & overrides,
                          const boost::optional<std::string> & admin_password_arg);
 
         /*

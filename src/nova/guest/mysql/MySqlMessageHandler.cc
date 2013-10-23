@@ -18,6 +18,7 @@
 #include <boost/optional.hpp>
 #include <sstream>
 #include <boost/tuple/tuple.hpp>
+#include <boost/variant.hpp>
 
 using namespace boost::assign;
 
@@ -78,6 +79,57 @@ namespace {
             NOVA_LOG_INFO("database json info:%s", db_obj->to_string());
             db_list->push_back(db_from_obj(db_obj));
         };
+    }
+
+    /* Convert JsonData to a ServerVariableValue. */
+    ServerVariableValue server_variable_value_from_json(const JsonData & value) {
+        struct JsonToServerVariableValueVisitor : public JsonData::Visitor {
+            ServerVariableValue result;
+
+            JsonToServerVariableValueVisitor()
+            :   result(boost::blank()) {
+            }
+
+            void for_boolean(bool value) { result = value; }
+
+            void for_string(const char * value) { result = string(value); }
+
+            void for_double(double value) { result = value; }
+
+            void for_int(int value) { result = value; }
+
+            void for_null() { result = boost::blank(); }
+
+            void for_object(JsonObjectPtr object) {
+                NOVA_LOG_ERROR("Can't convert JSON object to MySqlServer variable!");
+                throw GuestException(GuestException::MALFORMED_INPUT);
+            }
+
+            void for_array(JsonArrayPtr array) {
+                NOVA_LOG_ERROR("Can't convert JSON array to MySqlServer variable!");
+                throw GuestException(GuestException::MALFORMED_INPUT);
+            }
+        } visitor;
+        value.visit(visitor);
+        return visitor.result;
+    }
+
+    /* Convert a JsonObject into a MySqlServerAssignments instance. */
+    MySqlServerAssignments server_assignments_from_obj(JsonObject & object) {
+        MySqlServerAssignments assignments;
+        struct Itr : public JsonObject::Iterator {
+
+            MySqlServerAssignments & assignments;
+
+            Itr(MySqlServerAssignments & assignments)
+            :   assignments(assignments) {
+            }
+
+            void for_each(const char * key, const JsonData & value) {
+                assignments[key] = server_variable_value_from_json(value);
+            }
+        } itr(assignments);
+        return assignments;
     }
 
     MySqlUserPtr user_from_obj(JsonObjectPtr obj) {
@@ -175,6 +227,14 @@ namespace {
             users->push_back(user_from_obj(array->get_object(i)));
         };
         sql->create_users(users);
+        return JsonData::from_null();
+    }
+
+    JSON_METHOD(apply_overrides) {
+        MySqlAdminPtr sql = guest->sql_admin();
+        const JsonObjectPtr obj = args->get_object("overrides");
+        MySqlServerAssignments assignments = server_assignments_from_obj(*obj);
+        sql->set_globals(assignments);
         return JsonData::from_null();
     }
 
@@ -388,6 +448,7 @@ namespace {
 MySqlMessageHandler::MySqlMessageHandler()
 {
     const MethodEntry static_method_entries [] = {
+        REGISTER(apply_overrides),
         REGISTER(change_passwords),
         REGISTER(create_database),
         REGISTER(create_user),
@@ -457,8 +518,8 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
-        string config_location = input.args->get_string("config_location");
-        string config_contents = input.args->get_string("config_contents");
+        const auto config_contents = input.args->get_string("config_contents");
+        const auto overrides = input.args->get_optional_string("overrides");
         // Restore the database?
         optional<BackupRestoreInfo> restore;
         const auto backup_url = input.args->get_optional_string("backup_url");
@@ -473,7 +534,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             restore = optional<BackupRestoreInfo>(
                 BackupRestoreInfo(token.get(), backup_url.get(), backup_checksum.get()));
         }
-        app->prepare(*this->apt, config_location, config_contents, restore);
+        app->prepare(*this->apt, config_contents, overrides, restore);
 
         // The argument signature is the same as create_database so just
         // forward the method.
@@ -503,18 +564,20 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     } else if (input.method_name == "start_db_with_conf_changes") {
         NOVA_LOG_INFO("Calling start with conf changes...");
         MySqlAppPtr app = this->create_mysql_app();
-        string config_location = input.args->get_string("config_location");
         string config_contents = input.args->get_string("config_contents");
-        app->start_db_with_conf_changes(*this->apt,
-                                        config_location, config_contents);
+        app->start_db_with_conf_changes(*this->apt, config_contents);
+        return JsonData::from_null();
+    } else if (input.method_name == "remove_overrides") {
+        NOVA_LOG_INFO("Removing overrides file...");
+        MySqlAppPtr app = this->create_mysql_app();
+        app->remove_overrides();
         return JsonData::from_null();
     } else if (input.method_name == "reset_configuration") {
         NOVA_LOG_INFO("Resetting config file...");
         MySqlAppPtr app = this->create_mysql_app();
         JsonObjectPtr config = input.args->get_object("configuration");
-        string config_location = config->get_string("config_location");
         string config_contents = config->get_string("config_contents");
-        app->reset_configuration(*this->apt, config_location, config_contents);
+        app->reset_configuration(*this->apt, config_contents);
         return JsonData::from_null();
     } else if (input.method_name == "stop_db") {
         NOVA_LOG_INFO("Calling stop...");
@@ -523,6 +586,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             .get_value_or(false);
         MySqlAppPtr app = this->create_mysql_app();
         app->stop_db(do_not_start_on_reboot);
+        return JsonData::from_null();
+    } else if (input.method_name == "update_overrides") {
+        MySqlAppPtr app = this->create_mysql_app();
+        const string overrides = input.args->get_string("overrides_file");
+        app->write_config_overrides(overrides);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

@@ -1,13 +1,14 @@
 #ifndef __NOVA_GUEST_MYSQL_ADMIN_H
 #define __NOVA_GUEST_MYSQL_ADMIN_H
 
-
+#include <map>
 #include "nova/db/mysql.h"
 #include <boost/optional.hpp>
 #include <boost/smart_ptr.hpp>
 #include <string>
 #include <boost/tuple/tuple.hpp>
 #include "nova/guest/mysql/types.h"
+#include <boost/variant.hpp>
 #include <vector>
 
 
@@ -17,9 +18,15 @@ namespace nova { namespace guest { namespace mysql {
     std::string extract_host(const std::string & user);
     std::string generate_password();
 
+    typedef boost::variant<boost::blank, bool, int, double, std::string>
+        ServerVariableValue;
+
+    typedef std::map<std::string, ServerVariableValue> MySqlServerAssignments;
+
     class MySqlAdmin {
 
         public:
+
             MySqlAdmin(nova::db::mysql::MySqlConnectionPtr con);
 
             ~MySqlAdmin();
@@ -65,6 +72,8 @@ namespace nova { namespace guest { namespace mysql {
             void revoke_access(const std::string & user_name, const std::string & host_name, const std::string & database_name);
 
             void set_password(const char * username, const char * hostname, const char * password);
+
+            void set_globals(const MySqlServerAssignments & assignments);
 
         private:
             MySqlAdmin(const MySqlAdmin & other);

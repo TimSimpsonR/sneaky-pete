@@ -16,7 +16,9 @@
 #include <sstream>
 #include <uuid/uuid.h>
 
+#include "MySqlStatements.h"
 
+using boost::apply_visitor;
 using boost::format;
 using nova::db::mysql::MySqlConnection;
 using nova::db::mysql::MySqlConnectionPtr;
@@ -97,17 +99,17 @@ void MySqlAdmin::update_attributes(const string & username, const string & hostn
     MySqlDatabaseListPtr db_access = list_access(username, hostname);
     std::string host_name;
     if (user->get_name()){
-        const string name = str(format(" User='%s' ") 
+        const string name = str(format(" User='%s' ")
                           % con->escape_string(user->get_name().get().c_str()));
         subquery.push_back(name);
     }
     if (user->get_host()){
-        const string host = str(format(" Host='%s' ") 
+        const string host = str(format(" Host='%s' ")
                           % con->escape_string(user->get_host().get().c_str()));
         subquery.push_back(host);
     }
     if (user->get_password()){
-        const string password = str(format(" Password=PASSWORD('%s') ") 
+        const string password = str(format(" Password=PASSWORD('%s') ")
                           % con->escape_string(user->get_password().get().c_str()));
         subquery.push_back(password);
     }
@@ -410,6 +412,12 @@ void MySqlAdmin::set_password(const char * username, const char * hostname, cons
     stmt->set_string(2, hostname);
     stmt->execute();
     con->flush_privileges();
+}
+
+
+void MySqlAdmin::set_globals(const MySqlServerAssignments & assignments) {
+    const string query = create_globals_stmt<MySqlConnection>(*con, assignments);
+    con->prepare_statement(query.c_str());
 }
 
 

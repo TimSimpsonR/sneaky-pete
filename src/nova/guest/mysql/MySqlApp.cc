@@ -22,6 +22,7 @@ using namespace boost::assign; // brings CommandList += into our code.
 using nova::guest::backup::BackupRestoreInfo;
 using nova::guest::backup::BackupRestoreManager;
 using nova::guest::backup::BackupRestoreManagerPtr;
+using nova::utils::io::is_file;
 using boost::format;
 using namespace nova::guest;
 using nova::guest::utils::IsoTime;
@@ -51,7 +52,8 @@ namespace {
     const char * const TMP_DEBIAN_CNF = "/tmp/debian.cnf";
     const char * const FRESH_INIT_FILE_PATH = "/tmp/init.sql";
     const char * const FRESH_INIT_FILE_PATH_ARG = "--init-file=/tmp/init.sql";
-
+    const char * const MYCNF_OVERRIDES = "/etc/mysql/conf.d/overrides.cnf";
+    const char * const MYCNF_OVERRIDES_TMP = "/tmp/overrides.cnf.tmp";
 
     void call_update_rc(bool enabled, bool throw_on_bad_exit_code)
     {
@@ -134,23 +136,29 @@ MySqlApp::~MySqlApp()
 {
 }
 
-void MySqlApp::create_admin_user(MySqlAdmin & db,
-                                 const string & password) {
-    MySqlUserPtr user(new MySqlUser());
-    user->set_name(ADMIN_USER_NAME);
-    user->set_host("localhost");
-    user->set_password(password);
-    db.create_user(user);
-    db.get_connection()->grant_all_privileges(ADMIN_USER_NAME, "localhost");
-}
-
-void MySqlApp::generate_root_password(MySqlAdmin & db) {
-    db.set_password("root", "%", mysql::generate_password().c_str());
+void MySqlApp::write_config_overrides(const string & overrides_content) {
+    NOVA_LOG_INFO("Writing new temp overrides.cnf file.");
+    {
+        ofstream file(MYCNF_OVERRIDES_TMP, std::ofstream::out);
+        if (!file.good()) {
+            NOVA_LOG_ERROR("Couldn't open file %s!", MYCNF_OVERRIDES_TMP);
+            throw MySqlGuestException(
+                MySqlGuestException::CANT_WRITE_TMP_MYCNF);
+        }
+        file << overrides_content;
+    }
+    NOVA_LOG_INFO("Moving tmp overrides to final location (%s -> %s).",
+                  MYCNF_OVERRIDES_TMP, MYCNF_OVERRIDES);
+    process::execute(list_of("/usr/bin/sudo")
+                     ("mv")(MYCNF_OVERRIDES_TMP)(MYCNF_OVERRIDES));
+    NOVA_LOG_INFO("Setting permissions on %s.", MYCNF_OVERRIDES);
+    process::execute(list_of("/usr/bin/sudo")
+                     ("chmod")("0711")(MYCNF_OVERRIDES));
 }
 
 void MySqlApp::write_mycnf(AptGuest & apt,
-                           const string & config_location,
                            const string & config_contents,
+                           const optional<string> & overrides,
                            const optional<string> & admin_password_arg) {
     NOVA_LOG_INFO("Writing my.cnf templates");
     string admin_password;
@@ -182,17 +190,20 @@ void MySqlApp::write_mycnf(AptGuest & apt,
     process::execute(list_of("/usr/bin/sudo")("ln")("-s")(FINAL_MYCNF)
                             (ORIG_MYCNF));
     wipe_ib_logfiles();
+
+    if (overrides) {
+        write_config_overrides(overrides.get());
+    }
 }
 
 void MySqlApp::reset_configuration(AptGuest & apt,
-                                   const string & config_location,
                                    const string & config_contents) {
-    write_mycnf(apt, config_location, config_contents, boost::none);
+    write_mycnf(apt, config_contents, boost::none, boost::none);
 }
 
 void MySqlApp::prepare(AptGuest & apt,
-                       const string & config_location,
                        const string & config_contents,
+                       const optional<string> & overrides,
                        optional<BackupRestoreInfo> restore) {
     // This option allows prepare to be run multiple times. In fact, I'm
     // wondering if this newer version might be safe to just run whenever
@@ -230,7 +241,7 @@ void MySqlApp::prepare(AptGuest & apt,
         write_fresh_init_file(admin_password, !restore);
 
         NOVA_LOG_INFO("Writing my.cnf...");
-        write_mycnf(apt, config_location, config_contents, admin_password);
+        write_mycnf(apt, config_contents, overrides, admin_password);
 
         NOVA_LOG_INFO("Starting MySQL with init file...");
         run_mysqld_with_init();
@@ -319,6 +330,16 @@ void MySqlApp::internal_stop_mysql(bool update_db) {
 
 void MySqlApp::remove_anonymous_user(MySqlAdmin & db) {
     db.get_connection()->query("DELETE FROM mysql.user WHERE User=''");
+}
+
+void MySqlApp::remove_overrides() {
+    if (is_file(MYCNF_OVERRIDES)) {
+        NOVA_LOG_DEBUG("Removing overrides cnf file %s.", MYCNF_OVERRIDES);
+        process::execute(list_of("/usr/bin/sudo")
+                         ("-f")("rm")(MYCNF_OVERRIDES));
+    } else {
+        NOVA_LOG_DEBUG("Overrides cnf file %s not found.", MYCNF_OVERRIDES);
+    }
 }
 
 void MySqlApp::remove_remote_root_access(MySqlAdmin & db) {
@@ -413,7 +434,6 @@ void MySqlApp::start_mysql(bool update_db) {
 }
 
 void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
-                                          const string & config_location,
                                           const string & config_contents) {
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
@@ -425,7 +445,7 @@ void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
     NOVA_LOG_INFO("Initiating config.");
     // Make sure dbaas package is upgraded during the install in write_mycnf.
     apt.update(TIME_OUT);
-    write_mycnf(apt, config_location, config_contents, boost::none);
+    write_mycnf(apt, config_contents, boost::none, boost::none);
     start_mysql(true);
     guarantee_enable_starting_mysql_on_boot();
 }

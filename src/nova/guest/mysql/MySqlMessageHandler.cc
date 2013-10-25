@@ -552,8 +552,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             monitoring.install_and_configure_monitoring_agent(
                 *this->apt, token, endpoints);
         } else {
-            NOVA_LOG_ERROR("Skipping Monitoring Agent as no endpoints were"
-                           "supplied.");
+            NOVA_LOG_INFO("Skipping Monitoring Agent as no endpoints were supplied.");
         }
         return JsonData::from_null();
     } else if (input.method_name == "restart") {

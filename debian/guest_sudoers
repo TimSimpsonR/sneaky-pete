@@ -3,6 +3,7 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /bin/rm,              \
                       /bin/ln,              \
                       /bin/ls,              \
+                      /bin/chmod,           \
                       /bin/kill,            \
                       /bin/chown,           \
                       /usr/sbin/service,    \

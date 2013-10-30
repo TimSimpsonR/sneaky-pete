@@ -414,10 +414,15 @@ void MySqlAdmin::set_password(const char * username, const char * hostname, cons
     con->flush_privileges();
 }
 
-
 void MySqlAdmin::set_globals(const MySqlServerAssignments & assignments) {
-    const string query = create_globals_stmt<MySqlConnection>(*con, assignments);
-    con->prepare_statement(query.c_str());
+    NOVA_LOG_INFO("creating global statements");
+    BOOST_FOREACH(const MySqlServerAssignments::value_type & assignment,
+                  assignments) {
+        const string query = create_global_stmt<MySqlConnection>(*con, assignment);
+        NOVA_LOG_INFO("query string: %s", query.c_str())
+        con->query(query.c_str());
+    }
+    NOVA_LOG_INFO("finished creating global statements");
 }
 
 

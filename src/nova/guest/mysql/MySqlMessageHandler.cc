@@ -129,6 +129,7 @@ namespace {
                 assignments[key] = server_variable_value_from_json(value);
             }
         } itr(assignments);
+        object.iterate(itr);
         return assignments;
     }
 
@@ -231,6 +232,7 @@ namespace {
     }
 
     JSON_METHOD(apply_overrides) {
+        NOVA_LOG_INFO( "apply_overrides method");
         MySqlAdminPtr sql = guest->sql_admin();
         const JsonObjectPtr obj = args->get_object("overrides");
         MySqlServerAssignments assignments = server_assignments_from_obj(*obj);
@@ -587,8 +589,9 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         app->stop_db(do_not_start_on_reboot);
         return JsonData::from_null();
     } else if (input.method_name == "update_overrides") {
+        NOVA_LOG_INFO( "update_overrides method");
         MySqlAppPtr app = this->create_mysql_app();
-        const string overrides = input.args->get_string("overrides_file");
+        const string overrides = input.args->get_string("overrides");
         app->write_config_overrides(overrides);
         return JsonData::from_null();
     } else {

@@ -8,7 +8,9 @@
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include <string>
 #include "nova/utils/regex.h"
+#include "nova/Log.h"
 
+using nova::Log;
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -46,15 +48,13 @@ public:
 };
 
 template<typename Connection>
-std::string create_globals_stmt(
-    Connection & con, const MySqlServerAssignments & assignments) {
+std::string create_global_stmt(
+    Connection & con, const MySqlServerAssignments::value_type & assignment) {
     std::stringstream query;
-    BOOST_FOREACH(const MySqlServerAssignments::value_type & assignment,
-                  assignments) {
-        query << "SET GLOBAL " << assignment.first;
-        const ServerVariableValue & value = assignment.second;
-        ::boost::apply_visitor(Visitor<Connection>(con, query), value);
-    }
+    NOVA_LOG_INFO("create_globals_stmt() iterating over assignments");
+    query << "SET GLOBAL " << assignment.first;
+    const ServerVariableValue & value = assignment.second;
+    ::boost::apply_visitor(Visitor<Connection>(con, query), value);
     return query.str();
 }
 

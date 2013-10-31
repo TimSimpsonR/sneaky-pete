@@ -1,4 +1,9 @@
 #!/bin/sh
+# Set the number of open file descriptors to the max
+# this allows instances with a large number of tables to work.
+# Do this before set -e as it could fail on a improperly setup container.
+ulimit -n 1048576
+
 set -e
 ulimit -s unlimited
 

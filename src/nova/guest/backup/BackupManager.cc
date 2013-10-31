@@ -239,7 +239,6 @@ public:
             throw BackupException(BackupException::INVALID_STATE);
         }
 
-        update_db("BUILDING");
         NOVA_LOG_INFO("Starting backup...");
         try {
             // Start process
@@ -295,6 +294,17 @@ private:
         // Setup SwiftClient
         SwiftFileInfo file_info(swift_url, swift_container, backup_id);
         SwiftUploader writer(token, segment_max_size, file_info);
+
+        // Save the backup information to the database in case of failure
+        // This allows delete calls to clean up after failures.
+        // https://bugs.launchpad.net/trove/+bug/1246003
+        DbInfo pre_info = {
+                "",
+                "xtrabackup_v1",
+                file_info.manifest_url(),
+                stats->used
+        };
+        update_db("BUILDING", pre_info);
 
         // Write the backup to swift.
         // The checksum returned is the swift checksum of the concatenated

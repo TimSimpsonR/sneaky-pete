@@ -20,7 +20,12 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /usr/bin/mysqladmin,  \
                       /bin/ps,              \
                       /usr/sbin/update-rc.d, \
-                      /usr/bin/xbstream
+                      /usr/bin/xbstream,    \
+                      /bin/mount,           \
+                      /bin/mkdir,           \
+                      /sbin/blockdev,       \
+                      /sbin/mkfs,           \
+                      /sbin/dumpe2fs
 
 nova ALL=(root) NOPASSWD: SETENV: NOVACMDS
 

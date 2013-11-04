@@ -188,7 +188,20 @@ class FlagValues {
 
         bool use_syslog() const;
 
+        bool volume_format_and_mount() const;
+
+        const char * volume_file_system_type() const;
+
+        int volume_check_device_num_retries() const;
+
+        const char * volume_format_options() const;
+
+        unsigned long volume_format_timeout() const;
+
+        const char * volume_mount_options() const;
+
         size_t worker_thread_stack_size() const;
+
 
     private:
 

@@ -74,7 +74,7 @@ GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input)
     return output;
 }
 
-void message_loop(ResilentReceiver & receiver,
+void message_loop(ResilientReceiver & receiver,
                   vector<MessageHandlerPtr> & handlers) {
     while(true) {
 #ifndef _DEBUG

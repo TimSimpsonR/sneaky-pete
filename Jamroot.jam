@@ -608,6 +608,21 @@ unit-test send_and_receive
     ;
 explicit send_and_receive ;
 
+# Requires RabbitMQ server to be installed and running on localhost.
+unit-test resilient_tests
+    :   pch
+        u_nova_flags
+        u_nova_guest_GuestException
+        u_nova_rpc_Receiver
+        u_nova_rpc_Sender
+        u_nova_json
+        tests/resilient_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full --track-origins=yes -v"
+    ;
+explicit resilient_tests ;
+
 
 # Requires MySQL to be installed with valid values in my.cnf.
 # Run by setting an environment variable named "TEST_ARGS" to whatever nova
@@ -838,4 +853,62 @@ exe mount_file
         tests/mount.cc
 
     :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+# And run this one to put a message on the conductor queue.
+exe send_to_conductor
+    :   pch
+        static_dependencies
+        u_nova_process
+        u_nova_rpc_Sender
+        src/send_to_conductor.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+# And run this one to show ResilientRec works.
+exe demo_rreceiver
+    :   pch
+        static_dependencies
+        u_nova_process
+        u_nova_rpc_Receiver
+        src/demo_rreceiver.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+# An agent designed to exercise the Resilient sender and receiver until it's told to stop.
+exe send_forever_turbo
+    :   pch
+        static_dependencies
+        empty_agent_lib
+        u_nova_process
+        u_nova_rpc_Sender
+        src/send_forever_turbo.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe sfturbo_send
+    :   pch
+        static_dependencies
+        empty_agent_lib
+        u_nova_process
+        u_nova_rpc_Sender
+        u_nova_rpc_Receiver
+        src/sfturbo_send.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe sfturbo_recv
+    :   pch
+        static_dependencies
+        empty_agent_lib
+        u_nova_process
+        u_nova_rpc_Sender
+        u_nova_rpc_Receiver
+        src/sfturbo_recv.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
     ;

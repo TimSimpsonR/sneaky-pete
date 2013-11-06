@@ -202,6 +202,5 @@ namespace nova {
 #define NOVA_LOG_TRACE(fmt, ...) { ::nova::Log::get_instance()->write( \
     __FILE__, __LINE__, nova::Log::LEVEL_TRACE, fmt, ##__VA_ARGS__); }
 
-
 #endif
 

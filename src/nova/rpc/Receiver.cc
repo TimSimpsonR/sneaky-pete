@@ -190,10 +190,10 @@ GuestInput Receiver::next_message() {
 
 
 /**---------------------------------------------------------------------------
- *- ResilentReceiver
+ *- ResilientReceiver
  *---------------------------------------------------------------------------*/
 
-ResilentReceiver::ResilentReceiver(const char * host, int port,
+ResilientReceiver::ResilientReceiver(const char * host, int port,
     const char * userid, const char * password, size_t client_memory,
     const char * topic, const char * exchange_name,
     unsigned long reconnect_wait_time)
@@ -210,15 +210,15 @@ ResilentReceiver::ResilentReceiver(const char * host, int port,
     open(false);
 }
 
-ResilentReceiver::~ResilentReceiver() {
+ResilientReceiver::~ResilientReceiver() {
     close();
 }
 
-void ResilentReceiver::close() {
+void ResilientReceiver::close() {
     receiver.reset(0);
 }
 
-void ResilentReceiver::finish_message(const GuestOutput & output) {
+void ResilientReceiver::finish_message(const GuestOutput & output) {
     while(true) {
         try {
             NOVA_LOG_INFO("Finishing message.");
@@ -231,7 +231,7 @@ void ResilentReceiver::finish_message(const GuestOutput & output) {
     }
 }
 
-GuestInput ResilentReceiver::next_message() {
+GuestInput ResilientReceiver::next_message() {
     while(true) {
         try {
             NOVA_LOG_INFO("Waiting for next message...");
@@ -243,7 +243,7 @@ GuestInput ResilentReceiver::next_message() {
     }
 }
 
-void ResilentReceiver::open(bool wait_first) {
+void ResilientReceiver::open(bool wait_first) {
     while(receiver.get() == 0) {
         try {
             if (wait_first) {
@@ -254,6 +254,10 @@ void ResilentReceiver::open(bool wait_first) {
             AmqpConnectionPtr connection =
                 AmqpConnection::create(host.c_str(), port, userid.c_str(),
                     password.c_str(), client_memory);
+
+            Receiver rcv(connection, topic.c_str(), exchange_name.c_str());
+            
+
             receiver.reset(new Receiver(connection, topic.c_str(),
                                         exchange_name.c_str()));
             return;
@@ -265,7 +269,7 @@ void ResilentReceiver::open(bool wait_first) {
     }
 }
 
-void ResilentReceiver::reset() {
+void ResilientReceiver::reset() {
     close();
     open(true);
 }

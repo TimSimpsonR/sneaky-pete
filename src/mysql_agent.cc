@@ -84,9 +84,18 @@ struct Func {
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
 
+        /* Create Conductor connection. */
+        ResilientSenderPtr sender(new ResilientSender(
+            flags.rabbit_host(), flags.rabbit_port(),
+            flags.rabbit_userid(), flags.rabbit_password(),
+            flags.rabbit_client_memory(), flags.conductor_queue(),
+            flags.control_exchange(),
+            flags.rabbit_reconnect_wait_time()));
+
         /* Create MySQL updater. */
         MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
             nova_db,
+            sender,
             flags.nova_db_reconnect_wait_time(),
             flags.guest_id()));
 
@@ -148,6 +157,7 @@ struct Func {
         /* Backup task */
         BackupManager backup(
                       nova_db,
+                      sender,
                       job_runner,
                       flags.backup_process_commands(),
                       flags.backup_segment_max_size(),

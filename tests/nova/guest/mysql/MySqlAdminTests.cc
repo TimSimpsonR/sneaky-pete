@@ -1,6 +1,8 @@
 #define BOOST_TEST_MODULE My_SQL_Tests
 #include <boost/test/unit_test.hpp>
+#include <boost/foreach.hpp>
 
+#include "nova/Log.h"
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/ConfigFile.h"
 #include "nova/guest/mysql/MySqlStatements.h"
@@ -8,6 +10,7 @@
 using namespace nova::guest::mysql;
 using namespace std;
 
+nova::LogApiScope log_api_scope(nova::LogOptions::simple());
 
 BOOST_AUTO_TEST_CASE(password_must_be_unique)
 {
@@ -44,7 +47,7 @@ struct StringEscaper {
     }
 };
 
-BOOST_AUTO_TEST_CASE(test_create_globals_stmt)
+BOOST_AUTO_TEST_CASE(test_create_global_stmt)
 {
     MySqlServerAssignments assignments;
     assignments["Empty"] = boost::blank();
@@ -55,15 +58,27 @@ BOOST_AUTO_TEST_CASE(test_create_globals_stmt)
     assignments["string"] = std::string("stuff");
     assignments["badString"] = "stuff";  // WATCH OUT!
     StringEscaper escapist;
-    const auto query = create_globals_stmt<StringEscaper>(escapist,
-                                                          assignments);
-    BOOST_CHECK_EQUAL(
-        "SET GLOBAL BoolFalse = 0;"
-        "SET GLOBAL BoolTrue = 1;"
-        "SET GLOBAL Empty;"
-        "SET GLOBAL badString = 1;"
-        "SET GLOBAL double = 50.6;"
-        "SET GLOBAL int = 42;"
-        "SET GLOBAL string = 'I must escape this string!';",
-        query.c_str());
+
+    string expected_output[] = {
+        "SET GLOBAL BoolFalse = 0;",
+        "SET GLOBAL BoolTrue = 1;",
+        "SET GLOBAL Empty;",
+        "SET GLOBAL badString = 1;",
+        "SET GLOBAL double = 50.6;",
+        "SET GLOBAL int = 42;",
+        "SET GLOBAL string = 'I must escape this string!';"
+    };
+
+    string output[7];
+    int i = 0;
+    BOOST_FOREACH(const MySqlServerAssignments::value_type & assignment,
+                  assignments) {
+        const string query = create_global_stmt<StringEscaper>(escapist,
+                                                               assignment);
+        output[i] = query.c_str();
+        i++;
+    }
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(expected_output, expected_output+7,
+                                  output, output+7);
 }

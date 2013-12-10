@@ -110,7 +110,7 @@ namespace nova { namespace guest { namespace diagnostics {
           InterrogatorMessageHandler(const InterrogatorMessageHandler &);
           InterrogatorMessageHandler & operator = (const InterrogatorMessageHandler &);
 
-          const Interrogator & interrogator;
+          const Interrogator interrogator;
     };
 
 

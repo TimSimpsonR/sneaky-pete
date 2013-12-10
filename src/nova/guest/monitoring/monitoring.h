@@ -78,7 +78,7 @@ namespace nova { namespace guest { namespace monitoring {
 
         private:
             nova::guest::apt::AptGuestPtr apt;
-            const Monitoring & monitoring;
+            const Monitoring monitoring;
     };
 
 } } }  // end namespace

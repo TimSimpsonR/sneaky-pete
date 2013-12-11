@@ -470,6 +470,30 @@ size_t FlagValues::status_thread_stack_size() const {
                           (size_t) 1024 * 1024);
 }
 
+bool FlagValues::volume_format_and_mount() const {
+    return get_flag_value<bool>(*map, "volume_format_and_mount", false);
+}
+
+const char * FlagValues::volume_file_system_type() const {
+    return map->get("volume_file_system_type", "ext3");
+}
+
+int FlagValues::volume_check_device_num_retries() const {
+    return get_flag_value<int>(*map, "volume_check_device_num_retries", 3);
+}
+
+const char * FlagValues::volume_format_options() const {
+    return map->get("volume_format_options", "-m 5");
+}
+
+unsigned long FlagValues::volume_format_timeout() const {
+    return get_flag_value(*map, "volume_format_timeout", (unsigned long) 120);
+}
+
+const char * FlagValues::volume_mount_options() const {
+    return map->get("volume_mount_options", "defaults,noatime");
+}
+
 size_t FlagValues::worker_thread_stack_size() const {
     return get_flag_value(*map, "worker_thread_stack_size",
                           (size_t) 1024 * 1024);

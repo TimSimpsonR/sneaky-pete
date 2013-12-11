@@ -322,7 +322,6 @@ unit u_nova_utils_zlib
     :   tests/nova/utils/zlib_tests.cc
     ;
 
-
 unit u_nova_guest_HeartBeat
     :   src/nova/guest/HeartBeat.cc
     :   u_nova_db_mysql
@@ -391,6 +390,14 @@ unit u_nova_rpc_Receiver
         u_nova_Log
     ;
 
+unit u_nova_volume
+    :   src/nova/VolumeManager.cc
+    :   u_nova_Log
+        u_nova_process
+    :   tests/nova/guest/volume_tests.cc
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
+    ;
 
 unit u_nova_guest_mysql_MySqlGuestException
     :   src/nova/guest/mysql/MySqlGuestException.cc
@@ -556,6 +563,7 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_guest_mysql_MySqlAppStatus
         u_nova_guest_mysql_MySqlApp
         u_nova_guest_monitoring_Monitoring
+        u_nova_volume
     ;
 
 alias guest_lib
@@ -830,4 +838,22 @@ exe centi-pete
         src/centi_pete.cc
     :
         <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe format_file
+    :   pch
+        u_nova_volume
+        u_nova_Log
+        tests/format.cc
+
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe mount_file
+    :   pch
+        u_nova_volume
+        u_nova_Log
+        tests/mount.cc
+
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;

@@ -19,6 +19,7 @@
 #include <sstream>
 #include <boost/tuple/tuple.hpp>
 #include <boost/variant.hpp>
+#include "nova/VolumeManager.h"
 
 using namespace boost::assign;
 
@@ -505,10 +506,14 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() {
 MySqlAppMessageHandler::MySqlAppMessageHandler(
     MySqlAppPtr mysqlApp,
     nova::guest::apt::AptGuestPtr apt,
-    nova::guest::monitoring::Monitoring & monitoring)
+    nova::guest::monitoring::Monitoring & monitoring,
+    bool format_and_mount_volume_enabled,
+    VolumeManagerPtr volumeManager)
 :   apt(apt),
     monitoring(monitoring),
-    mysqlApp(mysqlApp)
+    mysqlApp(mysqlApp),
+    format_and_mount_volume_enabled(format_and_mount_volume_enabled),
+    volumeManager(volumeManager)
 {
 }
 
@@ -522,6 +527,19 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         MySqlAppPtr app = this->create_mysql_app();
         const auto config_contents = input.args->get_string("config_contents");
         const auto overrides = input.args->get_optional_string("overrides");
+        // Mount volume
+        if (format_and_mount_volume_enabled) {
+            const auto device_path = input.args->get_optional_string("device_path");
+            const auto mount_point = input.args->get_optional_string("mount_point");
+            if (device_path && device_path.get().length() > 0) {
+                NOVA_LOG_INFO("Mounting volume for prepare call...");
+                VolumeManagerPtr volume_manager = this->create_volume_manager();
+                VolumeDevice vol_device = volume_manager->create_volume_device(device_path.get());
+                vol_device.format();
+                vol_device.mount(mount_point.get());
+                NOVA_LOG_INFO("Mounted the volume.");
+            }
+        }
         // Restore the database?
         optional<BackupRestoreInfo> restore;
         const auto backup_url = input.args->get_optional_string("backup_url");
@@ -602,6 +620,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
 MySqlAppPtr MySqlAppMessageHandler::create_mysql_app()
 {
     return mysqlApp;
+}
+
+VolumeManagerPtr MySqlAppMessageHandler::create_volume_manager()
+{
+    return volumeManager;
 }
 
 } } } // end namespace

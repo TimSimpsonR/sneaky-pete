@@ -1,39 +1,3 @@
-###############################################################################
-#  -----------------------
-#  Sneaky Pete Guest Agent
-#  -----------------------
-#
-#  To build, install bjam and execute "bjam -d+2". "-d+2" is optional and will
-#  show you each command executed by Boost Build.
-#  To build in debug mode, use:
-#      bjam -d+2
-#  To build staticly, use:
-#      bjam -d+2 release link=static nova-guest
-#
-#  There are extra settings which can be defined by environment variables. They
-#  are as follows:
-#    AGENT_DIR - Give this the absolute file path to the directory containing
-#      this file (Jamroot.jam). Its needed for the Process tests.
-#    TEST_ARGS - Assign this flag values. For example, if you set this to
-#      --flagfile=blah.conf, then blah.conf will have its flag values loaded.
-#      This is needed only for the integration tests.
-#    DESTROY_MYSQL_ON_THIS_MACHINE - Set this to the string "PLEASE" to run
-#      the MySQL preparation integration tests, which will uninstall and
-#      destroy any installation of MySQL on this machine (all data will be
-#      deleted).
-#
-#  Note on the Valgrind error:
-#    ...
-#    Syscall param timer_create(evp) points to uninitialised byte(s) "
-#    ==5279==    at 0x4E2D0DD: timer_create@@GLIBC_2.3.3 (timer_create.c:99)
-#    ...
-#  This is a known issuewith the timer_create call. It is harmless and there
-#  does not appear to be a way to disable the error.
-#
-###############################################################################
-
-
-# Using environment variables isn't the best form, but its a start.
 import os ;
 using testing ;
 
@@ -566,11 +530,27 @@ unit u_nova_guest_mysql_MySqlMessageHandler
         u_nova_volume
     ;
 
-alias guest_lib
+unit u_nova_guest_agent
+    :   src/nova/guest/agent.cc
+    ;
+
+alias empty_agent_lib
     :   pch
         u_nova_guest_HeartBeat
-        u_nova_configfile
         u_nova_flags
+        u_nova_guest_agent
+        u_nova_guest_utils
+        u_nova_json
+        u_nova_Log
+        u_nova_rpc_Receiver
+        u_nova_utils_regex
+        u_nova_rpc_Sender
+        u_nova_utils_threads
+    ;
+
+alias mysql_agent_lib
+    :   empty_agent_lib
+        u_nova_configfile
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptMessageHandler
         u_nova_guest_apt_AptException
@@ -586,14 +566,7 @@ alias guest_lib
         u_nova_guest_monitoring_Monitoring
         u_nova_guest_monitoring_MonitoringException
         u_nova_guest_monitoring_MonitoringMessageHandler
-        u_nova_guest_utils
-        u_nova_json
-        u_nova_Log
         u_nova_guest_mysql_MySqlMessageHandler
-        u_nova_rpc_Receiver
-        u_nova_utils_regex
-        u_nova_rpc_Sender
-        u_nova_utils_threads
     ;
 
 
@@ -704,7 +677,7 @@ explicit int_tests ;
 
 # TODO(tim.simpson): Remove this. The results don't seem that usable anymore.
 run     dependencies
-        guest_lib
+        mysql_agent_lib
         test_dependencies
         tests/memory_tests.cc
     :   # Command line arguments.
@@ -764,23 +737,32 @@ exe apt_install
 explicit apt_install ;
 
 
-unit obj_receiver_daemon
-    :   src/receiver_daemon.cc
+unit obj_mysql_agent
+    :   src/mysql_agent.cc
     ;
 
 exe receiver
     :   pch
         dependencies
-        guest_lib
-        obj_receiver_daemon
+        mysql_agent_lib
+        obj_mysql_agent
     :  <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe empty-guest
+    :   static_dependencies
+        empty_agent_lib
+        src/example_agent.cc
+        lib_m
+        lib_c
+        pch
+    :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
 exe nova-guest
 	:	static_dependencies
-        #dependencies
-		guest_lib
-        obj_receiver_daemon
+        mysql_agent_lib
+        obj_mysql_agent
         lib_m
         lib_c
         pch
@@ -791,7 +773,7 @@ exe nova-guest
 exe leak_tester
 	:	pch
         dependencies
-		guest_lib
+		mysql_agent_lib
 		src/leak_tester.cc
 	:   #<link>shared:<dependency>sql_guest_tests
 	    #<link>shared:<dependency>memory_tests

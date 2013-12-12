@@ -62,6 +62,10 @@ JsonDataPtr MonitoringMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_DEBUG("handling the remove_monitoring_agent method");
         monitoring.remove_monitoring_agent(*apt);
         return JsonData::from_null();
+    } else if (input.method_name == "update_monitoring_agent") {
+        NOVA_LOG_DEBUG("handling the update_monitoring_agent method");
+        monitoring.update_monitoring_agent(*apt);
+        return JsonData::from_null();
     } else if (input.method_name == "start_monitoring_agent") {
         NOVA_LOG_DEBUG("handling the start_monitoring_agent method");
         monitoring.start_monitoring_agent();

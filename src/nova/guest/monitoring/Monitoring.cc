@@ -90,6 +90,11 @@ void Monitoring::install_and_configure_monitoring_agent(
     apt.install(agent_package_name.c_str(), agent_install_timeout);
 }
 
+void Monitoring::update_monitoring_agent(nova::guest::apt::AptGuest & apt) const{
+    NOVA_LOG_DEBUG("update_monitoring_agent call ");
+    apt.install(agent_package_name.c_str(), agent_install_timeout);
+}
+
 void Monitoring::remove_monitoring_agent(AptGuest & apt) const {
     stop_monitoring_agent();
     NOVA_LOG_DEBUG("remove_monitoring_agent call ");

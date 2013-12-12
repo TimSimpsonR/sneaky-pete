@@ -30,6 +30,10 @@ namespace nova { namespace guest { namespace monitoring {
             void remove_monitoring_agent(
                 nova::guest::apt::AptGuest & apt) const;
 
+            /* Updates the monitoring agent from the guest */
+            void update_monitoring_agent(
+                nova::guest::apt::AptGuest & apt) const;
+
             void start_monitoring_agent() const;
 
             void stop_monitoring_agent() const;

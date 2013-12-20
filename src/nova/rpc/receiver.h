@@ -46,14 +46,14 @@ namespace nova { namespace rpc {
 
     /** Like the standard receiver, but kills and waits to restablish
      *  the connection anytime there's a problem. */
-    class ResilentReceiver {
+    class ResilientReceiver {
 
     public:
-        ResilentReceiver(const char * host, int port, const char * userid,
+        ResilientReceiver(const char * host, int port, const char * userid,
             const char * password, size_t client_memory, const char * topic,
             const char * exchange_name, unsigned long reconnect_wait_time);
 
-        ~ResilentReceiver();
+        ~ResilientReceiver();
 
         /** Finishes a message. */
         void finish_message(const nova::guest::GuestOutput & output);
@@ -64,8 +64,8 @@ namespace nova { namespace rpc {
         void reset();
 
     private:
-        ResilentReceiver(const ResilentReceiver &);
-        ResilentReceiver & operator = (const ResilentReceiver &);
+        ResilientReceiver(const ResilientReceiver &);
+        ResilientReceiver & operator = (const ResilientReceiver &);
 
         size_t client_memory;
 

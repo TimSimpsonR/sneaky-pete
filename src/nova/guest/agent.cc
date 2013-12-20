@@ -17,6 +17,9 @@ using std::string;
 using std::vector;
 
 
+#define CATCH_RPC_METHOD_ERRORS
+
+
 namespace nova {  namespace guest { namespace agent {
 
 LogOptions log_options_from_flags(const flags::FlagValues & flags) {

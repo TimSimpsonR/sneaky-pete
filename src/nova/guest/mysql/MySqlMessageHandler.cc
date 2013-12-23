@@ -506,7 +506,8 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() {
 MySqlAppMessageHandler::MySqlAppMessageHandler(
     MySqlAppPtr mysqlApp,
     nova::guest::apt::AptGuestPtr apt,
-    nova::guest::monitoring::Monitoring & monitoring,
+    nova::guest::monitoring::MonitoringManagerPtr monitoring,
+    bool format_and_mount_volume_enabled,
     VolumeManagerPtr volumeManager)
 :   apt(apt),
     monitoring(monitoring),
@@ -568,7 +569,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             NOVA_LOG_INFO("Installing Monitoring Agent following successful prepare");
             const auto token = monitoring_info->get_string("token");
             const auto endpoints = monitoring_info->get_string("endpoints");
-            monitoring.install_and_configure_monitoring_agent(
+            monitoring->install_and_configure_monitoring_agent(
                 *this->apt, token, endpoints);
         } else {
             NOVA_LOG_INFO("Skipping Monitoring Agent as no endpoints were supplied.");

@@ -63,12 +63,36 @@ using std::vector;
 // Begin anonymous namespace.
 namespace {
 
+class PeriodicTasks
+{
+public:
+    PeriodicTasks(MonitoringManagerPtr monitoring_manager,
+                  MySqlAppStatusPtr mysql_app_status)
+    : monitoring_manager(monitoring_manager),
+      mysql_app_status(mysql_app_status)
+    {
+    }
+
+    void operator() ()
+    {
+        mysql_app_status->update();
+        monitoring_manager->ensure_running();
+    }
+
+private:
+    MonitoringManagerPtr monitoring_manager;
+    MySqlAppStatusPtr mysql_app_status;
+};
+
+typedef boost::shared_ptr<PeriodicTasks> PeriodicTasksPtr;
+
+
 struct Func {
 
     // Initialize curl.
     nova::utils::CurlScope scope;
 
-    boost::tuple<std::vector<MessageHandlerPtr>, MySqlAppStatusPtr>
+    boost::tuple<std::vector<MessageHandlerPtr>, PeriodicTasksPtr>
         operator() (const FlagValues & flags,
                     MySqlConnectionWithDefaultDbPtr & nova_db,
                     ThreadBasedJobRunner & job_runner)
@@ -94,12 +118,13 @@ struct Func {
         MessageHandlerPtr handler_mysql(new MySqlMessageHandler());
         handlers.push_back(handler_mysql);
 
-        Monitoring monitoring(flags.guest_id(),
-                              flags.monitoring_agent_package_name(),
-                              flags.monitoring_agent_config_file(),
-                              flags.monitoring_agent_install_timeout());
+        MonitoringManagerPtr monitoring_manager(new MonitoringManager(
+            flags.guest_id(),
+            flags.monitoring_agent_package_name(),
+            flags.monitoring_agent_config_file(),
+            flags.monitoring_agent_install_timeout()));
         MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
-            apt_worker, monitoring));
+            apt_worker, monitoring_manager));
         handlers.push_back(handler_monitoring_app);
 
         BackupRestoreManagerPtr backup_restore_manager(new BackupRestoreManager(
@@ -138,7 +163,7 @@ struct Func {
         MessageHandlerPtr handler_mysql_app(
             new MySqlAppMessageHandler(mysqlApp,
                                        apt_worker,
-                                       monitoring,
+                                       monitoring_manager,
                                        volumeManager));
         handlers.push_back(handler_mysql_app);
 
@@ -167,7 +192,11 @@ struct Func {
             handlers.push_back(handler_diagnostics);
         }
 
-        return boost::make_tuple(handlers, mysql_status_updater);
+        PeriodicTasksPtr updater(new PeriodicTasks(
+          monitoring_manager, mysql_status_updater
+          ));
+
+        return boost::make_tuple(handlers, updater);
     }
 
 };
@@ -176,6 +205,6 @@ struct Func {
 
 
 int main(int argc, char* argv[]) {
-    return ::nova::guest::agent::execute_main<Func, MySqlAppStatusPtr>(
+    return ::nova::guest::agent::execute_main<Func, PeriodicTasksPtr>(
         "MySQL Edition", argc, argv);
 }

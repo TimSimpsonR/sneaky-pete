@@ -10,8 +10,8 @@
 
 using namespace nova;
 using namespace std;
-using nova::guest::monitoring::status::MonitoringStatus;
-using nova::guest::monitoring::Monitoring;
+using nova::guest::monitoring::MonitoringStatus;
+using nova::guest::monitoring::MonitoringManager;
 using nova::guest::apt::AptGuest;
 
 
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
     const string monitoring_endpoints = "X";
     const string instance_id = "test-1234-1234";
     AptGuest apt(use_sudo, package_name.c_str(), time_out);
-    Monitoring mon(instance_id, package_name, monitoring_config, time_out);
+    MonitoringManager mon(instance_id, package_name, monitoring_config, time_out);
 
 
     if (action == "install"){

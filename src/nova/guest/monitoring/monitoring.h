@@ -12,13 +12,16 @@
 
 namespace nova { namespace guest { namespace monitoring {
 
-    class Monitoring {
+    class MonitoringManager {
         public:
 
-            Monitoring(const std::string & guest_id,
-                       const std::string & agent_package_name,
-                       const std::string & agent_config_file,
-                       const double agent_install_timeout);
+            MonitoringManager(const std::string & guest_id,
+                              const std::string & agent_package_name,
+                              const std::string & agent_config_file,
+                              const double agent_install_timeout);
+
+            /* Makes sure the agent is running. */
+            void ensure_running();
 
             /* Install the monitoring agent */
             void install_and_configure_monitoring_agent(
@@ -46,8 +49,9 @@ namespace nova { namespace guest { namespace monitoring {
             const std::string agent_package_name;
             const std::string agent_config_file;
             const double agent_install_timeout;
-
     };
+
+    typedef boost::shared_ptr<MonitoringManager> MonitoringManagerPtr;
 
     class MonitoringException : public std::exception {
 
@@ -76,13 +80,13 @@ namespace nova { namespace guest { namespace monitoring {
         public:
 
             MonitoringMessageHandler(nova::guest::apt::AptGuestPtr apt,
-                                     Monitoring & monitoring);
+                                     MonitoringManagerPtr monitoring);
 
             virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
         private:
             nova::guest::apt::AptGuestPtr apt;
-            const Monitoring monitoring;
+            MonitoringManagerPtr monitoring;
     };
 
 } } }  // end namespace

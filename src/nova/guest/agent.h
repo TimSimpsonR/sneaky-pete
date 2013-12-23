@@ -101,7 +101,7 @@ void run_json_method(std::vector<MessageHandlerPtr> & handlers,
 GuestOutput run_method(std::vector<MessageHandlerPtr> & handlers,
                        GuestInput & input);
 
-void message_loop(nova::rpc::ResilientReceiver & receiver,
+void message_loop(nova::rpc::ResilentReceiver & receiver,
                   std::vector<MessageHandlerPtr> & handlers);
 
 
@@ -186,7 +186,7 @@ void initialize_and_run(const char * const title,
         // appears to avert this phenomenon.
         boost::this_thread::sleep(boost::posix_time::seconds(3));
 
-        nova::rpc::ResilientReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
+        nova::rpc::ResilentReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
                     flags.rabbit_userid(), flags.rabbit_password(),
                     flags.rabbit_client_memory(), topic.c_str(),
                     flags.control_exchange(),

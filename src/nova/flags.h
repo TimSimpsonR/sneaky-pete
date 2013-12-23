@@ -202,7 +202,6 @@ class FlagValues {
 
         size_t worker_thread_stack_size() const;
 
-        const char * conductor_queue() const;
 
     private:
 

@@ -12,26 +12,14 @@
 #include "nova/utils/swift.h"
 #include "nova/utils/threads.h"
 #include <boost/utility.hpp>
-#include "nova/rpc/sender.h"
 
 namespace nova { namespace guest { namespace backup {
 
-    struct BackupInfo {
-        const std::string backup_type;
-        const std::string checksum;
-        const std::string description;
-        const std::string id;
-        const std::string instance_id;
-        const std::string location;
-        const std::string name;
-
-    };
 
     class BackupManager : boost::noncopyable {
         public:
             BackupManager(
                    nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,
-                   nova::rpc::ResilientSenderPtr sender,
                    nova::utils::JobRunner & runner,
                    const nova::process::CommandList commands,
                    const int segment_max_size,
@@ -44,12 +32,11 @@ namespace nova { namespace guest { namespace backup {
             void run_backup(const std::string & swift_url,
                             const std::string & tenant,
                             const std::string & token,
-                            const BackupInfo & backup_info);
+                            const std::string & backup_id);
 
 
         private:
             nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
-            nova::rpc::ResilientSenderPtr sender;
             const nova::process::CommandList commands;
             nova::utils::JobRunner & runner;
             const int segment_max_size;
@@ -58,7 +45,6 @@ namespace nova { namespace guest { namespace backup {
             const double time_out;
             const int zlib_buffer_size;
     };
-
 
 } } }  // end namespace
 

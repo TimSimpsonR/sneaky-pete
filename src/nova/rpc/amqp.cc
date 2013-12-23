@@ -500,7 +500,7 @@ AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
         // I've seen in cases where an empty pointer is returned here that the
         // next message, when read, has a decoded pointer to 0x22 (not null,
         // but still garbage). So the best solution is throw an exception.
-        // The resilient receiver will open a new connection and things will
+        // The resilent receiver will open a new connection and things will
         // proceed smoothly from there.
         throw AmqpException(AmqpException::UNEXPECTED_FRAME_PAYLOAD_METHOD);
     }

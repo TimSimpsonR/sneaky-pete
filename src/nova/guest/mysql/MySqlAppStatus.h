@@ -3,12 +3,12 @@
 
 #include <list>
 #include "nova/db/mysql.h"
-#include "nova/rpc/sender.h"
 #include <boost/thread/mutex.hpp>
 #include <boost/optional.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
+
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -63,7 +63,6 @@ namespace nova { namespace guest { namespace mysql {
 
             MySqlAppStatus(nova::db::mysql::MySqlConnectionWithDefaultDbPtr
                                  nova_db,
-                             nova::rpc::ResilientSenderPtr sender,
                              unsigned long nova_db_reconnect_wait_time,
                              const char * guest_id,
                              MySqlAppStatusContext * context
@@ -150,8 +149,6 @@ namespace nova { namespace guest { namespace mysql {
             bool restart_mode;
 
             boost::optional<Status> status;
-
-            nova::rpc::ResilientSenderPtr sender;
     };
 
     typedef boost::shared_ptr<MySqlAppStatus> MySqlAppStatusPtr;

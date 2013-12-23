@@ -10,7 +10,6 @@
 #include "nova/guest/mysql/MySqlGuestException.h"
 #include <boost/optional.hpp>
 #include "nova/process.h"
-#include "nova/rpc/sender.h"
 #include "nova/utils/regex.h"
 #include <boost/thread.hpp>
 #include "nova/guest/utils.h"
@@ -32,7 +31,6 @@ using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using std::string;
 using std::stringstream;
-using nova::rpc::ResilientSenderPtr;
 
 namespace io = nova::utils::io;
 namespace utils = nova::guest::utils;
@@ -54,19 +52,18 @@ bool MySqlAppStatusContext::is_file(const char * file_path) const {
     return io::is_file(file_path);
 }
 
-MySqlAppStatus::MySqlAppStatus(MySqlConnectionWithDefaultDbPtr nova_db_connection,
-                               ResilientSenderPtr sender,
-                               unsigned long nova_db_reconnect_wait_time,
-                               const char * guest_id,
-                               MySqlAppStatusContext * context)
+MySqlAppStatus::MySqlAppStatus(MySqlConnectionWithDefaultDbPtr
+                                       nova_db_connection,
+                                   unsigned long nova_db_reconnect_wait_time,
+                                   const char * guest_id,
+                                   MySqlAppStatusContext * context)
 : context(context),
   guest_id(guest_id),
   nova_db(nova_db_connection),
   nova_db_mutex(),
   nova_db_reconnect_wait_time(nova_db_reconnect_wait_time),
   restart_mode(false),
-  status(boost::none),
-  sender(sender)
+  status(boost::none)
 {
     struct F : MySqlAppStatusFunctor {
         MySqlAppStatus * updater;
@@ -208,6 +205,8 @@ void MySqlAppStatus::repeatedly_attempt_to_set_status(Status status) {
     F f;
     f.status = status;
     f.updater = this;
+    // f->updater = this;
+    // f->status = get_actual_db_status();
     repeatedly_attempt_mysql_method(f);
 }
 
@@ -234,16 +233,30 @@ void MySqlAppStatus::repeatedly_attempt_mysql_method(
 
 void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
     const char * description = status_name(status);
+    Status state = status;
     NOVA_LOG_INFO("Updating MySQL app status to %d (%s).", ((int)status),
                    description);
-
-    string msg = str(format("{\"method\": \"heartbeat\", "
-                             "\"args\": { "
-                                 "\"instance_id\": \"%s\", "
-                                 "\"payload\": { "
-                                     "\"service_status\": \"%s\"}}}") %
-                     guest_id % description);
-    sender->send(msg.c_str());
+    IsoDateTime now;
+    MySqlPreparedStatementPtr stmt;
+    if (get_status_from_nova_db() == boost::none) {
+        NOVA_LOG_INFO("Inserting new Guest status row. Why wasn't this there?");
+        stmt = nova_db->prepare_statement(
+            "INSERT INTO service_statuses "
+            "(instance_id, status_id, status_description) "
+            "VALUES(?, ?, ?) ");
+        stmt->set_string(0, guest_id);
+        stmt->set_int(1, (int)state);
+        stmt->set_string(2, description);
+    } else {
+        stmt = nova_db->prepare_statement(
+            "UPDATE service_statuses "
+            "SET status_description=?, status_id=? "
+            "WHERE instance_id=?");
+        stmt->set_string(0, description);
+        stmt->set_int(1, (int) state);
+        stmt->set_string(2, guest_id);
+    }
+    stmt->execute(0);
     this->status = optional<int>(status);
 }
 

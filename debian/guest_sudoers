@@ -22,8 +22,11 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /usr/sbin/update-rc.d, \
                       /usr/bin/xbstream,    \
                       /bin/mount,           \
+                      /bin/umount,          \
                       /bin/mkdir,           \
                       /sbin/blockdev,       \
+                      /sbin/e2fsck,         \
+                      /sbin/resize2fs,      \
                       /sbin/mkfs,           \
                       /sbin/dumpe2fs
 

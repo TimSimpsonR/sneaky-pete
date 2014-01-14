@@ -44,6 +44,10 @@ namespace {
         stringstream out;
         out << "{";
         out << JsonData::json_string("used") << ": " << fs_stats->used;
+        out << ",";
+        out << JsonData::json_string("free") << ": " << fs_stats->free;
+        out << ",";
+        out << JsonData::json_string("total") << ": " << fs_stats->total;
         out << "}";
         return out.str();
     }

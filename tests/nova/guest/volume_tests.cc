@@ -99,3 +99,33 @@ BOOST_AUTO_TEST_CASE(mount_test)
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
     CHECK_VOLUME_EXCEPTION(vol_device.mount(mount_point), MOUNT_FAILURE);
 }
+
+BOOST_AUTO_TEST_CASE(unmount_test)
+{
+    LogApiScope log(LogOptions::simple());
+
+    VolumeManager volumeManager(
+        num_tries_device_exists,
+        volume_fstype,
+        format_options,
+        volume_format_timeout,
+        mount_options
+    );
+    VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
+    CHECK_VOLUME_EXCEPTION(vol_device.unmount(mount_point), UNMOUNT_FAILURE);
+}
+
+BOOST_AUTO_TEST_CASE(check_fs_test)
+{
+    LogApiScope log(LogOptions::simple());
+
+    VolumeManager volumeManager(
+        num_tries_device_exists,
+        volume_fstype,
+        format_options,
+        volume_format_timeout,
+        mount_options
+    );
+    VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
+    CHECK_VOLUME_EXCEPTION(vol_device.check_filesystem(), CHECK_FS_FAILURE);
+}

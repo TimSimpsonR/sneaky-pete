@@ -218,10 +218,13 @@ FileSystemStatsPtr Interrogator::get_filesystem_stats(std::string fs_path) {
         fs_stats->block_size = stats_buf.f_bsize;
         fs_stats->total_blocks = stats_buf.f_blocks;
         fs_stats->free_blocks = stats_buf.f_bfree;
-        fs_stats->total = fs_stats->total_blocks * fs_stats->block_size;
-        fs_stats->free = fs_stats->free_blocks * fs_stats->block_size;
-        unsigned long used_bytes = fs_stats->total - fs_stats->free;
+        unsigned long total_bytes =  fs_stats->total_blocks * fs_stats->block_size;
+        unsigned long free_bytes = fs_stats->free_blocks * fs_stats->block_size;
+        unsigned long used_bytes = total_bytes - free_bytes;
+        // Convert used, free, total to GBs
         fs_stats->used = used_bytes / BYTES2GB;
+        fs_stats->free = free_bytes / BYTES2GB;
+        fs_stats->total = total_bytes / BYTES2GB;
         return fs_stats;
     } else {
         throw InterrogatorException(InterrogatorException::FILESYSTEM_NOT_FOUND);

@@ -44,8 +44,8 @@ namespace nova { namespace guest { namespace diagnostics {
         unsigned long block_size;
         unsigned long total_blocks;
         unsigned long free_blocks;
-        unsigned long total;
-        unsigned long free;
+        float total;
+        float free;
         float used;
     };
 

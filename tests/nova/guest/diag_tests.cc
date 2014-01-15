@@ -56,12 +56,12 @@ BOOST_AUTO_TEST_CASE(get_filesystem_stats)
     oss << "Total Blocks: " << stats->total_blocks << ", ";
     oss << "Free Blocks: " << stats->free_blocks << "\n";
     oss << "Total: " << stats->total << ", Used: " << stats->used << ", Free: " << stats->free;
-    float mbs_in_gb = mb / BYTES2GB; 
+    float mbs_in_gb = mb / BYTES2GB;
     NOVA_LOG_DEBUG(oss.str().c_str());
     BOOST_CHECK(stats->block_size > 0);
     BOOST_CHECK(stats->total_blocks > 0);
     BOOST_CHECK(stats->free_blocks > 0);
-    BOOST_CHECK(stats->total > mb);
-    BOOST_CHECK(stats->free > mb);
+    BOOST_CHECK(stats->total > mbs_in_gb);
+    BOOST_CHECK(stats->free > mbs_in_gb);
     BOOST_CHECK(stats->used > mbs_in_gb);
 }

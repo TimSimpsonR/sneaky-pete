@@ -16,7 +16,7 @@
 namespace nova { namespace guest { namespace backup {
 
 
-    class BackupManager : boost::noncopyable {
+    class BackupManager {
         public:
             BackupManager(
                    nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,

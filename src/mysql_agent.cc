@@ -120,8 +120,9 @@ struct Func {
           * message handler. */
         VolumeManagerPtr volumeManager;
         if (flags.volume_format_and_mount()) {
-          /* Create Volume Manager. */
-          VolumeManagerPtr volumeManager(new VolumeManager(
+          /** Create Volume Manager.
+            * Reset null pointer to reference VolumeManager */
+          volumeManager.reset(new VolumeManager(
             flags.volume_check_device_num_retries(),
             flags.volume_file_system_type(),
             flags.volume_format_options(),

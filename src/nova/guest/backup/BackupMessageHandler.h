@@ -18,7 +18,7 @@ namespace nova { namespace guest { namespace backup {
           BackupMessageHandler(const BackupMessageHandler &);
           BackupMessageHandler & operator = (const BackupMessageHandler &);
 
-          BackupManager & backup_manager;
+          BackupManager backup_manager;
     };
 
 } } }  // end namespace

@@ -57,7 +57,7 @@ namespace nova { namespace guest { namespace mysql {
 
         private:
             nova::guest::apt::AptGuestPtr apt;
-            nova::guest::monitoring::Monitoring & monitoring;
+            nova::guest::monitoring::Monitoring monitoring;
             MySqlAppPtr mysqlApp;
             VolumeManagerPtr volumeManager;
     };

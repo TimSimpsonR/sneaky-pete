@@ -127,5 +127,5 @@ BOOST_AUTO_TEST_CASE(check_fs_test)
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
-    CHECK_VOLUME_EXCEPTION(vol_device.check_filesystem(), CHECK_FS_FAILURE);
+    CHECK_VOLUME_EXCEPTION(vol_device.check_filesystem(mount_point), CHECK_FS_FAILURE);
 }

@@ -268,6 +268,11 @@ void SwiftUploader::write_manifest(int file_number,
     /* Make it happen */
     session.perform(list_of(200)(201)(202));
 
+    /* Give Swift a few seconds before confirming the checksum. We have noticed
+     * in testing that sometimes it won't match immediately. */
+    //TODO(tim.simpson): Make this time limit driven by a flag value.
+    boost::this_thread::sleep(boost::posix_time::seconds(3));
+
     Curl::HeadersPtr headers = session.head(file_info.manifest_url(), list_of(200)(202));
     // So it looks like HEAD of the manifest file returns an etag that is double quoted
     // e.g. 'etag': '"c4bf3693422e0e5a3350dac64e002987"'

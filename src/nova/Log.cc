@@ -175,7 +175,7 @@ LogPtr Log::get_instance() {
 void Log::handle_fmt_error(const char * filename, const int line_number,
                            const char * fmt_string,
                            const boost::io::format_error & fe) {
-    boost::format fmt("! FORMAT ERROR for sting %s: %s");
+    boost::format fmt("! FORMAT ERROR for string %s: %s");
     const std::string msg(str(fmt % fmt_string % fe.what()));
     nova::Log::get_instance()->write(filename, line_number, LEVEL_ERROR,
                                      msg.c_str());

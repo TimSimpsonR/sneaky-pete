@@ -503,4 +503,8 @@ bool FlagValues::use_syslog() const {
     return get_flag_value<bool>(*map, "use_syslog", false);
 }
 
+const char * FlagValues::conductor_queue() const {
+    return map->get("conductor_queue", "trove-conductor");
+}
+
 } } // end nova::flags

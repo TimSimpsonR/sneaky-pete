@@ -507,7 +507,6 @@ MySqlAppMessageHandler::MySqlAppMessageHandler(
     MySqlAppPtr mysqlApp,
     nova::guest::apt::AptGuestPtr apt,
     nova::guest::monitoring::MonitoringManagerPtr monitoring,
-    bool format_and_mount_volume_enabled,
     VolumeManagerPtr volumeManager)
 :   apt(apt),
     monitoring(monitoring),

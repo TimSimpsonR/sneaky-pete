@@ -12,18 +12,19 @@
 #include <boost/utility.hpp>
 
 
-namespace nova { namespace guest { namespace monitoring { namespace status {
+namespace nova { namespace guest { namespace monitoring {
 
     class MonitoringStatus : boost::noncopyable {
         public:
             enum Status {
                 ACTIVE = 0x01, // Monitoring Agent is active.
                 REMOVED = 0X02, // Monitoring Agent is not installed.
-                SHUTDOWN = 0x03, // Monitoring Agent is not running.
-                BUILDING = 0x05, // Monitoring Agent is being installed / prepared.
-                UNKNOWN=0x06,  // Set when the agent becomes unresponsive.
+                SHUTDOWN = 0x03 // Monitoring Agent is not running.
             };
 
+            //TODO(tim.simpson): Keeping this a class as some of the constants
+            //                   it uses may need to become class fields,
+            //                   passed in initially.
             MonitoringStatus();
 
             /** Grabs the installed version info and the status.
@@ -36,8 +37,12 @@ namespace nova { namespace guest { namespace monitoring { namespace status {
 
             /** Returns a readable string for each status enum. */
             static const char * status_name(Status status);
+
+        private:
+
+            static boost::optional<std::string> read_pid_from_file();
     };
 
-} } } }  // end namespace
+} } }  // end namespace
 
 #endif //__NOVA_GUEST_MONITORING_STATUS_H

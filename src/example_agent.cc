@@ -16,7 +16,7 @@ namespace {
 
 struct EmptyAppUpdate
 {
-    void update()
+    void operator() ()
     {
         // Update status by calling nova_db.
     }

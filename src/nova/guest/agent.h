@@ -81,7 +81,7 @@ public:
     void periodic_tasks() {
         NOVA_GUEST_AGENT_START_THREAD_TASK();
             NOVA_LOG_TRACE("Running periodic tasks...");
-            status_updater->update();
+            (*status_updater)();
             Log::rotate_logs_if_needed();
         NOVA_GUEST_AGENT_END_THREAD_TASK("periodic_tasks()");
     }

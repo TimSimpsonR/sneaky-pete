@@ -9,6 +9,7 @@
 #include "nova/utils/regex.h"
 #include "nova/process.h"
 #include "nova/Log.h"
+#include "status.h"
 #include <sstream>
 #include <string>
 #include <sys/statvfs.h>
@@ -37,7 +38,7 @@ namespace {
  *- TODO(cp16net,tim) change classes to 'Manager'
  *---------------------------------------------------------------------------*/
 
-Monitoring::Monitoring(const std::string & guest_id,
+MonitoringManager::MonitoringManager(const std::string & guest_id,
                        const std::string & agent_package_name,
                        const std::string & agent_config_file,
                        const double agent_install_timeout) :
@@ -47,8 +48,27 @@ Monitoring::Monitoring(const std::string & guest_id,
     agent_install_timeout(agent_install_timeout) {
 }
 
+void MonitoringManager::ensure_running() {
+    MonitoringStatus status;
+    switch(status.get_current_status())
+    {
+        case MonitoringStatus::REMOVED:
+            NOVA_LOG_DEBUG("Monitoring agent is not installed on this machine.");
+            return;
+        case MonitoringStatus::ACTIVE:
+            NOVA_LOG_DEBUG("The monitoring agent is running.");
+            return;
+        case MonitoringStatus::SHUTDOWN:
+            NOVA_LOG_ERROR("Monitoring agent is not running!");
+            start_monitoring_agent();
+            return;
+        default:
+            NOVA_LOG_ERROR("Bad status case for monitoring status!");
+            return;
+    }
+}
 
-void Monitoring::install_and_configure_monitoring_agent(
+void MonitoringManager::install_and_configure_monitoring_agent(
                 AptGuest & apt,
                 std::string monitoring_token,
                 std::string monitoring_endpoints) const {
@@ -90,25 +110,25 @@ void Monitoring::install_and_configure_monitoring_agent(
     apt.install(agent_package_name.c_str(), agent_install_timeout);
 }
 
-void Monitoring::update_monitoring_agent(nova::guest::apt::AptGuest & apt) const{
+void MonitoringManager::update_monitoring_agent(nova::guest::apt::AptGuest & apt) const{
     NOVA_LOG_DEBUG("update_monitoring_agent call ");
     apt.install(agent_package_name.c_str(), agent_install_timeout);
 }
 
-void Monitoring::remove_monitoring_agent(AptGuest & apt) const {
+void MonitoringManager::remove_monitoring_agent(AptGuest & apt) const {
     stop_monitoring_agent();
     NOVA_LOG_DEBUG("remove_monitoring_agent call ");
     apt.remove(agent_package_name.c_str(), agent_install_timeout);
 }
 
-void Monitoring::start_monitoring_agent() const {
+void MonitoringManager::start_monitoring_agent() const {
     NOVA_LOG_INFO("Starting monitoring agent...");
     process::execute(list_of("/usr/bin/sudo")
                             ("/etc/init.d/rackspace-monitoring-agent")
                             ("start"));
 }
 
-void Monitoring::stop_monitoring_agent() const {
+void MonitoringManager::stop_monitoring_agent() const {
     NOVA_LOG_INFO("Stopping monitoring agent...");
     try{
         process::execute(list_of("/usr/bin/sudo")
@@ -133,7 +153,7 @@ void Monitoring::stop_monitoring_agent() const {
 
 }
 
-void Monitoring::restart_monitoring_agent() const {
+void MonitoringManager::restart_monitoring_agent() const {
     NOVA_LOG_INFO("Restarting monitoring agent...");
     process::execute(list_of("/usr/bin/sudo")
                             ("/etc/init.d/rackspace-monitoring-agent")

@@ -260,7 +260,7 @@ void AmqpConnection::remove_channel(AmqpChannel * channel) {
                 channel->close();
             } catch(const AmqpException & ae) {
                 NOVA_LOG_ERROR("AmqpException during channel close, removing "
-                                "anyway. Exception message: ", ae.what());
+                                "anyway. Exception message: %s", ae.what());
             }
             delete channel;
             break;

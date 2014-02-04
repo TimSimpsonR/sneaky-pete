@@ -35,10 +35,13 @@ namespace nova { namespace rpc {
         Receiver & operator = (const Receiver &);
 
         AmqpConnectionPtr connection;
+        const std::string exchange_name;
         int last_delivery_tag;
         boost::optional<std::string> last_msg_id;
         AmqpChannelPtr queue;
         const std::string topic;
+
+        void init_queue();
 
         nova::JsonObjectPtr _next_message();
 

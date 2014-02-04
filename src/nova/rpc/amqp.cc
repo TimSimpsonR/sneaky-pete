@@ -70,6 +70,12 @@ const char * AmqpException::what() const throw() {
     }
 }
 
+const char * AmqpChannelClosedException::what() const throw() {
+    return "Warning: amqp_simple_wait_frame returned "
+           "AMQP_CHANNEL_CLOSE_OK_METHOD. Closing channel and trying again.";
+}
+
+
 void amqp_check(const amqp_rpc_reply_t reply,
                 const AmqpException::Code & code) {
     if (reply.reply_type != AMQP_RESPONSE_NORMAL) {
@@ -485,6 +491,12 @@ AmqpQueueMessagePtr AmqpChannel::get_message(const char * queue_name) {
     if (result < 0) {
         NOVA_LOG_ERROR("Warning: amqp_simple_wait_frame returned < 0 result.")
         return rtn;
+    }
+    if (frame.payload.method.id == AMQP_CHANNEL_CLOSE_OK_METHOD) {
+        NOVA_LOG_ERROR("Warning: amqp_simple_wait_frame returned "
+                       "AMQP_CHANNEL_CLOSE_OK_METHOD. Closing channel "
+                       "and trying again.");
+        throw AmqpChannelClosedException();
     }
     if (frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD) {
         if (frame.payload.method.id == AMQP_CONNECTION_CLOSE_METHOD) {

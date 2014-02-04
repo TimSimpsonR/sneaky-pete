@@ -33,35 +33,13 @@ namespace {
 Receiver::Receiver(AmqpConnectionPtr connection, const char * topic,
                    const char * exchange_name)
 :   connection(connection),
+    exchange_name(exchange_name),
     last_delivery_tag(-1),
     last_msg_id(boost::none),
     queue(),
     topic(topic)
 {
-    queue = connection->new_channel();
-
-
-    // Nova seems to declare the following
-    // Queues:
-    // "%s" % topic
-    // "%s.%s" % (topic,hostname) - hostname is the instance ID
-    // "%s_fanout_%s" % (topic, random int?)
-
-    // Then it makes the following exchanges
-    // "%s_fanout" % topic, 'fanout'
-    // "nova" 'topic'
-    // "nova" 'direct"'
-
-    // TODO : Make three extra queues to listen to. :c
-    const char * queue_name = topic;
-
-    //MB queue->declare_queue(queue_name);
-
-    connection->attempt_declare_queue(queue_name);
-    connection->attempt_declare_exchange(exchange_name, "topic");
-
-    //queue->declare_exchange(topic, "direct");  //TODO(tim.simpson): Remove?
-    queue->bind_queue_to_exchange(queue_name, exchange_name, queue_name);
+    init_queue();
 }
 
 Receiver::~Receiver() {
@@ -118,12 +96,24 @@ void Receiver::finish_message(const GuestOutput & output) {
     rtn_ex_channel->publish(exchange_name, routing_key, END_MESSAGE);
 }
 
+void Receiver::init_queue() {
+    queue = connection->new_channel();
+    const char * queue_name = topic.c_str();
+    connection->attempt_declare_queue(queue_name);
+    connection->attempt_declare_exchange(exchange_name.c_str(), "topic");
+    queue->bind_queue_to_exchange(queue_name, exchange_name.c_str(), queue_name);
+}
+
 JsonObjectPtr Receiver::_next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
-        msg = queue->get_message(topic.c_str());
-        if (!msg) {
-            NOVA_LOG_INFO("Received an empty message.");
+        try {
+            msg = queue->get_message(topic.c_str());
+            if (!msg) {
+                NOVA_LOG_INFO("Received an empty message.");
+            }
+        } catch (const AmqpChannelClosedException & acce) {
+            NOVA_LOG_INFO("Channel was closed unexpectedly. Trying again.")
         }
     }
     std::stringstream log_msg;

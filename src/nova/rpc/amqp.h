@@ -47,6 +47,14 @@ namespace nova { namespace rpc {
 
     };
 
+
+    class AmqpChannelClosedException : public std::exception {
+        public:
+
+            virtual const char * what() const throw();
+    };
+
+
     /** Throws an exception with the given code if the reply is not normal. */
     extern void amqp_check(const amqp_rpc_reply_t reply,
                            const AmqpException::Code & code);

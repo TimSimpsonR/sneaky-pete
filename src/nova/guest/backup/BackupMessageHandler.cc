@@ -17,6 +17,19 @@ using namespace boost;
 
 namespace nova { namespace guest { namespace backup {
 
+BackupInfo from_json(const nova::JsonObjectPtr data){
+    BackupInfo info = {
+        data->get_optional_string("backup_type").get_value_or(""),
+        data->get_optional_string("checksum").get_value_or(""),
+        data->get_optional_string("description").get_value_or(""),
+        data->get_optional_string("id").get_value_or(""),
+        data->get_optional_string("instance_id").get_value_or(""),
+        data->get_optional_string("location").get_value_or(""),
+        data->get_optional_string("name").get_value_or("")
+    };
+    return info;
+}
+
 BackupMessageHandler::BackupMessageHandler(BackupManager & backup_manager)
 : backup_manager(backup_manager) {
 }
@@ -26,7 +39,7 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
     NOVA_LOG_DEBUG("entering the handle_message method now ");
     if (input.method_name == "create_backup") {
         NOVA_LOG_DEBUG("handling the create_backup method");
-        const auto id = input.args->get_string("backup_id");
+        const auto info = from_json(input.args->get_object("backup_info"));
         const auto swift_url = input.args->get_string("swift_url");
         if (!input.tenant) {
             NOVA_LOG_ERROR("Tenant was not specified by this RPC call! "
@@ -40,7 +53,7 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
         }
         const auto tenant = input.tenant.get();
         const auto token = input.token.get();
-        backup_manager.run_backup(swift_url, tenant, token, id);
+        backup_manager.run_backup(swift_url, tenant, token, info);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

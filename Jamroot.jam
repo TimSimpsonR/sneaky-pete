@@ -253,6 +253,11 @@ unit u_nova_utils_Curl
       #lib_dl
     ;
 
+unit u_nova_utils_subsecond
+    : src/nova/utils/subsecond.cc
+    :
+    ;
+
 unit u_nova_utils_swift
     : src/nova/utils/swift.cc
     : u_nova_utils_Curl
@@ -398,6 +403,7 @@ unit u_nova_guest_mysql_MySqlAppStatus
     :   lib_boost_thread
         u_nova_db_mysql
         u_nova_utils_io
+        u_nova_utils_subsecond
         u_nova_process
         u_nova_guest_utils
     ;
@@ -456,6 +462,7 @@ unit u_nova_guest_backup_BackupManager
     :   u_nova_Log
         u_nova_guest_backup_BackupException
         u_nova_utils_io
+        u_nova_utils_subsecond
         u_nova_utils_regex
         u_nova_utils_zlib
     ;
@@ -790,8 +797,6 @@ exe greedy_pete
 
 explicit leak_tester ;
 
-
-
 exe upload_file
     :   pch
         tests/upload_file.cc
@@ -855,5 +860,13 @@ exe resizefs_file
         u_nova_Log
         tests/resize_fs.cc
 
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe timestamper
+    :   pch
+        u_nova_Log
+        u_nova_utils_subsecond
+        tests/timestamper.cc
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;

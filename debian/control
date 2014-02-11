@@ -4,8 +4,8 @@ Priority: extra
 Maintainer: Openstack Maintainers <openstack@lists.launchpad.net>
 Build-Depends: debhelper (>= 7.0.50),
 Build-Depends-Indep: gcc,
-	boost-build,
-	bjam
+	boost-build | libboost1.49-dev,
+	bjam | libboost1.49-dev
 Standards-Version: 3.9.1
 Homepage: http://launchpad.net/nova
 Vcs-Browser: http://bazaar.launchpad.net/~openstack-ubuntu-packagers/ubuntu/natty/nova/ubuntu/files

@@ -30,8 +30,6 @@ pkg_checkout () {
 # Install deps
 pkg_install \
     autoconf \
-    bjam \
-    boost-build \
     git-core \
     g++ \
     libboost-dev \
@@ -44,10 +42,21 @@ pkg_install \
     libtool \
     make \
     mercurial \
-    mysql-server-5.1 \
     uuid-dev \
     valgrind
     # rabbitmq-server #<-- Reddwarf CI script will install this
+
+if [ "$(cat /etc/*-release | grep wheezy)" != "" ]; then
+    pkg_install \
+        libboost1.49-dev \
+        mysql-server-5.5
+
+else
+    pkg_install \
+        bjam \
+        boost-build \
+        mysql-server-5.1
+fi
 
 mkdir -p $BUILD_DIR
 

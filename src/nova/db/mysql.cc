@@ -313,7 +313,9 @@ public:
         if (current_row[index] == 0) {
             return boost::none;
         } else {
-            optional<string> rtn(string(current_row[index]));
+
+            string s = current_row[index];
+            optional<string> rtn(s);
             return rtn;
         }
     }

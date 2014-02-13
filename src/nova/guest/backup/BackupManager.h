@@ -19,11 +19,8 @@ namespace nova { namespace guest { namespace backup {
     struct BackupInfo {
         const std::string backup_type;
         const std::string checksum;
-        const std::string description;
         const std::string id;
-        const std::string instance_id;
         const std::string location;
-        const std::string name;
     };
 
 
@@ -40,8 +37,7 @@ namespace nova { namespace guest { namespace backup {
 
             ~BackupManager();
 
-            void run_backup(const std::string & swift_url,
-                            const std::string & tenant,
+            void run_backup(const std::string & tenant,
                             const std::string & token,
                             const BackupInfo & backup_info);
 

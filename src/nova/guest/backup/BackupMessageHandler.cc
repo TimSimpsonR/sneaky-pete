@@ -19,13 +19,10 @@ namespace nova { namespace guest { namespace backup {
 
 BackupInfo from_json(const nova::JsonObjectPtr data){
     BackupInfo info = {
-        data->get_string("backup_type"),
-        data->get_string("checksum"),
-        data->get_string("description"),
+        data->get_optional_string("backup_type").get_value_or(""),
+        data->get_optional_string("checksum").get_value_or(""),
         data->get_string("id"),
-        data->get_string("instance_id"),
-        data->get_string("location"),
-        data->get_string("name")
+        data->get_string("location")
     };
     return info;
 }
@@ -40,7 +37,6 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "create_backup") {
         NOVA_LOG_DEBUG("handling the create_backup method");
         const auto info = from_json(input.args->get_object("backup_info"));
-        const auto swift_url = input.args->get_string("swift_url");
         if (!input.tenant) {
             NOVA_LOG_ERROR("Tenant was not specified by this RPC call! "
                            "Aborting...");
@@ -53,7 +49,7 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
         }
         const auto tenant = input.tenant.get();
         const auto token = input.token.get();
-        backup_manager.run_backup(swift_url, tenant, token, info);
+        backup_manager.run_backup(tenant, token, info);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

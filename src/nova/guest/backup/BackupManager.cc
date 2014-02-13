@@ -197,7 +197,6 @@ public:
         const CommandList commands,
         const int & segment_max_size,
         const string & swift_container,
-        const string & swift_url,
         const double time_out,
         const string & tenant,
         const string & token,
@@ -208,7 +207,6 @@ public:
         commands(commands),
         segment_max_size(segment_max_size),
         swift_container(swift_container),
-        swift_url(swift_url),
         tenant(tenant),
         time_out(time_out),
         token(token),
@@ -223,7 +221,6 @@ public:
         commands(other.commands),
         segment_max_size(other.segment_max_size),
         swift_container(other.swift_container),
-        swift_url(other.swift_url),
         tenant(other.tenant),
         time_out(other.time_out),
         token(other.token),
@@ -270,7 +267,6 @@ private:
     const CommandList commands;
     const int segment_max_size;
     const string swift_container;
-    const string swift_url;
     const string tenant;
     const double time_out;
     const string token;
@@ -287,7 +283,8 @@ private:
         BackupProcessReader reader(commands, zlib_buffer_size, time_out);
 
         // Setup SwiftClient
-        SwiftFileInfo file_info(swift_url, swift_container, backup_info.id.c_str());
+        SwiftFileInfo file_info(backup_info.location, swift_container,
+                                backup_info.id);
         SwiftUploader writer(token, segment_max_size, file_info);
 
         // Save the backup information to the database in case of failure
@@ -333,7 +330,6 @@ private:
             msg << "{"
                 "\"method\": \"update_backup\", "
                 "\"args\": { "
-                    "\"instance_id\": \"" << backup_info.instance_id << "\", "
                     "\"sent\": " << sent << ", "
                     "\"backup_id\": \"" << backup_info.id << "\", "
                     "\"updated\": \"" << iso_now.c_str() << "\", "
@@ -351,7 +347,6 @@ private:
             msg << "{"
                 "\"method\": \"update_backup\", "
                 "\"args\": { "
-                    "\"instance_id\": \"" << backup_info.instance_id << "\", "
                     "\"sent\": " << sent << ", "
                     "\"backup_id\": \"" << backup_info.id << "\", "
                     "\"updated\": \"" << iso_now.c_str() << "\", "
@@ -396,10 +391,9 @@ BackupManager::BackupManager(
 BackupManager::~BackupManager() {
 }
 
-void BackupManager::run_backup(const string & swift_url,
-                        const string & tenant,
-                        const string & token,
-                        const BackupInfo & backup_info) {
+void BackupManager::run_backup(const string & tenant,
+                               const string & token,
+                               const BackupInfo & backup_info) {
     NOVA_LOG_INFO("Starting backup for tenant %s, backup_id=%d",
                    tenant.c_str(), backup_info.id.c_str());
     #ifdef _DEBUG
@@ -407,7 +401,7 @@ void BackupManager::run_backup(const string & swift_url,
     #endif
 
     BackupJob job(sender, commands, segment_max_size,
-                  swift_container, swift_url, time_out, tenant, token,
+                  swift_container, time_out, tenant, token,
                   zlib_buffer_size, backup_info);
     runner.run(job);
 }

@@ -1,14 +1,14 @@
 #include "pch.hpp"
 #include "nova/guest/agent.h"
-#include "nova/guest/guest.h"
+#include "nova/rpc/sender.h"
 #include <boost/tuple/tuple.hpp>
 
 
 using nova::guest::agent::execute_main;
 using namespace nova::flags;
 using namespace nova::guest;
-using namespace nova::db::mysql;
 using nova::utils::ThreadBasedJobRunner;
+using nova::rpc::ResilientSenderPtr;
 using std::vector;
 
 // Begin anonymous namespace.
@@ -28,7 +28,7 @@ typedef boost::shared_ptr<EmptyAppUpdate> EmptyAppUpdatePtr;
 struct Func {
     boost::tuple<vector<MessageHandlerPtr>, EmptyAppUpdatePtr>
         operator() (const FlagValues & flags,
-                    MySqlConnectionWithDefaultDbPtr & nova_db,
+                    ResilientSenderPtr & sender,
                     ThreadBasedJobRunner & job_runner)
     {
         /* Create JSON message handlers. */

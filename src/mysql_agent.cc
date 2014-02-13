@@ -12,9 +12,9 @@
 #include "nova/guest/backup/BackupManager.h"
 #include "nova/guest/backup/BackupMessageHandler.h"
 #include "nova/guest/monitoring/monitoring.h"
+#include "nova/db/mysql.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/GuestException.h"
-#include "nova/guest/HeartBeat.h"
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <memory>
@@ -92,9 +92,14 @@ struct Func {
     // Initialize curl.
     nova::utils::CurlScope scope;
 
+    // Initialize MySQL libraries. This should be done before spawning
+    // threads.
+    nova::db::mysql::MySqlApiScope mysql_api_scope;
+
+
     boost::tuple<std::vector<MessageHandlerPtr>, PeriodicTasksPtr>
         operator() (const FlagValues & flags,
-                    MySqlConnectionWithDefaultDbPtr & nova_db,
+                    ResilientSenderPtr sender,
                     ThreadBasedJobRunner & job_runner)
     {
         /* Create JSON message handlers. */
@@ -108,19 +113,9 @@ struct Func {
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
 
-        /* Create Conductor connection. */
-        ResilientSenderPtr sender(new ResilientSender(
-            flags.rabbit_host(), flags.rabbit_port(),
-            flags.rabbit_userid(), flags.rabbit_password(),
-            flags.rabbit_client_memory(), flags.conductor_queue(),
-            flags.control_exchange(),
-            flags.rabbit_reconnect_wait_time()));
-
         /* Create MySQL updater. */
         MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
-            nova_db,
             sender,
-            flags.nova_db_reconnect_wait_time(),
             flags.guest_id()));
 
         /* Create MySQL Guest. */
@@ -184,7 +179,6 @@ struct Func {
 
         /* Backup task */
         BackupManager backup(
-                      nova_db,
                       sender,
                       job_runner,
                       flags.backup_process_commands(),

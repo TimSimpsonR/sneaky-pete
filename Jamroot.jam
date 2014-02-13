@@ -25,7 +25,7 @@ project
         # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
         #TODO: Add  -Wall -Wextra
-        <cxxflags>" -std=c++0x -Werror -Wno-error=strict-aliasing -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" "
+        <cxxflags>"-std=c++0x -Werror -Wno-error=strict-aliasing -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" "
         # Enable the very little bit of C++0x functionality available in GCC
         # 4.4.5 and turn warnings into errors except for strict-aliasing, which
         # unfortunatley issues false warnings as verified here:
@@ -306,12 +306,6 @@ unit u_nova_utils_zlib
     :   tests/nova/utils/zlib_tests.cc
     ;
 
-unit u_nova_guest_HeartBeat
-    :   src/nova/guest/HeartBeat.cc
-    :   u_nova_db_mysql
-        u_nova_guest_utils
-    ;
-
 exe parrot_e
     :   u_nova_Log
         tests/nova/parrot.cc
@@ -558,7 +552,6 @@ unit u_nova_guest_agent
 
 alias empty_agent_lib
     :   pch
-        u_nova_guest_HeartBeat
         u_nova_flags
         u_nova_guest_agent
         u_nova_guest_utils
@@ -679,18 +672,6 @@ unit-test MySqlAppStatus_tests
 
 explicit MySqlAppStatus_tests ;
 
-
-unit-test HeartBeat_tests
-    :   pch
-        u_nova_flags
-        u_nova_guest_HeartBeat
-        test_dependencies
-        tests/nova/guest/HeartBeat_tests.cc
-    :   <define>BOOST_TEST_DYN_LINK
-        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
-    ;
-
-explicit HeartBeat_tests ;
 
 
 # Requires that mysql be utterly destroyed and reinstalled on the machine.

@@ -7,12 +7,14 @@
 #include <boost/lexical_cast.hpp>
 #include <mysql/mysql.h>
 #include "nova/db/MySqlConfigReader.h"
+#include "nova/rpc/sender.h"
 #include <string.h>
 
 using boost::format;
 using boost::none;
 using boost::optional;
 using nova::Log;
+using namespace nova::rpc;
 using namespace std;
 
 

@@ -19,13 +19,13 @@ namespace nova { namespace guest { namespace backup {
 
 BackupInfo from_json(const nova::JsonObjectPtr data){
     BackupInfo info = {
-        data->get_optional_string("backup_type").get_value_or(""),
-        data->get_optional_string("checksum").get_value_or(""),
-        data->get_optional_string("description").get_value_or(""),
-        data->get_optional_string("id").get_value_or(""),
-        data->get_optional_string("instance_id").get_value_or(""),
-        data->get_optional_string("location").get_value_or(""),
-        data->get_optional_string("name").get_value_or("")
+        data->get_string("backup_type"),
+        data->get_string("checksum"),
+        data->get_string("description"),
+        data->get_string("id"),
+        data->get_string("instance_id"),
+        data->get_string("location"),
+        data->get_string("name")
     };
     return info;
 }

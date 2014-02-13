@@ -6,11 +6,11 @@
 #include "nova/flags.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/GuestException.h"
-#include "nova/guest/HeartBeat.h"
 #include <boost/thread.hpp>
 #include "nova/rpc/receiver.h"
 #include <boost/tuple/tuple.hpp>
 #include "nova/Log.h"
+#include "nova/rpc/sender.h"
 #include "nova/utils/threads.h"
 #include "nova/guest/utils.h"
 
@@ -39,42 +39,22 @@ template<typename AppStatusPtr>
 class PeriodicTasker : public nova::utils::Thread::Runner {
 
 private:
-    HeartBeat & heart_beat;
     const unsigned long periodic_interval;
-    const unsigned long report_interval;
     AppStatusPtr status_updater;
 
 public:
-    PeriodicTasker(HeartBeat & heart_beat, AppStatusPtr status_updater,
-                   unsigned long periodic_interval,
-                   unsigned long report_interval)
-      : heart_beat(heart_beat),
-        periodic_interval(periodic_interval),
-        report_interval(report_interval),
+    PeriodicTasker(AppStatusPtr status_updater,
+                   unsigned long periodic_interval)
+      : periodic_interval(periodic_interval),
         status_updater(status_updater)
     {
     }
 
     virtual void operator()() {
-        unsigned long next_periodic_task = periodic_interval;
-        unsigned long next_reporting = report_interval;
         while(true) {
-            unsigned long wait_time = next_periodic_task < next_reporting ?
-                next_periodic_task : next_reporting;
-            NOVA_LOG_TRACE("Waiting for %lu seconds...", wait_time);
-            boost::posix_time::seconds time(wait_time);
+            boost::posix_time::seconds time(periodic_interval);
             boost::this_thread::sleep(time);
-            next_periodic_task -= wait_time;
-            next_reporting -= wait_time;
-
-            if (next_periodic_task <= 0) {
-                next_periodic_task += periodic_interval;
-                periodic_tasks();
-            }
-            if (next_reporting <= 0) {
-                next_reporting += report_interval;
-                report_state();
-            }
+            periodic_tasks();
         }
     }
 
@@ -86,11 +66,6 @@ public:
         NOVA_GUEST_AGENT_END_THREAD_TASK("periodic_tasks()");
     }
 
-    void report_state() {
-        NOVA_GUEST_AGENT_START_THREAD_TASK();
-            this->heart_beat.update();
-        NOVA_GUEST_AGENT_END_THREAD_TASK("report_state()");
-    }
 };
 
 nova::LogOptions log_options_from_flags(const nova::flags::FlagValues & flags);
@@ -122,16 +97,13 @@ void initialize_and_run(const char * const title,
     NOVA_LOG_INFO(" ^  /                         starting now...^");
     NOVA_LOG_INFO(" ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 
-    // Initialize MySQL libraries. This should be done before spawning
-    // threads.
-    nova::db::mysql::MySqlApiScope mysql_api_scope;
-
-    /* Create connection to Nova database. */
-    nova::db::mysql::MySqlConnectionWithDefaultDbPtr nova_db(
-        new nova::db::mysql::MySqlConnectionWithDefaultDb(
-            flags.nova_sql_host(), flags.nova_sql_user(),
-            flags.nova_sql_password(),
-            flags.nova_sql_database()));
+    /* Create Conductor connection. */
+    nova::rpc::ResilientSenderPtr sender(new nova::rpc::ResilientSender(
+        flags.rabbit_host(), flags.rabbit_port(),
+        flags.rabbit_userid(), flags.rabbit_password(),
+        flags.rabbit_client_memory(), flags.conductor_queue(),
+        flags.control_exchange(),
+        flags.rabbit_reconnect_wait_time()));
 
     /* Create the function object, in case other goodies are attached to
      * it (such as CurlScope). */
@@ -144,7 +116,7 @@ void initialize_and_run(const char * const title,
     std::vector<MessageHandlerPtr> handlers;
     AppStatusPtr status_updater;
     boost::tie(handlers, status_updater) =
-        initialize_handlers(flags, nova_db, job_runner);
+        initialize_handlers(flags, sender, job_runner);
 
     /* Set host value. */
     std::string actual_host = nova::guest::utils::get_host_name();
@@ -153,12 +125,9 @@ void initialize_and_run(const char * const title,
     /* Create AMQP connection. */
     std::string topic = str(boost::format("guestagent.%s") % flags.guest_id());
 
-    /* Create HeartBeat. */
-    HeartBeat heart_beat(nova_db, flags.guest_id());
-
     NOVA_LOG_INFO("Starting status thread...");
-    PeriodicTasker<AppStatusPtr> tasker(heart_beat, status_updater,
-                          flags.periodic_interval(), flags.report_interval());
+    PeriodicTasker<AppStatusPtr> tasker(status_updater,
+                                        flags.periodic_interval());
     nova::utils::Thread statusThread(flags.status_thread_stack_size(), tasker);
 
     NOVA_LOG_INFO("Starting job thread...");

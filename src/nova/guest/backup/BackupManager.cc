@@ -24,7 +24,6 @@
 using namespace boost::assign;
 using nova::process::CommandList;
 using nova::process::IndependentStdErrAndStdOut;
-using namespace nova::db::mysql;
 using nova::process::Process;
 using std::string;
 using std::stringstream;
@@ -35,7 +34,6 @@ using nova::utils::CurlScope;
 using nova::guest::utils::IsoDateTime;
 using nova::utils::Job;
 using nova::utils::JobRunner;
-using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
 using nova::utils::swift::SwiftClient;
 using nova::utils::swift::SwiftFileInfo;
 using nova::utils::swift::SwiftUploader;
@@ -92,7 +90,7 @@ class CabooseChecker {
 /* Calls xtrabackup and presents an interface to be used as a zlib source. */
 class XtraBackupReader : public zlib::InputStream {
 public:
-    XtraBackupReader(CommandList cmds, size_t zlib_buffer_size, 
+    XtraBackupReader(CommandList cmds, size_t zlib_buffer_size,
         optional<double> time_out)
     :   buffer(new char [zlib_buffer_size]),
         last_stdout_write_length(0),
@@ -195,7 +193,6 @@ private:
 class BackupJob : public nova::utils::Job {
 public:
     BackupJob(
-        MySqlConnectionWithDefaultDbPtr infra_db,
         ResilientSenderPtr sender,
         const CommandList commands,
         const int & segment_max_size,
@@ -207,7 +204,6 @@ public:
         const size_t & zlib_buffer_size,
         const BackupInfo & backup_info)
     :   backup_info(backup_info),
-        infra_db(infra_db),
         sender(sender),
         commands(commands),
         segment_max_size(segment_max_size),
@@ -223,7 +219,6 @@ public:
     // from one thread to another.
     BackupJob(const BackupJob & other)
     :   backup_info(other.backup_info),
-        infra_db(other.infra_db),
         sender(other.sender),
         commands(other.commands),
         segment_max_size(other.segment_max_size),
@@ -239,13 +234,6 @@ public:
     }
 
     virtual void operator()() {
-        auto state = get_state();
-        if (!state || "NEW" != state.get()) {
-            NOVA_LOG_ERROR("State was not NEW, but %s!",
-                            state.get_value_or("<not found>").c_str());
-            throw BackupException(BackupException::INVALID_STATE);
-        }
-
         NOVA_LOG_INFO("Starting backup...");
         try {
             // Start process
@@ -278,7 +266,6 @@ private:
     };
 
     const BackupInfo backup_info;
-    MySqlConnectionWithDefaultDbPtr infra_db;
     ResilientSenderPtr sender;
     const CommandList commands;
     const int segment_max_size;
@@ -335,21 +322,6 @@ private:
         }
     }
 
-    optional<string> get_state() {
-        auto query = str(format("SELECT state FROM backups WHERE id='%s' "
-                                "AND tenant_id='%s';")
-                         % backup_info.id.c_str() % tenant);
-        MySqlResultSetPtr result = infra_db->query(query.c_str());
-        if (result->next()) {
-            auto state = result->get_string(0);
-            if (state) {
-                return state.get();
-            }
-        }
-        return boost::none;
-    }
-
-
     void update_db(const string & state,
                    const optional<const DbInfo> & extra_info = boost::none) {
         IsoDateTime iso_now;
@@ -389,7 +361,7 @@ private:
             NOVA_LOG_INFO("Sending message ]%s[", msg.str().c_str());
             sender->send(msg.str().c_str());
         }
-        
+
         NOVA_LOG_INFO("Updating backup %s to state %s", backup_info.id.c_str(),
                        state.c_str());
     }
@@ -404,7 +376,6 @@ private:
  *---------------------------------------------------------------------------*/
 
 BackupManager::BackupManager(
-    MySqlConnectionWithDefaultDbPtr & infra_db,
     ResilientSenderPtr sender,
     JobRunner & runner,
     const CommandList commands,
@@ -412,8 +383,7 @@ BackupManager::BackupManager(
     const string swift_container,
     const double time_out,
     const int zlib_buffer_size)
-:   infra_db(infra_db),
-    sender(sender),
+:   sender(sender),
     commands(commands),
     runner(runner),
     segment_max_size(segment_max_size),
@@ -436,7 +406,7 @@ void BackupManager::run_backup(const string & swift_url,
         NOVA_LOG_INFO("Token = %s", token.c_str());
     #endif
 
-    BackupJob job(infra_db, sender, commands, segment_max_size,
+    BackupJob job(sender, commands, segment_max_size,
                   swift_container, swift_url, time_out, tenant, token,
                   zlib_buffer_size, backup_info);
     runner.run(job);

@@ -58,7 +58,7 @@ cpp-pch pch
 #
 # Debian wheezy has a newer version of gcc (4.7) with '-static-libstdc++'
 
-local WHEEZY = SHELL "cat /etc/*-release | grep wheezy" ;
+local WHEEZY = [ SHELL "find /etc -maxdepth 1 -name *-release 2>&1 | grep wheezy" ] ;
 local EXE_LINK_FLAGS = "" ;
 if $(WHEEZY) != "" {
     EXE_LINK_FLAGS = " -static-libstdc++ -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.7/. -pthread -ldl" ;
@@ -99,7 +99,7 @@ lib lib_pthread : : <name>pthread ; # Seems to only be needed in static builds
 lib lib_m : : <name>m ;
 lib lib_stdc++ : : <name>stdc++ ;
 
-local WHEEZY = SHELL "cat /etc/*-release | grep wheezy" ;
+local WHEEZY = [ SHELL "find /etc -maxdepth 1 -name *-release 2>&1 | grep wheezy" ] ;
 if $(WHEEZY) != "" {
     lib lib_z : : <name>z ;
 } else {
@@ -630,6 +630,21 @@ unit-test send_and_receive
     ;
 explicit send_and_receive ;
 
+# Requires RabbitMQ server to be installed and running on localhost.
+unit-test resilient_tests
+    :   pch
+        u_nova_flags
+        u_nova_guest_GuestException
+        u_nova_rpc_Receiver
+        u_nova_rpc_Sender
+        u_nova_json
+        tests/resilient_tests.cc
+        test_dependencies
+    :   <define>BOOST_TEST_DYN_LINK
+        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full --track-origins=yes -v"
+    ;
+
+explicit resilient_tests ;
 
 # Requires MySQL to be installed with valid values in my.cnf.
 # Run by setting an environment variable named "TEST_ARGS" to whatever nova
@@ -884,4 +899,51 @@ exe timestamper
         u_nova_utils_subsecond
         tests/timestamper.cc
     :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+# Run this to put a message on the conductor queue.
+exe send_to_conductor
+    :   pch
+        static_dependencies
+        u_nova_process
+        u_nova_rpc_Sender
+        src/send_to_conductor.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+# Exercises the Resilient Sender and Receiver until it's told to stop.
+exe send_forever_turbo
+    :   pch
+        static_dependencies
+        empty_agent_lib
+        u_nova_process
+        u_nova_rpc_Sender
+        src/send_forever_turbo.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe sfturbo_send
+    :   pch
+        static_dependencies
+        empty_agent_lib
+        u_nova_process
+        u_nova_rpc_Sender
+        u_nova_rpc_Receiver
+        src/sfturbo_send.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe sfturbo_recv
+    :   pch
+        static_dependencies
+        empty_agent_lib
+        u_nova_process
+        u_nova_rpc_Sender
+        u_nova_rpc_Receiver
+        src/sfturbo_recv.cc
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
     ;

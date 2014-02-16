@@ -63,12 +63,9 @@ namespace nova { namespace guest { namespace mysql {
                 NEW = 0x17 // Set when the instance is shiny and new.
             };
 
-            MySqlAppStatus(nova::db::mysql::MySqlConnectionWithDefaultDbPtr
-                                 nova_db,
-                             nova::rpc::ResilientSenderPtr sender,
-                             unsigned long nova_db_reconnect_wait_time,
-                             const char * guest_id,
-                             MySqlAppStatusContext * context
+            MySqlAppStatus(nova::rpc::ResilientSenderPtr sender,
+                           const char * guest_id,
+                           MySqlAppStatusContext * context
                                  = new MySqlAppStatusContext());
 
             /** Called right before MySql is prepared. */
@@ -119,15 +116,6 @@ namespace nova { namespace guest { namespace mysql {
              *  off. */
             bool is_mysql_restarting() const;
 
-            /** Executes the method. Retries if there is a MySQL error
-             *  after first waiting the time specified in the constructor
-             *  argument nova_db_reconnect_wait_time (indefinitely). */
-            void repeatedly_attempt_mysql_method(MySqlAppStatusFunctor & f);
-
-            /** Like "set_status" but tries repeatedly. Will block the thread
-             *  if it has to. */
-            void repeatedly_attempt_to_set_status(Status status);
-
             /** Changes the status of the MySQL app in the Nova DB. */
             void set_status(Status status);
 
@@ -139,19 +127,13 @@ namespace nova { namespace guest { namespace mysql {
 
             boost::optional<std::string> find_mysql_pid_file() const;
 
-            boost::optional<Status> get_status_from_nova_db() const;
-
             const char * guest_id;
-
-            nova::db::mysql::MySqlConnectionWithDefaultDbPtr nova_db;
-
-            boost::mutex nova_db_mutex;
-
-            const unsigned long nova_db_reconnect_wait_time;
 
             bool restart_mode;
 
             boost::optional<Status> status;
+
+            boost::mutex status_mutex;
 
             nova::rpc::ResilientSenderPtr sender;
     };

@@ -95,8 +95,7 @@ namespace {
 
 
 JsonException::JsonException(JsonException::Code code) throw()
-: code(code)
-{
+: code(code) {
 }
 
 JsonException::~JsonException() throw() {
@@ -140,6 +139,15 @@ const char * JsonException::what() const throw() {
 }
 
 /**---------------------------------------------------------------------------
+ *- json_string
+ *---------------------------------------------------------------------------*/
+
+std::string json_string(const char * text) {
+    return JsonData::from_string(text)->to_string();
+}
+
+
+/**---------------------------------------------------------------------------
  *- JsonData
  *---------------------------------------------------------------------------*/
 
@@ -151,8 +159,7 @@ JsonData::JsonData()
 }
 
 JsonData::JsonData(json_object * obj)
-: object(0), root(0)
-{
+: object(0), root(0) {
     if (obj == 0) {
         json_object_put(obj);
         throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
@@ -161,8 +168,7 @@ JsonData::JsonData(json_object * obj)
 }
 
 JsonData::JsonData(json_object * obj, int type_i)
-: object(0), root(0)
-{
+: object(0), root(0) {
     json_type type = (json_type) type_i;
     if (type != json_type_null) {
         if (obj == 0) {
@@ -214,10 +220,6 @@ JsonDataPtr JsonData::create_child(json_object * obj) const {
     JsonDataPtr rtn(new JsonData());
     rtn->initialize_child_no_check(obj, root);
     return rtn;
-}
-
-std::string JsonData::json_string(const char * text) {
-    return from_string(text)->to_string();
 }
 
 JsonDataPtr JsonData::from_boolean(bool value) {
@@ -329,16 +331,8 @@ void JsonData::visit(JsonData::Visitor & visitor) const {
  *---------------------------------------------------------------------------*/
 
 JsonArray::JsonArray(const char * json_text)
-: JsonData(), length(0)
-{
-    json_object * obj = json_tokener_parse(json_text);
-    if (obj == 0) {
-        json_object_put(obj);
-        throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
-    }
-    initialize_root(obj, json_type_array,
-                    JsonException::CTOR_ARGUMENT_NOT_ARRAY);
-    length = json_object_array_length(object);
+: JsonData(), length(0) {
+    initialize(json_text);
 }
 
 JsonArray::JsonArray(json_object * obj)
@@ -402,25 +396,29 @@ void JsonArray::get_string(const int index, std::string & value) const {
     value = get_string(index);
 }
 
-/**---------------------------------------------------------------------------
- *- JsonObject
- *---------------------------------------------------------------------------*/
-
-JsonObject::JsonObject(const char * json_text)
-: JsonData()
-{
+void JsonArray::initialize(const char * json_text) {
     json_object * obj = json_tokener_parse(json_text);
     if (obj == 0) {
         json_object_put(obj);
         throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
     }
-    initialize_root(obj, json_type_object,
-                    JsonException::CTOR_ARGUMENT_NOT_OBJECT);
+    initialize_root(obj, json_type_array,
+                    JsonException::CTOR_ARGUMENT_NOT_ARRAY);
+    length = json_object_array_length(object);
+}
+
+
+/**---------------------------------------------------------------------------
+ *- JsonObject
+ *---------------------------------------------------------------------------*/
+
+JsonObject::JsonObject(const char * json_text)
+: JsonData() {
+    initialize(json_text);
 }
 
 JsonObject::JsonObject(json_object * obj)
-: JsonData()
-{
+: JsonData() {
     initialize_root(obj, json_type_object,
                     JsonException::CTOR_ARGUMENT_NOT_OBJECT);
 }
@@ -558,6 +556,16 @@ bool JsonObject::has_item(const char * key) const {
     return (object_obj != (json_object *)0);
 }
 
+void JsonObject::initialize(const char * json_text) {
+    json_object * obj = json_tokener_parse(json_text);
+    if (obj == 0) {
+        json_object_put(obj);
+        throw JsonException(JsonException::CTOR_ARGUMENT_IS_NOT_JSON_STRING);
+    }
+    initialize_root(obj, json_type_object,
+                    JsonException::CTOR_ARGUMENT_NOT_OBJECT);
+}
+
 void JsonObject::iterate(JsonObject::Iterator & itr) {
     // This is a macro defined in the JSON lib we're using.
     json_object_object_foreach(object, key_object, value_object) {
@@ -565,6 +573,90 @@ void JsonObject::iterate(JsonObject::Iterator & itr) {
         auto value = create_child(value_object);
         itr.for_each(key, *value);
     }
+}
+
+
+
+/**---------------------------------------------------------------------------
+ *- JsonDataWriter
+ *---------------------------------------------------------------------------*/
+
+JsonDataBuilder::JsonDataBuilder()
+:   msg(),
+    seen_comma(false) {
+}
+
+JsonDataBuilder::JsonDataBuilder(const JsonDataBuilder & other)
+:   msg(),
+    seen_comma(other.seen_comma) {
+    msg.str(other.msg.str());
+}
+
+void JsonDataBuilder::assign(const JsonDataBuilder & other) {
+    this->msg.str(other.msg.str());
+    this->seen_comma = other.seen_comma;
+}
+
+JsonDataBuilder::~JsonDataBuilder() {
+}
+
+
+
+/**---------------------------------------------------------------------------
+ *- JsonArrayWriter
+ *---------------------------------------------------------------------------*/
+
+JsonArrayBuilder::JsonArrayBuilder()
+:   JsonDataBuilder() {
+}
+
+JsonArrayBuilder::JsonArrayBuilder(const JsonArrayBuilder & other)
+:   JsonDataBuilder(other) {
+}
+
+JsonArrayBuilder & JsonArrayBuilder::operator=(
+    const JsonArrayBuilder & other) {
+    this->assign(other);
+    return *this;
+}
+
+JsonArrayBuilder::~JsonArrayBuilder() {
+}
+
+
+std::ostream & operator<<(std::ostream & source,
+                          const JsonArrayBuilder & obj) {
+    source << "[ " << obj.msg.str() << " ]";
+    return source;
+}
+
+
+/**---------------------------------------------------------------------------
+ *- JsonObjectWriter
+ *---------------------------------------------------------------------------*/
+
+JsonObjectBuilder::JsonObjectBuilder()
+:   JsonDataBuilder() {
+}
+
+JsonObjectBuilder::JsonObjectBuilder(const JsonObjectBuilder & other)
+:   JsonDataBuilder(other) {
+}
+
+JsonObjectBuilder & JsonObjectBuilder::operator=(
+    const JsonObjectBuilder & other) {
+    this->assign(other);
+    return *this;
+}
+
+JsonObjectBuilder::~JsonObjectBuilder() {
+}
+
+
+std::ostream & operator<<(std::ostream & source,
+                          const JsonObjectBuilder & obj) {
+    source << "{ " << obj.msg.str() << " }";
+    return source;
 }
 
 } // end namespace nova

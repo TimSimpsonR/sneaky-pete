@@ -9,6 +9,7 @@
 #include <string>
 #include <boost/tuple/tuple.hpp>
 
+using nova::json_string;
 using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::Log;
@@ -32,10 +33,10 @@ namespace {
         const auto status_string = MonitoringStatus::status_name(status);
         stringstream out;
         out << "{ "
-            << JsonData::json_string("version")
-                << ": " << JsonData::json_string(version) << ", "
-            << JsonData::json_string("status")
-                << ": " << JsonData::json_string(status_string)
+            << json_string("version")
+                << ": " << json_string(version) << ", "
+            << json_string("status")
+                << ": " << json_string(status_string)
             << "}";
         return out.str();
     }

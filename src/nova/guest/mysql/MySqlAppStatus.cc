@@ -19,6 +19,7 @@
 
 using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
+using nova::json_obj;
 using nova::db::mysql::MySqlConnectionWithDefaultDb;
 using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
 using nova::db::mysql::MySqlException;
@@ -54,40 +55,24 @@ bool MySqlAppStatusContext::is_file(const char * file_path) const {
     return io::is_file(file_path);
 }
 
-MySqlAppStatus::MySqlAppStatus(MySqlConnectionWithDefaultDbPtr nova_db_connection,
-                               ResilientSenderPtr sender,
-                               unsigned long nova_db_reconnect_wait_time,
+MySqlAppStatus::MySqlAppStatus(ResilientSenderPtr sender,
                                const char * guest_id,
                                MySqlAppStatusContext * context)
 : context(context),
   guest_id(guest_id),
-  nova_db(nova_db_connection),
-  nova_db_mutex(),
-  nova_db_reconnect_wait_time(nova_db_reconnect_wait_time),
   restart_mode(false),
   status(boost::none),
   sender(sender)
 {
-    struct F : MySqlAppStatusFunctor {
-        MySqlAppStatus * updater;
-
-        virtual void operator()() {
-            updater->status = updater->get_status_from_nova_db();
-        }
-    };
-    F f;
-    f.updater = this;
-    repeatedly_attempt_mysql_method(f);
 }
 
 void MySqlAppStatus::begin_mysql_install() {
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
-    nova_db->ensure();
+    boost::lock_guard<boost::mutex> lock(status_mutex);
     set_status(BUILDING);
 }
 
 void MySqlAppStatus::begin_mysql_restart() {
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    boost::lock_guard<boost::mutex> lock(status_mutex);
     this->restart_mode = true;;
 }
 
@@ -113,15 +98,15 @@ optional<string> MySqlAppStatus::find_mysql_pid_file() const {
 }
 
 void MySqlAppStatus::end_failed_install() {
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    boost::lock_guard<boost::mutex> lock(status_mutex);
     this->restart_mode = false;
     this->set_status(FAILED);
 }
 
 void MySqlAppStatus::end_install_or_restart() {
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    boost::lock_guard<boost::mutex> lock(status_mutex);
     this->restart_mode = false;
-    repeatedly_attempt_to_set_status(get_actual_db_status());
+    set_status(get_actual_db_status());
 }
 
 MySqlAppStatus::Status MySqlAppStatus::get_actual_db_status() const {
@@ -168,21 +153,6 @@ const char * MySqlAppStatus::get_current_status_string() const {
     }
 }
 
-optional<MySqlAppStatus::Status> MySqlAppStatus::get_status_from_nova_db()
-const {
-    string text = str(format("SELECT status_id FROM service_statuses WHERE "
-                             "instance_id= '%s' ") % guest_id);
-    MySqlResultSetPtr result = nova_db->query(text.c_str());
-    if (result->next()) {
-        optional<int> status_as_int = result->get_int(0);
-        if (status_as_int) {
-            Status status = (Status) status_as_int.get();
-            return optional<Status>(status);
-        }
-    }
-    return boost::none;
-}
-
 bool MySqlAppStatus::is_mysql_installed() const {
     return (status && status.get() != NEW &&
             status.get() != BUILDING && status.get() != FAILED);
@@ -196,61 +166,15 @@ bool MySqlAppStatus::is_mysql_running() const {
     return (status && status.get() == RUNNING);
 }
 
-void MySqlAppStatus::repeatedly_attempt_to_set_status(Status status) {
-    struct F : MySqlAppStatusFunctor {
-        Status status;
-        MySqlAppStatus * updater;
-
-        virtual void operator()() {
-            updater->set_status(status);
-        }
-    };
-    F f;
-    f.status = status;
-    f.updater = this;
-    repeatedly_attempt_mysql_method(f);
-}
-
-void MySqlAppStatus::repeatedly_attempt_mysql_method(
-    MySqlAppStatusFunctor & f)
-{
-    bool success = false;
-    while(!success){
-        try {
-            this->nova_db->ensure();
-            f();
-            success = true;
-        } catch(const MySqlException & mse) {
-            NOVA_LOG_ERROR("Error communicating to Nova database: %s", mse.what());
-            NOVA_LOG_ERROR("Waiting %lu seconds to try again...",
-                            nova_db_reconnect_wait_time);
-            success = false;
-            boost::posix_time::seconds time(nova_db_reconnect_wait_time);
-            boost::this_thread::sleep(time);
-            NOVA_LOG_ERROR("... trying again.");
-        }
-    }
-}
-
 void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
     const char * description = status_name(status);
     NOVA_LOG_INFO("Updating MySQL app status to %d (%s).", ((int)status),
                    description);
-
-    std::string sent = str(format("%8.8f") % now());
-    stringstream msg;
-    msg << "{"
-        "\"method\": \"heartbeat\", "
-        "\"args\": { "
-            "\"instance_id\": \"" << guest_id << "\", "
-            "\"sent\": " << sent << ", "
-            "\"payload\": {"
-                "\"service_status\": \"" << description << "\""
-            "}"
-        "}"
-    "}";
-    sender->send(msg.str().c_str());
-    NOVA_LOG_INFO("Sent message.");
+    sender->send("heartbeat",
+        "payload", json_obj(
+            "service_status", description
+        )
+    );
     this->status = optional<int>(status);
 }
 
@@ -281,8 +205,7 @@ const char * MySqlAppStatus::status_name(MySqlAppStatus::Status status) {
 }
 
 void MySqlAppStatus::update() {
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
-    nova_db->ensure();
+    boost::lock_guard<boost::mutex> lock(status_mutex);
 
     if (is_mysql_installed() && !is_mysql_restarting()) {
         NOVA_LOG_TRACE("Determining status of MySQL app...");
@@ -298,7 +221,7 @@ void MySqlAppStatus::update() {
 bool MySqlAppStatus::wait_for_real_state_to_change_to(Status status,
                                                       int max_time,
                                                       bool update_db){
-    boost::lock_guard<boost::mutex> lock(nova_db_mutex);
+    boost::lock_guard<boost::mutex> lock(status_mutex);
     const int wait_time = 3;
     for (int time = 0; time < max_time; time += wait_time) {
         boost::this_thread::sleep(boost::posix_time::seconds(wait_time));

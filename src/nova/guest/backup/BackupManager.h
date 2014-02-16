@@ -2,7 +2,6 @@
 #define __NOVA_GUEST_BACKUP_BACKUPMANAGER_H
 
 #include <boost/optional.hpp>
-#include "nova/db/mysql.h"
 #include <boost/shared_ptr.hpp>
 #include "nova/guest/guest.h"
 #include "nova/process.h"
@@ -20,18 +19,14 @@ namespace nova { namespace guest { namespace backup {
     struct BackupInfo {
         const std::string backup_type;
         const std::string checksum;
-        const std::string description;
         const std::string id;
-        const std::string instance_id;
         const std::string location;
-        const std::string name;
     };
 
 
     class BackupManager {
         public:
             BackupManager(
-                   nova::db::mysql::MySqlConnectionWithDefaultDbPtr & infra_db,
                    nova::rpc::ResilientSenderPtr sender,
                    nova::utils::JobRunner & runner,
                    const nova::process::CommandList commands,
@@ -42,14 +37,12 @@ namespace nova { namespace guest { namespace backup {
 
             ~BackupManager();
 
-            void run_backup(const std::string & swift_url,
-                            const std::string & tenant,
+            void run_backup(const std::string & tenant,
                             const std::string & token,
                             const BackupInfo & backup_info);
 
 
         private:
-            nova::db::mysql::MySqlConnectionWithDefaultDbPtr infra_db;
             nova::rpc::ResilientSenderPtr sender;
             const nova::process::CommandList commands;
             nova::utils::JobRunner & runner;

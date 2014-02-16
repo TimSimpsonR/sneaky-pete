@@ -37,18 +37,27 @@ namespace nova { namespace rpc {
     class ResilientSender {
         public:
             ResilientSender(const char * host, int port, const char * userid,
-                            const char * password, size_t client_memory, const char * topic,
-                            const char * exchange_name, unsigned long reconnect_wait_time);
+                            const char * password, size_t client_memory,
+                            const char * topic,
+                            const char * exchange_name,
+                            const char * instance_id,
+                            unsigned long reconnect_wait_time);
 
             ~ResilientSender();
 
-            void send(const JsonObject & publish_object);
-
-            void send(const char * publish_string);
+            template<typename... Types>
+            void send(const char * method, const Types... args) {
+                nova::JsonObjectBuilder args_object;
+                start_send(method, args_object);
+                args_object.add(args...);
+                finish_send(method, args_object);
+            }
 
         private:
             ResilientSender(const ResilientSender &);
             ResilientSender & operator = (const ResilientSender &);
+
+            void finish_send(const char * method, nova::JsonObjectBuilder & args);
 
             void reset();
 
@@ -60,6 +69,8 @@ namespace nova { namespace rpc {
 
             std::string host;
 
+            std::string instance_id;
+
             void open(bool wait_first);
 
             std::string password;
@@ -67,6 +78,8 @@ namespace nova { namespace rpc {
             int port;
 
             std::auto_ptr<Sender> sender;
+
+            void start_send(const char * method, nova::JsonObjectBuilder & args);
 
             std::string topic;
 

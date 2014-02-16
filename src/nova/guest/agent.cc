@@ -11,7 +11,6 @@ using boost::optional;
 using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
-using namespace nova::db::mysql;
 using namespace nova::rpc;
 using std::string;
 using std::vector;

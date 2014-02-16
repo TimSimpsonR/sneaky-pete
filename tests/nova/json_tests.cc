@@ -10,12 +10,16 @@
 #include <json/json.h>
 #include <map>
 
+using nova::json_array;
 using nova::JsonArray;
+using nova::JsonArrayBuilder;
 using nova::JsonArrayPtr;
 using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::JsonException;
+using nova::json_obj;
 using nova::JsonObject;
+using nova::JsonObjectBuilder;
 using nova::JsonObjectPtr;
 using std::map;
 using std::string;
@@ -137,6 +141,12 @@ BOOST_AUTO_TEST_CASE(creating_an_array_via_string)
     test_json_array(numbers);
 }
 
+BOOST_AUTO_TEST_CASE(creating_an_array_via_builder)
+{
+    JsonArray numbers(42, "two", 3048);
+    test_json_array(numbers);
+}
+
 BOOST_AUTO_TEST_CASE(creating_an_array_via_json_object)
 {
     JsonArray numbers(json_tokener_parse("[42,'two',3048]"));
@@ -159,6 +169,12 @@ BOOST_AUTO_TEST_CASE(must_not_allow_null_in_array_constructor)
 BOOST_AUTO_TEST_CASE(get_values)
 {
     JsonObject object("{ 'string':'abcde', 'int':42 }");
+    test_object(object);
+}
+
+BOOST_AUTO_TEST_CASE(get_values_via_builder)
+{
+    JsonObject object("string", "abcde", "int", 42);
     test_object(object);
 }
 
@@ -430,4 +446,101 @@ BOOST_AUTO_TEST_CASE(iteration_over_an_object_and_visit_data)
                           % element.first);
         BOOST_CHECK_MESSAGE(element.second.iterator_was_called, msg2);
     }
+}
+
+
+BOOST_AUTO_TEST_CASE(json_builder)
+{
+    JsonObjectBuilder obj;
+    obj.add("int", 1);
+    obj.add("float", 4234.5f);
+    obj.add("double", 67.00);
+    obj.add("str", "\"Super\" string.");
+    const auto result = str(format("%s") % obj);
+    BOOST_CHECK_EQUAL(result, "{ \"int\" : 1, \"float\" : 4234.5, "
+                              "\"double\" : 67, "
+                              "\"str\" : \"\\\"Super\\\" string.\" }");
+}
+
+
+BOOST_AUTO_TEST_CASE(json_builder_works_with_nothing)
+{
+    JsonObjectBuilder obj;
+    boost::shared_ptr<int> one(new int(1));
+    obj.add("int", one);;
+    boost::shared_ptr<float> floaty(new float(4234.5f));
+    obj.add("float", floaty);
+    obj.add("double", 67.00);
+    boost::optional<std::string> super_string("\"Super\" string.");
+    obj.add("str", super_string);
+    boost::optional<int> optional;
+    obj.add("nothing", optional);
+    boost::shared_ptr<int> shared;
+    obj.add("nothing2", shared);
+    const auto result = str(format("%s") % obj);
+    BOOST_CHECK_EQUAL(result, "{ \"int\" : 1, \"float\" : 4234.5, "
+                              "\"double\" : 67, "
+                              "\"str\" : \"\\\"Super\\\" string.\", "
+                              "\"nothing\" : null, "
+                              "\"nothing2\" : null }");
+}
+
+BOOST_AUTO_TEST_CASE(json_builder_crazy_syntax)
+{
+    JsonObjectBuilder obj;
+    obj.add("int", 1,
+            "float", 4234.5f,
+            "double", 67.00,
+            "str", "\"Super\" string.");
+    const auto result = str(format("%s") % obj);
+    BOOST_CHECK_EQUAL(result, "{ \"int\" : 1, \"float\" : 4234.5, "
+                              "\"double\" : 67, "
+                              "\"str\" : \"\\\"Super\\\" string.\" }");
+}
+
+BOOST_AUTO_TEST_CASE(json_builder_with_create)
+{
+    JsonObjectBuilder obj = json_obj(
+        "int", 1,
+        "float", 4234.5f,
+        "double", 67.00,
+        "str", "\"Super\" string.");
+    const auto result = str(format("%s") % obj);
+    BOOST_CHECK_EQUAL(result, "{ \"int\" : 1, \"float\" : 4234.5, "
+                              "\"double\" : 67, "
+                              "\"str\" : \"\\\"Super\\\" string.\" }");
+}
+
+
+BOOST_AUTO_TEST_CASE(json_builder_with_nested)
+{
+    JsonObjectBuilder obj = json_obj(
+        "method", "method",
+        "you", json_obj(
+            "wa", "shock"
+        )
+    );
+    const auto result = str(format("%s") % obj);
+    BOOST_CHECK_EQUAL(result, "{ \"method\" : \"method\", "
+                                 "\"you\" : { \"wa\" : \"shock\" } "
+                              "}");
+}
+
+
+BOOST_AUTO_TEST_CASE(build_json_array)
+{
+    JsonArrayBuilder array = json_array(
+        "method",
+        json_obj(
+            "wa", "shock"
+        ),
+        json_array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+        boost::none
+    );
+    const auto result = str(format("%s") % array);
+    BOOST_CHECK_EQUAL(result, "[ \"method\", "
+                                 "{ \"wa\" : \"shock\" }, "
+                                 "[ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], "
+                                 "null "
+                              "]");
 }

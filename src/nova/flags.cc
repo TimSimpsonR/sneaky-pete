@@ -397,12 +397,6 @@ const char * FlagValues::node_availability_zone() const {
     return map->get("node_availability_zone", "nova");
 }
 
-
-unsigned long FlagValues::nova_db_reconnect_wait_time() const {
-    return get_flag_value(*map, "nova_db_reconnect_wait_time",
-                          (unsigned long) 30);
-}
-
 const char * FlagValues::nova_sql_database() const {
     return _nova_sql_database.c_str();
 }
@@ -455,10 +449,6 @@ const char * FlagValues::rabbit_userid() const {
 
 bool FlagValues::register_dangerous_functions() const {
     return get_flag_value<bool>(*map, "register_dangerous_functions", false);
-}
-
-unsigned long FlagValues::report_interval() const {
-    return get_flag_value(*map, "report_interval", (unsigned long) 10);
 }
 
 bool FlagValues::skip_install_for_prepare() const {

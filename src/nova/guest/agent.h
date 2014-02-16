@@ -103,6 +103,7 @@ void initialize_and_run(const char * const title,
         flags.rabbit_userid(), flags.rabbit_password(),
         flags.rabbit_client_memory(), flags.conductor_queue(),
         flags.control_exchange(),
+        flags.guest_id(),
         flags.rabbit_reconnect_wait_time()));
 
     /* Create the function object, in case other goodies are attached to

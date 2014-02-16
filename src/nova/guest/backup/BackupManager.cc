@@ -326,35 +326,19 @@ private:
         std::string sent = str(format("%8.8f") % now());
 
         if(extra_info) {
-            stringstream msg;
-            msg << "{"
-                "\"method\": \"update_backup\", "
-                "\"args\": { "
-                    "\"sent\": " << sent << ", "
-                    "\"backup_id\": \"" << backup_info.id << "\", "
-                    "\"updated\": \"" << iso_now.c_str() << "\", "
-                    "\"checksum\": \"" << extra_info->checksum << "\", "
-                    "\"backup_type\": \"" << extra_info->type << "\", "
-                    "\"location\": \"" << extra_info->location << "\", "
-                    "\"size\": \"" << extra_info->size << "\", "
-                    "\"state\": \"" << state << "\""
-                "}"
-            "}";
-            NOVA_LOG_INFO("Sending message ]%s[", msg.str().c_str());
-            sender->send(msg.str().c_str());
+            sender->send("update_backup",
+                "backup_id", backup_info.id,
+                "backup_type", extra_info->type,
+                "checksum", extra_info->checksum,
+                "location", extra_info->location,
+                "size", extra_info->size,
+                "state", state,
+                "updated", iso_now.c_str());
         } else {
-            stringstream msg;
-            msg << "{"
-                "\"method\": \"update_backup\", "
-                "\"args\": { "
-                    "\"sent\": " << sent << ", "
-                    "\"backup_id\": \"" << backup_info.id << "\", "
-                    "\"updated\": \"" << iso_now.c_str() << "\", "
-                    "\"state\": \"" << state << "\""
-                "}"
-            "}";
-            NOVA_LOG_INFO("Sending message ]%s[", msg.str().c_str());
-            sender->send(msg.str().c_str());
+            sender->send("update_backup",
+                "backup_id", backup_info.id,
+                "state", state,
+                "updated", iso_now.c_str());
         }
 
         NOVA_LOG_INFO("Updating backup %s to state %s", backup_info.id.c_str(),

@@ -13,6 +13,7 @@ using boost::format;
 using nova::guest::GuestInput;
 using nova::guest::GuestException;
 using nova::guest::GuestOutput;
+using nova::json_string;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
 using nova::Log;
@@ -98,7 +99,7 @@ void Receiver::finish_message(const GuestOutput & output) {
         msg = str(format("{\"failure\":{\"exc_type\":\"std::exception\", "
                          "\"value\":%s, "
                          "\"traceback\":\"unavailable\" } }")
-                  % JsonData::json_string(output.failure.get().c_str()));
+                  % json_string(output.failure.get().c_str()));
     }
     if (msg.find("password") == string::npos) {
         NOVA_LOG_INFO("Replying with the following: %s", msg.c_str());

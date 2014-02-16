@@ -32,6 +32,7 @@ using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
+using nova::json_string;
 using nova::guest::mysql::MySqlGuestException;
 using namespace nova::db::mysql;
 using boost::optional;
@@ -161,11 +162,11 @@ namespace {
     }
 
     void user_to_stream(stringstream & out, MySqlUserPtr user) {
-        out << "{\"_name\":" << JsonData::json_string(user->get_name().c_str())
-            << ", \"_host\":" << JsonData::json_string(user->get_host().c_str())
+        out << "{\"_name\":" << json_string(user->get_name().c_str())
+            << ", \"_host\":" << json_string(user->get_host().c_str())
             << ", \"_password\":";
         if (user->get_password()) {
-            out << JsonData::json_string(user->get_password().get().c_str());
+            out << json_string(user->get_password().get().c_str());
         } else {
             out << "null";
         }
@@ -180,7 +181,7 @@ namespace {
                 }
                 once = true;
                 database_xml << "{ \"_name\":"
-                             << JsonData::json_string(database->get_name())
+                             << json_string(database->get_name())
                              << " }";
             }
             database_xml << "]";
@@ -202,7 +203,7 @@ namespace {
                 }
                 once = true;
                 db_stream << "{ \"_name\":"
-                          << JsonData::json_string(database->get_name())
+                          << json_string(database->get_name())
                           << ", \"_collate\": \"\""
                           << ", \"_character_set\": \"\""
                           << " }";
@@ -278,7 +279,7 @@ namespace {
             json << "], ";
             // Element 1 = next_marker
             if (next_marker) {
-                json << JsonData::json_string(next_marker.get());
+                json << json_string(next_marker.get());
             } else {
                 json << "null";
             }
@@ -317,17 +318,17 @@ namespace {
                     }
                     once = true;
                     json << "{ \"_name\":"
-                         << JsonData::json_string(database->get_name())
+                         << json_string(database->get_name())
                          << ", \"_collate\":"
-                         << JsonData::json_string(database->get_collation())
+                         << json_string(database->get_collation())
                          << ", \"_character_set\":"
-                         << JsonData::json_string(database->get_character_set())
+                         << json_string(database->get_character_set())
                          << " }";
                 }
             json << "], ";
             // Element 1 = next marker
             if (next_marker) {
-                json << JsonData::json_string(next_marker.get());
+                json << json_string(next_marker.get());
             } else {
                 json << "null";
             }

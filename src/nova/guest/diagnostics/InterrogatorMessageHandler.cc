@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 
+using nova::json_string;
 using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::Log;
@@ -22,20 +23,20 @@ namespace {
     string diagnostics_to_stream(DiagInfoPtr diagnostics) {
         stringstream out;
         out << "{";
-        out << JsonData::json_string("version") << ": ";
-        out << JsonData::json_string(diagnostics->version);
+        out << json_string("version") << ": ";
+        out << json_string(diagnostics->version);
         out << ",";
-        out << JsonData::json_string("fd_size") << ": " << diagnostics->fd_size;
+        out << json_string("fd_size") << ": " << diagnostics->fd_size;
         out << ",";
-        out << JsonData::json_string("vm_size") << ": " << diagnostics->vm_size;
+        out << json_string("vm_size") << ": " << diagnostics->vm_size;
         out << ",";
-        out << JsonData::json_string("vm_peak") << ": " << diagnostics->vm_peak;
+        out << json_string("vm_peak") << ": " << diagnostics->vm_peak;
         out << ",";
-        out << JsonData::json_string("vm_rss") << ": " << diagnostics->vm_rss;
+        out << json_string("vm_rss") << ": " << diagnostics->vm_rss;
         out << ",";
-        out << JsonData::json_string("vm_hwm") << ": " << diagnostics->vm_hwm;
+        out << json_string("vm_hwm") << ": " << diagnostics->vm_hwm;
         out << ",";
-        out << JsonData::json_string("threads") << ": " << diagnostics->threads;
+        out << json_string("threads") << ": " << diagnostics->threads;
         out << "}";
         return out.str();
     }
@@ -43,11 +44,11 @@ namespace {
     string fs_stats_to_stream(const FileSystemStatsPtr fs_stats) {
         stringstream out;
         out << "{";
-        out << JsonData::json_string("used") << ": " << fs_stats->used;
+        out << json_string("used") << ": " << fs_stats->used;
         out << ",";
-        out << JsonData::json_string("free") << ": " << fs_stats->free;
+        out << json_string("free") << ": " << fs_stats->free;
         out << ",";
-        out << JsonData::json_string("total") << ": " << fs_stats->total;
+        out << json_string("total") << ": " << fs_stats->total;
         out << "}";
         return out.str();
     }
@@ -55,9 +56,9 @@ namespace {
     string hwinfo_to_stream(const HwInfoPtr hwinfo) {
         stringstream out;
         out << "{";
-        out << JsonData::json_string("mem_total") << ": " << hwinfo->mem_total;
+        out << json_string("mem_total") << ": " << hwinfo->mem_total;
         out << ",";
-        out << JsonData::json_string("num_cpus") << ": " << hwinfo->num_cpus;
+        out << json_string("num_cpus") << ": " << hwinfo->num_cpus;
         out << "}";
         return out.str();
     }

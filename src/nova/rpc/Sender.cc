@@ -3,10 +3,15 @@
 #include "nova/rpc/sender.h"
 #include "nova/rpc/amqp.h"
 #include <sstream>
+#include "nova/utils/subsecond.h"
 
-
+using boost::format;
+using nova::json_obj;
+using nova::JsonObjectBuilder;
 using nova::JsonObjectPtr;
+using nova::utils::subsecond::now;
 using namespace nova::rpc;
+using std::string;
 
 
 Sender::Sender(AmqpConnectionPtr connection, const char * topic)
@@ -45,10 +50,11 @@ void Sender::send(const JsonObject & publish_object) {
 ResilientSender::ResilientSender(const char * host, int port,
     const char * userid, const char * password, size_t client_memory,
     const char * topic, const char * exchange_name,
-    unsigned long reconnect_wait_time)
+    const char * instance_id, unsigned long reconnect_wait_time)
 :   client_memory(client_memory),
     exchange_name(exchange_name),
     host(host),
+    instance_id(instance_id),
     password(password),
     port(port),
     sender(0),
@@ -96,22 +102,28 @@ void ResilientSender::reset() {
     open(true);
 }
 
-void ResilientSender::send(const char * publish_string) {
+void ResilientSender::finish_send(const char * method,
+                                  JsonObjectBuilder & args) {
+    std::string msg = boost::lexical_cast<std::string>(json_obj(
+        "method", method,
+        "args", args
+    ));
+    NOVA_LOG_INFO("Sending message ]%s[", msg.c_str());
     boost::lock_guard<boost::mutex> lock(conductor_mutex);
-    try {
-        sender->send(publish_string);
-    } catch(const AmqpException & amqpe) {
-        NOVA_LOG_ERROR("Error with AMQP connection! : %s", amqpe.what());
-        reset();
+    while(true)
+    {
+        try {
+            sender->send(msg.c_str());
+            return;
+        } catch(const AmqpException & amqpe) {
+            NOVA_LOG_ERROR("Error with AMQP connection! : %s", amqpe.what());
+            reset();
+        }
     }
 }
 
-void ResilientSender::send(const JsonObject & publish_object) {
-    boost::lock_guard<boost::mutex> lock(conductor_mutex);
-    try {
-        sender->send(publish_object);
-    } catch(const AmqpException & amqpe) {
-        NOVA_LOG_ERROR("Error with AMQP connection! : %s", amqpe.what());
-        reset();
-    }
+
+void ResilientSender::start_send(const char * method, JsonObjectBuilder & args) {
+    args.add("instance_id", instance_id);
+    args.add_unescaped("sent", str(format("%8.8f") % now()));
 }

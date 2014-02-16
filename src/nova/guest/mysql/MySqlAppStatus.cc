@@ -19,6 +19,7 @@
 
 using namespace boost::assign; // brings CommandList += into our code.
 using boost::format;
+using nova::json_obj;
 using nova::db::mysql::MySqlConnectionWithDefaultDb;
 using nova::db::mysql::MySqlConnectionWithDefaultDbPtr;
 using nova::db::mysql::MySqlException;
@@ -169,21 +170,11 @@ void MySqlAppStatus::set_status(MySqlAppStatus::Status status) {
     const char * description = status_name(status);
     NOVA_LOG_INFO("Updating MySQL app status to %d (%s).", ((int)status),
                    description);
-
-    std::string sent = str(format("%8.8f") % now());
-    stringstream msg;
-    msg << "{"
-        "\"method\": \"heartbeat\", "
-        "\"args\": { "
-            "\"instance_id\": \"" << guest_id << "\", "
-            "\"sent\": " << sent << ", "
-            "\"payload\": {"
-                "\"service_status\": \"" << description << "\""
-            "}"
-        "}"
-    "}";
-    sender->send(msg.str().c_str());
-    NOVA_LOG_INFO("Sent message.");
+    sender->send("heartbeat",
+        "payload", json_obj(
+            "service_status", description
+        )
+    );
     this->status = optional<int>(status);
 }
 

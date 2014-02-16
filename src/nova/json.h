@@ -2,6 +2,8 @@
 #define __NOVA_JSON_H
 
 #include <boost/optional.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/intrusive_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
 #include <boost/utility.hpp>
@@ -12,6 +14,232 @@ struct json_object;
 
 
 namespace nova {
+
+    /*-----------------------------------------------------------------------
+     * Builder methods / classes - use these to construct Json data.
+     *-----------------------------------------------------------------------*/
+
+    std::string json_string(const char * text);
+
+    inline std::string json_string(const std::string & text) {
+        return json_string((const char *) text.c_str());
+    }
+
+    class JsonArrayBuilder;
+
+    class JsonObjectBuilder;
+
+    class JsonDataBuilder {
+
+        public:
+
+            void add_value(const int value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const unsigned int value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const float value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const double value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const bool value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const JsonArrayBuilder & value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const JsonObjectBuilder & value) {
+                add_unescaped_value(value);
+            }
+
+            void add_value(const boost::none_t & value) {
+                add_unescaped_value("null");
+            }
+
+            template<typename T>
+            void add_value(const boost::optional<T> & value) {
+                if (!value) {
+                    add_unescaped_value("null");
+                }
+                else {
+                    add_value(value.get());
+                }
+            }
+
+            template<typename T>
+            void add_value(const boost::shared_ptr<T> & value) {
+                if (!value) {
+                    add_unescaped_value("null");
+                }
+                else {
+                    add_value(*value);
+                }
+            }
+
+            template<typename T>
+            void add_value(const boost::intrusive_ptr<T> & value) {
+                if (!value)
+                {
+                    add_unescaped_value("null");
+                }
+                else
+                {
+                    add_value(*value);
+                }
+            }
+
+            template<typename T>
+            void add_value(const T & value) {
+                add_string_value(value);
+            }
+
+            // Convert to a string
+            template<typename T>
+            void add_string_value(const T & value) {
+                const auto str_value = boost::lexical_cast<std::string>(value);
+                add_unescaped_value(json_string(str_value));
+            }
+
+            // For values that don't need quotes and aren't strings.
+            template<typename T>
+            void add_unescaped_value(const T & value) {
+                msg << value;
+            }
+
+        protected:
+            JsonDataBuilder();
+
+            JsonDataBuilder(const JsonDataBuilder & other);
+
+            ~JsonDataBuilder();
+
+            void assign(const JsonDataBuilder & other);
+
+            std::stringstream msg;
+
+            bool seen_comma;
+    };
+
+    class JsonArrayBuilder : public JsonDataBuilder
+    {
+        public:
+            JsonArrayBuilder();
+
+            JsonArrayBuilder(const JsonArrayBuilder & other);
+
+            JsonArrayBuilder & operator=(const JsonArrayBuilder & other);
+
+            ~JsonArrayBuilder();
+
+            template<typename T>
+            void add(const T & value) {
+                if (seen_comma) {
+                    msg << ", ";
+                }
+                add_value(value);
+                seen_comma = true;
+            }
+
+            // Allows for multiple additions at once.
+            template<typename HeadType, typename... TailTypes>
+            void add(const HeadType & value, const TailTypes... tail) {
+                add(value);
+                add(tail...);
+            }
+
+            template<typename T>
+            void add_unescaped(const T & value) {
+                if (seen_comma) {
+                    msg << ", ";
+                }
+                add_unescaped_value(value);
+                seen_comma = true;
+            }
+
+        friend std::ostream & operator<<(std::ostream & source,
+                                         const JsonArrayBuilder & obj);
+    };
+
+    std::ostream & operator<<(std::ostream & source,
+                              const JsonArrayBuilder & obj);
+
+    template<typename... Types>
+    JsonArrayBuilder json_array(const Types... args) {
+        JsonArrayBuilder array;
+        array.add(args...);
+        return array;
+    }
+
+
+    class JsonObjectBuilder : public JsonDataBuilder
+    {
+        public:
+            JsonObjectBuilder();
+
+            JsonObjectBuilder(const JsonObjectBuilder & other);
+
+            JsonObjectBuilder & operator=(const JsonObjectBuilder & other);
+
+            ~JsonObjectBuilder();
+
+            template<typename T>
+            void add(const char * name, const T & value) {
+                if (seen_comma) {
+                    msg << ", ";
+                }
+                msg << json_string(name) << " : ";
+                add_value(value);
+                seen_comma = true;
+            }
+
+            // Allows for multiple additions at once.
+            template<typename HeadType, typename... TailTypes>
+            void add(const char * name, const HeadType & value,
+                     const TailTypes... tail) {
+                add(name, value);
+                add(tail...);
+            }
+
+            template<typename T>
+            void add_unescaped(const char * name, const T & value) {
+                if (seen_comma) {
+                    msg << ", ";
+                }
+                msg << json_string(name) << " : ";
+                add_unescaped_value(value);
+                seen_comma = true;
+            }
+
+        friend std::ostream & operator<<(std::ostream & source,
+                                         const JsonObjectBuilder & obj);
+    };
+
+    std::ostream & operator<<(std::ostream & source,
+                              const JsonObjectBuilder & obj);
+
+    /** Creates a new Json object constructed from a series of arguments.
+     *  Would have called it "json_object" but I'd have to jump through
+     *  hoops since the struct of the c library we're using has the same
+     *  name. */
+    template<typename... Types>
+    JsonObjectBuilder json_obj(const Types... args) {
+        JsonObjectBuilder obj;
+        obj.add(args...);
+        return obj;
+    }
+
+    /*------------------------------------------------------------------------
+     * Json accessor methods / classes - use these to read Json data.
+     *-----------------------------------------------------------------------*/
 
     class JsonException : public std::exception {
         public:
@@ -147,6 +375,14 @@ namespace nova {
 
             JsonArray(json_object * obj);
 
+            template<typename... Types>
+            JsonArray(const Types... args)
+            : JsonData(), length(0) {
+                std::string s = boost::lexical_cast<std::string>(
+                    json_array(args...));
+                initialize(s.c_str());
+            }
+
             virtual ~JsonArray();
 
             JsonDataPtr get_any(const int index) const;
@@ -177,6 +413,8 @@ namespace nova {
             JsonArray(const JsonArray &);
             JsonArray & operator = (const JsonArray &);
 
+            void initialize(const char * json_text);
+
             int length;
     };
 
@@ -198,6 +436,14 @@ namespace nova {
             JsonObject(const char * json_text);
 
             JsonObject(json_object * obj);
+
+            template<typename... Types>
+            JsonObject(const Types... args)
+            : JsonData() {
+                std::string s = boost::lexical_cast<std::string>(
+                    json_obj(args...));
+                initialize(s.c_str());
+            }
 
             virtual ~JsonObject();
 
@@ -246,6 +492,8 @@ namespace nova {
             // Do not want.
             JsonObject(const JsonObject &);
             JsonObject & operator = (const JsonObject &);
+
+            void initialize(const char * json_text);
 
     };
 

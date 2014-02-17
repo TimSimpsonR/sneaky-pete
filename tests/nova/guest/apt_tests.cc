@@ -19,7 +19,6 @@ using namespace nova::guest::apt;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using std::string;
-using std::stringstream;
 
 
 const double TIME_OUT = 60;

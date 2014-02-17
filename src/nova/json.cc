@@ -1,6 +1,7 @@
 #include "pch.hpp"
 #include "nova/json.h"
 #include <json/json.h>
+using boost::lexical_cast;
 using boost::optional;
 using std::string;
 
@@ -335,6 +336,11 @@ JsonArray::JsonArray(const char * json_text)
     initialize(json_text);
 }
 
+JsonArray::JsonArray(const JsonArrayBuilder & array)
+: JsonData(), length(0) {
+    string s = lexical_cast<string>(array);
+    initialize(s.c_str());
+}
 JsonArray::JsonArray(json_object * obj)
 : JsonData(), length(0) {
     initialize_root(obj, json_type_array,
@@ -415,6 +421,12 @@ void JsonArray::initialize(const char * json_text) {
 JsonObject::JsonObject(const char * json_text)
 : JsonData() {
     initialize(json_text);
+}
+
+JsonObject::JsonObject(const JsonObjectBuilder & obj)
+: JsonData() {
+    std::string s = boost::lexical_cast<std::string>(obj);
+    initialize(s.c_str());
 }
 
 JsonObject::JsonObject(json_object * obj)

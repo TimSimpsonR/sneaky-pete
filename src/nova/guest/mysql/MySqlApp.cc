@@ -209,13 +209,13 @@ void MySqlApp::prepare(AptGuest & apt,
     // wondering if this newer version might be safe to just run whenever
     // we want.
     if (!skip_install_for_prepare) {
-        if (status->is_mysql_installed()) {
+        if (status->is_installed()) {
             NOVA_LOG_ERROR("Cannot install and secure MySQL because it is already "
                            "installed.");
             return;
         }
         NOVA_LOG_INFO("Updating status to BUILDING...");
-        status->begin_mysql_install();
+        status->begin_install();
     } else {
         NOVA_LOG_INFO("Skipping install check.");
     }
@@ -355,7 +355,7 @@ void MySqlApp::restart() {
 
         Restarter(MySqlAppStatusPtr & status)
         :   status(status) {
-            status->begin_mysql_restart();
+            status->begin_restart();
         }
 
         ~Restarter() {
@@ -437,7 +437,7 @@ void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
                                           const string & config_contents) {
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
-    if (status->is_mysql_running()) {
+    if (status->is_running()) {
         NOVA_LOG_ERROR("Cannot execute start_db_with_conf_changes because "
             "MySQL state == %s!", status->get_current_status_string());
         throw MySqlGuestException(MySqlGuestException::MYSQL_NOT_STOPPED);

@@ -26,7 +26,6 @@ using nova::process::CommandList;
 using nova::process::IndependentStdErrAndStdOut;
 using nova::process::Process;
 using std::string;
-using std::stringstream;
 using namespace boost;
 using namespace std;
 using nova::utils::Curl;

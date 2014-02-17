@@ -6,7 +6,6 @@ using boost::optional;
 using namespace nova;
 using namespace nova::guest;
 using std::string;
-using std::stringstream;
 
 
 int main(int argc, const char* argv[]) {

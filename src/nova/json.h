@@ -31,7 +31,12 @@ namespace nova {
 
     class JsonDataBuilder {
 
-        public:
+        protected:
+            JsonDataBuilder();
+
+            JsonDataBuilder(const JsonDataBuilder & other);
+
+            ~JsonDataBuilder();
 
             void add_value(const int value) {
                 add_unescaped_value(value);
@@ -114,13 +119,6 @@ namespace nova {
             void add_unescaped_value(const T & value) {
                 msg << value;
             }
-
-        protected:
-            JsonDataBuilder();
-
-            JsonDataBuilder(const JsonDataBuilder & other);
-
-            ~JsonDataBuilder();
 
             void assign(const JsonDataBuilder & other);
 
@@ -375,13 +373,7 @@ namespace nova {
 
             JsonArray(json_object * obj);
 
-            template<typename... Types>
-            JsonArray(const Types... args)
-            : JsonData(), length(0) {
-                std::string s = boost::lexical_cast<std::string>(
-                    json_array(args...));
-                initialize(s.c_str());
-            }
+            JsonArray(const JsonArrayBuilder & array);
 
             virtual ~JsonArray();
 
@@ -437,13 +429,7 @@ namespace nova {
 
             JsonObject(json_object * obj);
 
-            template<typename... Types>
-            JsonObject(const Types... args)
-            : JsonData() {
-                std::string s = boost::lexical_cast<std::string>(
-                    json_obj(args...));
-                initialize(s.c_str());
-            }
+            JsonObject(const JsonObjectBuilder & obj);
 
             virtual ~JsonObject();
 

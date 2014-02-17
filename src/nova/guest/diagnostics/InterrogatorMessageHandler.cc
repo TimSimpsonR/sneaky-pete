@@ -10,57 +10,42 @@
 using nova::json_string;
 using nova::JsonData;
 using nova::JsonDataPtr;
+using nova::json_obj;
+using nova::JsonObjectBuilder;
 using nova::Log;
 using nova::guest::GuestException;
 using boost::optional;
 using std::string;
-using std::stringstream;
 using namespace boost;
 
 namespace nova { namespace guest { namespace diagnostics {
 
 namespace {
-    string diagnostics_to_stream(DiagInfoPtr diagnostics) {
-        stringstream out;
-        out << "{";
-        out << json_string("version") << ": ";
-        out << json_string(diagnostics->version);
-        out << ",";
-        out << json_string("fd_size") << ": " << diagnostics->fd_size;
-        out << ",";
-        out << json_string("vm_size") << ": " << diagnostics->vm_size;
-        out << ",";
-        out << json_string("vm_peak") << ": " << diagnostics->vm_peak;
-        out << ",";
-        out << json_string("vm_rss") << ": " << diagnostics->vm_rss;
-        out << ",";
-        out << json_string("vm_hwm") << ": " << diagnostics->vm_hwm;
-        out << ",";
-        out << json_string("threads") << ": " << diagnostics->threads;
-        out << "}";
-        return out.str();
+    JsonObjectBuilder diagnostics_to_json_object(DiagInfoPtr diagnostics) {
+        return json_obj(
+            "version", diagnostics->version,
+            "fd_size", diagnostics->fd_size,
+            "vm_size", diagnostics->vm_size,
+            "vm_peak", diagnostics->vm_peak,
+            "vm_rss", diagnostics->vm_rss,
+            "vm_hwm", diagnostics->vm_hwm,
+            "threads", diagnostics->threads
+        );
     }
 
-    string fs_stats_to_stream(const FileSystemStatsPtr fs_stats) {
-        stringstream out;
-        out << "{";
-        out << json_string("used") << ": " << fs_stats->used;
-        out << ",";
-        out << json_string("free") << ": " << fs_stats->free;
-        out << ",";
-        out << json_string("total") << ": " << fs_stats->total;
-        out << "}";
-        return out.str();
+    JsonObjectBuilder fs_stats_to_json_object(const FileSystemStatsPtr fs_stats) {
+        return json_obj(
+            "used", fs_stats->used,
+            "free", fs_stats->free,
+            "total", fs_stats->total
+        );
     }
 
-    string hwinfo_to_stream(const HwInfoPtr hwinfo) {
-        stringstream out;
-        out << "{";
-        out << json_string("mem_total") << ": " << hwinfo->mem_total;
-        out << ",";
-        out << json_string("num_cpus") << ": " << hwinfo->num_cpus;
-        out << "}";
-        return out.str();
+    JsonObjectBuilder hwinfo_to_json_object(const HwInfoPtr hwinfo) {
+        return json_obj(
+            "mem_total", hwinfo->mem_total,
+            "num_cpus", hwinfo->num_cpus
+        );
     }
 } // end of anonymous namespace
 
@@ -75,10 +60,8 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
         DiagInfoPtr diagnostics = interrogator.get_diagnostics();
         NOVA_LOG_DEBUG("returned from the get_diagnostics");
         if (diagnostics.get() != 0) {
-            //convert from map to string
-            string output = diagnostics_to_stream(diagnostics);
-            NOVA_LOG_DEBUG("output = %s", output.c_str());
-            JsonDataPtr rtn(new JsonObject(output.c_str()));
+            JsonDataPtr rtn(new JsonObject(
+                diagnostics_to_json_object(diagnostics)));
             return rtn;
         } else {
             return JsonData::from_null();
@@ -87,17 +70,14 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
         NOVA_LOG_DEBUG("handling the get_filesystem_stats method");
         string fs_path = input.args->get_string("fs_path");
         FileSystemStatsPtr fs_stats = interrogator.get_filesystem_stats(fs_path);
-        string json = fs_stats_to_stream(fs_stats);
-        JsonDataPtr rtn(new JsonObject(json.c_str()));
+        JsonDataPtr rtn(new JsonObject(fs_stats_to_json_object(fs_stats)));
         return rtn;
     } else if (input.method_name == "get_hwinfo") {
         NOVA_LOG_DEBUG("handling the get_hwinfo method");
         HwInfoPtr hwinfo = interrogator.get_hwinfo();
         NOVA_LOG_DEBUG("returned from get_hwinfo");
         if (hwinfo.get() != 0) {
-            string output = hwinfo_to_stream(hwinfo);
-            NOVA_LOG_DEBUG("output = %s", output.c_str());
-            JsonDataPtr rtn(new JsonObject(output.c_str()));
+            JsonDataPtr rtn(new JsonObject(hwinfo_to_json_object(hwinfo)));
             return rtn;
         } else {
             return JsonData::from_null();

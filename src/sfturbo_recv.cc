@@ -2,13 +2,13 @@
 #include "nova/guest/agent.h"
 #include "nova/guest/guest.h"
 #include "nova/flags.h"
+#include "nova/rpc/sender.h"
 #include <boost/tuple/tuple.hpp>
 
 
 using nova::guest::agent::execute_main;
 using namespace nova::flags;
 using namespace nova::guest;
-using namespace nova::db::mysql;
 using namespace nova::rpc;
 using nova::utils::ThreadBasedJobRunner;
 using std::vector;
@@ -23,7 +23,7 @@ namespace {
 class IgnoreEverything: public MessageHandler
 {
     JsonDataPtr handle_message(const GuestInput & input)
-    { return JsonData::from_null(); }    
+    { return JsonData::from_null(); }
 };
 
 
@@ -39,12 +39,10 @@ struct Func {
 
     boost::tuple<vector<MessageHandlerPtr>, EmptyAppUpdatePtr>
         operator() (const FlagValues & flags,
-                    MySqlConnectionWithDefaultDbPtr & nova_db,
+                    ResilientSenderPtr sender,
                     ThreadBasedJobRunner & job_runner)
 
     {
-        std::string topic = str(boost::format("guestagent.%s") % flags.guest_id());
-
         vector<MessageHandlerPtr> handlers;
         MessageHandlerPtr chill(new IgnoreEverything());
         handlers.push_back(chill);

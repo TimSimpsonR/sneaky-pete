@@ -36,8 +36,8 @@ int main(int argc, char **argv)
 
   ResilientSender rs("10.0.0.1", 5672,
                      userid, password,
-                     4096, "trove-conductor","", 10);
-  rs.send(message);
+                     4096, "trove-conductor","", "my-instance-id", 10);
+  rs.send_plain_string(message);
 
   return 0;
 }

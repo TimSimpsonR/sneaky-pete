@@ -108,22 +108,27 @@ void ResilientSender::finish_send(const char * method,
         "method", method,
         "args", args
     ));
-    NOVA_LOG_INFO("Sending message ]%s[", msg.c_str());
+    send_plain_string(msg.c_str());
+}
+
+
+
+void ResilientSender::start_send(const char * method, JsonObjectBuilder & args) {
+    args.add("instance_id", instance_id);
+    args.add_unescaped("sent", str(format("%8.8f") % now()));
+}
+
+void ResilientSender::send_plain_string(const char * msg) {
+    NOVA_LOG_INFO("Sending message ]%s[", msg);
     boost::lock_guard<boost::mutex> lock(conductor_mutex);
     while(true)
     {
         try {
-            sender->send(msg.c_str());
+            sender->send(msg);
             return;
         } catch(const AmqpException & amqpe) {
             NOVA_LOG_ERROR("Error with AMQP connection! : %s", amqpe.what());
             reset();
         }
     }
-}
-
-
-void ResilientSender::start_send(const char * method, JsonObjectBuilder & args) {
-    args.add("instance_id", instance_id);
-    args.add_unescaped("sent", str(format("%8.8f") % now()));
 }

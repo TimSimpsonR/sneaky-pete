@@ -113,10 +113,11 @@ struct Func {
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
 
+        const auto mysql_version = apt_worker->version("mysql-server-5.1");
+
         /* Create MySQL updater. */
         MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
-            sender,
-            flags.guest_id()));
+            sender, !!mysql_version));
 
         /* Create MySQL Guest. */
         MessageHandlerPtr handler_mysql(new MySqlMessageHandler());

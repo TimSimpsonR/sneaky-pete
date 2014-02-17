@@ -16,7 +16,6 @@
 #include "nova/guest/mysql/MySqlGuestException.h"
 #include "nova/guest/monitoring/monitoring.h"
 #include <boost/optional.hpp>
-#include <sstream>
 #include <boost/tuple/tuple.hpp>
 #include <boost/variant.hpp>
 #include "nova/VolumeManager.h"
@@ -27,6 +26,7 @@ using nova::guest::apt::AptGuest;
 using nova::guest::backup::BackupRestoreInfo;
 using boost::format;
 using nova::guest::GuestException;
+using boost::lexical_cast;
 using nova::Log;
 using nova::JsonData;
 using nova::JsonDataPtr;
@@ -161,57 +161,55 @@ namespace {
         return user;
     }
 
-    void user_to_stream(stringstream & out, MySqlUserPtr user) {
-        out << "{\"_name\":" << json_string(user->get_name().c_str())
-            << ", \"_host\":" << json_string(user->get_host().c_str())
-            << ", \"_password\":";
-        if (user->get_password()) {
-            out << json_string(user->get_password().get().c_str());
-        } else {
-            out << "null";
-        }
-        out << ", \"_databases\":";
-        if (user->get_databases()) {
-            std::stringstream database_xml;
-            database_xml << "[";
-            bool once = false;
-            BOOST_FOREACH(MySqlDatabasePtr & database, *user->get_databases()) {
-                if (once) {
-                    database_xml << ", ";
-                }
-                once = true;
-                database_xml << "{ \"_name\":"
-                             << json_string(database->get_name())
-                             << " }";
+    optional<JsonArrayBuilder> simple_database_list_to_json_array(
+        MySqlDatabaseListPtr dbs)
+    {
+        if (dbs) {
+            JsonArrayBuilder array;
+            BOOST_FOREACH(MySqlDatabasePtr & database, *dbs) {
+                array.add(json_obj(
+                    "_name", database->get_name()
+                ));
             }
-            database_xml << "]";
-            out << database_xml.str().c_str();
+            return array;
         } else {
-            out << "null";
+            return boost::none;
         }
-        out << " }";
     }
 
-    void dbs_to_stream(stringstream & out, MySqlDatabaseListPtr dbs) {
-            std::stringstream db_stream;
-            db_stream << "[";
-            bool once = false;
-            BOOST_FOREACH(MySqlDatabasePtr & database, *dbs) {
-                NOVA_LOG_INFO("dbs_to_stream: %s", database->get_name().c_str());
-                if (once) {
-                    db_stream << ", ";
-                }
-                once = true;
-                db_stream << "{ \"_name\":"
-                          << json_string(database->get_name())
-                          << ", \"_collate\": \"\""
-                          << ", \"_character_set\": \"\""
-                          << " }";
-            }
-            db_stream << "]";
-            NOVA_LOG_INFO("returning: %s", db_stream.str().c_str());
-            out << db_stream.str().c_str();
+    JsonArrayBuilder database_list_to_json_array(MySqlDatabaseListPtr dbs) {
+        JsonArrayBuilder array;
+        BOOST_FOREACH(MySqlDatabasePtr & database, *dbs) {
+            array.add(json_obj(
+                "_name", database->get_name(),
+                "_collate", database->get_collation(),
+                "_character_set", database->get_character_set()
+            ));
+        }
+        return array;
     }
+
+    JsonObjectBuilder user_to_json_obj(MySqlUserPtr user) {
+        return json_obj(
+            "_name", user->get_name().c_str(),
+            "_host", user->get_host().c_str(),
+            "_password", user->get_password(),
+            "_databases", simple_database_list_to_json_array(user->get_databases())
+        );
+    }
+
+    optional<JsonArrayBuilder> user_list_to_json_array(MySqlUserListPtr users) {
+        if (users) {
+            JsonArrayBuilder array;
+            BOOST_FOREACH(MySqlUserPtr & user, *users) {
+                array.add(user_to_json_obj(user));
+            }
+            return array;
+        } else {
+            return boost::none;
+        }
+    }
+
 
     JsonDataPtr _create_database(MySqlAdminPtr sql, JsonObjectPtr args) {
         NOVA_LOG_INFO("guest create_database"); //", guest->create_database().c_str());
@@ -263,28 +261,10 @@ namespace {
         optional<string> next_marker;
         boost::tie(users, next_marker) = sql->list_users(limit, marker,
                                                          include_marker);
-
-        std::stringstream json;
-        json << "[";
-            // Element 0 = users array.
-            json << "[";
-                bool once = false;
-                BOOST_FOREACH(MySqlUserPtr & user, *users) {
-                    if (once) {
-                        json << ", ";
-                    }
-                    user_to_stream(json, user);
-                    once = true;
-                }
-            json << "], ";
-            // Element 1 = next_marker
-            if (next_marker) {
-                json << json_string(next_marker.get());
-            } else {
-                json << "null";
-            }
-        json << "]";
-        JsonDataPtr rtn(new JsonArray(json.str().c_str()));
+        JsonDataPtr rtn(new JsonArray(json_array(
+            user_list_to_json_array(users),  // element 0 - the user list
+            next_marker                      // element 1 - next marker
+        )));
         return rtn;
     }
 
@@ -307,33 +287,10 @@ namespace {
         boost::tie(databases, next_marker) = sql->list_databases(limit,
             marker, include_marker);
 
-        std::stringstream json;
-        json << "[";
-            // Element 0 = database list.
-            json << "[";
-                bool once = false;
-                BOOST_FOREACH(MySqlDatabasePtr & database, *databases) {
-                    if (once) {
-                        json << ", ";
-                    }
-                    once = true;
-                    json << "{ \"_name\":"
-                         << json_string(database->get_name())
-                         << ", \"_collate\":"
-                         << json_string(database->get_collation())
-                         << ", \"_character_set\":"
-                         << json_string(database->get_character_set())
-                         << " }";
-                }
-            json << "], ";
-            // Element 1 = next marker
-            if (next_marker) {
-                json << json_string(next_marker.get());
-            } else {
-                json << "null";
-            }
-        json << "]";
-        JsonDataPtr rtn(new JsonArray(json.str().c_str()));
+        JsonDataPtr rtn(new JsonArray(json_array(
+            database_list_to_json_array(databases),
+            next_marker
+        )));
         return rtn;
     }
 
@@ -347,9 +304,7 @@ namespace {
     JSON_METHOD(enable_root) {
         MySqlAdminPtr sql = guest->sql_admin();
         MySqlUserPtr user = sql->enable_root();
-        stringstream out;
-        user_to_stream(out, user);
-        JsonDataPtr rtn(new JsonObject(out.str().c_str()));
+        JsonDataPtr rtn(new JsonObject(user_to_json_obj(user)));
         return rtn;
     }
 
@@ -394,9 +349,7 @@ namespace {
                            " (possibly the user name or host was malformed).");
             throw;
         }
-        std::stringstream json;
-        user_to_stream(json, user);
-        JsonDataPtr rtn(new JsonObject(json.str().c_str()));
+        JsonDataPtr rtn(new JsonObject(user_to_json_obj(user)));
         return rtn;
     }
 
@@ -407,10 +360,8 @@ namespace {
         MySqlUserPtr user = sql->find_user(username, hostname);
 
         MySqlDatabaseListPtr dbs = user->get_databases();
-        std::stringstream json;
-        dbs_to_stream(json, dbs);
-        NOVA_LOG_INFO("list access: %s", json.str().c_str());
-        JsonDataPtr rtn(new JsonArray(json.str().c_str()));
+
+        JsonDataPtr rtn(new JsonArray(database_list_to_json_array(dbs)));
         return rtn;
 
     }

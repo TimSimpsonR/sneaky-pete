@@ -12,7 +12,6 @@ using nova::Log;
 using nova::guest::GuestException;
 using boost::optional;
 using std::string;
-using std::stringstream;
 
 namespace nova { namespace guest { namespace apt {
 

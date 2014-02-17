@@ -9,7 +9,6 @@
 using nova::guest::agent::execute_main;
 using namespace nova::flags;
 using namespace nova::guest;
-using namespace nova::db::mysql;
 using namespace nova::rpc;
 using nova::utils::ThreadBasedJobRunner;
 using std::vector;
@@ -33,7 +32,7 @@ class ListenForQuit: public MessageHandler
             quit = true;
         }
         return JsonData::from_null();
-    }    
+    }
 };
 
 
@@ -46,12 +45,10 @@ typedef boost::shared_ptr<EmptyAppUpdate> EmptyAppUpdatePtr;
 
 
 void SendMessages(ResilientSenderPtr sender) {
-    std::string HELLO = "{\"oslo.message\": \"{"
-                            "\\\"method\\\": \\\"hello\\\", "
-                            "\\\"args\\\": {}}\"}";
-
+    int index = 0;
     while(!quit) {
-        sender->send(HELLO.c_str());
+        sender->send("hello",
+                     "msg_number", index ++);
     }
     NOVA_LOG_INFO("I am quitting.")
 }
@@ -64,20 +61,10 @@ struct Func {
 
     boost::tuple<vector<MessageHandlerPtr>, EmptyAppUpdatePtr>
         operator() (const FlagValues & flags,
-                    MySqlConnectionWithDefaultDbPtr & nova_db,
+                    ResilientSenderPtr & sender,
                     ThreadBasedJobRunner & job_runner)
-
     {
         quit = false;
-        std::string topic = str(boost::format("guestagent.%s") % flags.guest_id());
-
-        ResilientSenderPtr sender(
-            new ResilientSender(
-                flags.rabbit_host(), flags.rabbit_port(),
-                flags.rabbit_userid(), flags.rabbit_password(),
-                flags.rabbit_client_memory(),
-                topic.c_str(), flags.control_exchange(),
-                flags.rabbit_reconnect_wait_time()));
 
         const int worker_count = 10;
         for (int i = 0; i < worker_count; i++) {

@@ -10,7 +10,6 @@
 using nova::guest::agent::execute_main;
 using namespace nova::flags;
 using namespace nova::guest;
-using namespace nova::db::mysql;
 using namespace nova::rpc;
 using nova::utils::ThreadBasedJobRunner;
 using std::vector;
@@ -25,14 +24,11 @@ using nova::LogFileOptions;
 namespace {
 
 void SendMessages(ResilientSenderPtr sender) {
-    std::string HELLO = "{\"oslo.message\": \"{"
-                            "\\\"method\\\": \\\"TURBO\\\", "
-                            "\\\"args\\\": {}}\"}";
-
+    int index = 0;
     while(true) {
         try {
-        NOVA_LOG_INFO("Sending a HELLO.");
-        sender->send(HELLO.c_str());
+            NOVA_LOG_INFO("Sending a HELLO.");
+            sender->send("TURBO", "index", index);
         } catch (std::exception ex) {
             NOVA_LOG_ERROR("Exception! %s", ex.what());
             throw ex;
@@ -70,7 +66,7 @@ int main(int argc, char* argv[]) {
 
     typedef boost::shared_ptr <boost::thread> thread_ptr;
     vector<thread_ptr> threads;
-    
+
     std::string topic = str(boost::format("guestagent.%s") % flags.guest_id());
 
     ResilientSenderPtr sender(
@@ -79,6 +75,7 @@ int main(int argc, char* argv[]) {
             flags.rabbit_userid(), flags.rabbit_password(),
             flags.rabbit_client_memory(),
             topic.c_str(), flags.control_exchange(),
+            flags.guest_id(),
             flags.rabbit_reconnect_wait_time()));
 
     const int worker_count = 10;

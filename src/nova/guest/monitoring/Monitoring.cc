@@ -21,7 +21,6 @@ namespace process = nova::process;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
 using std::string;
-using std::stringstream;
 using namespace boost;
 using namespace std;
 

@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(creating_an_array_via_string)
 
 BOOST_AUTO_TEST_CASE(creating_an_array_via_builder)
 {
-    JsonArray numbers(42, "two", 3048);
+    JsonArray numbers(json_array(42, "two", 3048));
     test_json_array(numbers);
 }
 
@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(get_values)
 
 BOOST_AUTO_TEST_CASE(get_values_via_builder)
 {
-    JsonObject object("string", "abcde", "int", 42);
+    JsonObject object(json_obj("string", "abcde", "int", 42));
     test_object(object);
 }
 

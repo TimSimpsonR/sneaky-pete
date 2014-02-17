@@ -45,6 +45,12 @@ namespace nova { namespace rpc {
 
             ~ResilientSender();
 
+            /**
+             *  Sends a message. Accepts JSON object element key value pairs
+             *  as arguments, similar to nova::json_obj.
+             *  These are added to an object sender crafts itself which
+             *  includes the time sent and instance ID.
+             */
             template<typename... Types>
             void send(const char * method, const Types... args) {
                 nova::JsonObjectBuilder args_object;
@@ -52,6 +58,12 @@ namespace nova { namespace rpc {
                 args_object.add(args...);
                 finish_send(method, args_object);
             }
+
+            /**
+             * Sends a message. This is mainly used for tests and the like.
+             * Prefer the plain "send" message for most tasks.
+             */
+            void send_plain_string(const char * publish_string);
 
         private:
             ResilientSender(const ResilientSender &);

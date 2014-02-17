@@ -12,6 +12,8 @@
 using nova::json_string;
 using nova::JsonData;
 using nova::JsonDataPtr;
+using nova::json_obj;
+using nova::JsonObjectBuilder;
 using nova::Log;
 using nova::JsonData;
 using nova::JsonDataPtr;
@@ -21,24 +23,18 @@ using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptGuestPtr;
 using boost::optional;
 using std::string;
-using std::stringstream;
 using namespace boost;
 
 namespace nova { namespace guest { namespace monitoring {
 
 namespace {
 
-    string monitoring_status_to_string(const std::string & version,
-                                       MonitoringStatus::Status status) {
-        const auto status_string = MonitoringStatus::status_name(status);
-        stringstream out;
-        out << "{ "
-            << json_string("version")
-                << ": " << json_string(version) << ", "
-            << json_string("status")
-                << ": " << json_string(status_string)
-            << "}";
-        return out.str();
+    JsonObjectBuilder monitoring_status_to_json(const std::string & version,
+                                                MonitoringStatus::Status status) {
+        return json_obj(
+            "version", version,
+            "status", MonitoringStatus::status_name(status)
+        );
     }
 
 } // end of anonymous namespace
@@ -84,10 +80,10 @@ JsonDataPtr MonitoringMessageHandler::handle_message(const GuestInput & input) {
         auto result = mon_status.get_monitoring_status(*apt);
         NOVA_LOG_DEBUG("formating data from get_monitoring_status");
         if (result) {
-            string output = monitoring_status_to_string(result->get<0>(),
-                                                        result->get<1>());
-            NOVA_LOG_DEBUG("output = %s", output.c_str());
-            JsonDataPtr rtn(new JsonObject(output.c_str()));
+            JsonDataPtr rtn(new JsonObject(
+                monitoring_status_to_json(result->get<0>(),
+                                          result->get<1>())
+            ));
             return rtn;
         } else {
             return JsonData::from_null();

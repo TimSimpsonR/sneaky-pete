@@ -325,6 +325,12 @@ unit u_nova_process
     :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
     ;
 
+unit u_nova_datastores_DatastoreStatus
+    :   src/nova/datastores/DatastoreStatus.cc
+    :   u_nova_rpc_Sender
+    :   tests/nova/datastores/DatastoreStatus_tests.cc
+    ;
+
 unit u_nova_guest_apt_AptException
     :   src/nova/guest/apt/AptException.cc
     ;
@@ -359,6 +365,7 @@ unit u_nova_rpc_Sender
     :   u_nova_rpc_amqp
         u_nova_json
         u_nova_Log
+        u_nova_utils_subsecond
     ;
 
 unit u_nova_rpc_Receiver
@@ -410,11 +417,12 @@ unit u_nova_guest_mysql_MySqlAdmin
 unit u_nova_guest_mysql_MySqlAppStatus
     :   src/nova/guest/mysql/MySqlAppStatus.cc
     :   lib_boost_thread
-        u_nova_db_mysql
+        u_nova_datastores_DatastoreStatus
         u_nova_utils_io
-        u_nova_utils_subsecond
         u_nova_process
         u_nova_guest_utils
+        u_nova_utils_regex
+    :   tests/nova/guest/mysql/MySqlAppStatus_tests.cc
     ;
 
 unit u_nova_guest_mysql_MySqlApp
@@ -471,7 +479,6 @@ unit u_nova_guest_backup_BackupManager
     :   u_nova_Log
         u_nova_guest_backup_BackupException
         u_nova_utils_io
-        u_nova_utils_subsecond
         u_nova_utils_regex
         u_nova_utils_zlib
     ;
@@ -655,22 +662,6 @@ unit-test int_tests_mysql
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
     ;
 explicit int_tests_mysql ;
-
-
-unit-test MySqlAppStatus_tests
-    :   pch
-        lib_boost_thread
-        u_nova_flags
-        u_nova_guest_mysql_MySqlGuestException
-        u_nova_guest_mysql_MySqlAppStatus
-        test_dependencies
-        tests/nova/guest/mysql/MySqlAppStatus_tests.cc
-        lib_boost_thread
-    :   <define>BOOST_TEST_DYN_LINK
-        <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no valgrind --leak-check=full"
-    ;
-
-explicit MySqlAppStatus_tests ;
 
 
 

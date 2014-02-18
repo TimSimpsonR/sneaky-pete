@@ -2,3 +2,4 @@ bin/*
 *.pyc
 debian/*
 parrot/*
+deploy/*

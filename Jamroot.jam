@@ -773,7 +773,7 @@ exe empty-guest
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
-exe nova-guest
+exe sneaky-pete-mysql
 	:	static_dependencies
         mysql_agent_lib
         obj_mysql_agent
@@ -923,4 +923,19 @@ exe sfturbo_recv
         src/sfturbo_recv.cc
     :
         <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+
+exe sneaky-pete
+    :   pch
+        src/sneaky-pete.cc
+        u_nova_Log
+        u_nova_flags
+    :
+        <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+install deploy
+    :   sneaky-pete
+        sneaky-pete-mysql
     ;

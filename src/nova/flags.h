@@ -120,6 +120,8 @@ class FlagValues {
 
         const char * control_exchange() const;
 
+        const char * datastore_manager() const;
+
         const char * db_backend() const;
 
         const char * guest_id() const;

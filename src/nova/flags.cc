@@ -336,6 +336,10 @@ const char * FlagValues::control_exchange() const {
     return map->get("control_exchange", "trove");
 }
 
+const char * FlagValues::datastore_manager() const {
+    return map->get("datastore_manager");
+}
+
 const char * FlagValues::db_backend() const {
     return map->get("db_backend", "sqlalchemy");
 }

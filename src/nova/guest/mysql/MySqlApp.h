@@ -21,7 +21,8 @@ class MySqlApp {
                  nova::guest::backup::BackupRestoreManagerPtr
                     backup_restore_manager,
                  int state_change_wait_time,
-                 bool skip_install_for_prepare);
+                 bool skip_install_for_prepare,
+                 const char * mysql_package);
 
         virtual ~MySqlApp();
 
@@ -90,6 +91,8 @@ class MySqlApp {
 
         /* Runs mysqld_safe with the init-file option to set up the database. */
         void run_mysqld_with_init();
+
+        const char * mysql_package;
 
         const bool skip_install_for_prepare;
 

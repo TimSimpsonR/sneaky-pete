@@ -204,6 +204,8 @@ class FlagValues {
 
         const char * conductor_queue() const;
 
+        const char * mysql_package() const;
+
 
     private:
 

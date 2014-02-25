@@ -124,8 +124,10 @@ namespace {
 MySqlApp::MySqlApp(MySqlAppStatusPtr status,
                    BackupRestoreManagerPtr backup_restore_manager,
                    int state_change_wait_time,
-                   bool skip_install_for_prepare)
+                   bool skip_install_for_prepare,
+                   const char * mysql_package)
 :   backup_restore_manager(backup_restore_manager),
+    mysql_package(mysql_package),
     skip_install_for_prepare(skip_install_for_prepare),
     state_change_wait_time(state_change_wait_time),
     status(status)
@@ -317,7 +319,7 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
 
 void MySqlApp::install_mysql(AptGuest & apt) {
     NOVA_LOG_INFO("Installing mysql server.");
-    apt.install("mysql-server-5.1", TIME_OUT);
+    apt.install(this->mysql_package, TIME_OUT);
 }
 
 void MySqlApp::internal_stop_mysql(bool update_db) {

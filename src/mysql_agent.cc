@@ -146,7 +146,8 @@ struct Func {
         MySqlAppPtr mysqlApp(new MySqlApp(mysql_status_updater,
                                           backup_restore_manager,
                                           flags.mysql_state_change_wait_time(),
-                                          flags.skip_install_for_prepare()));
+                                          flags.skip_install_for_prepare(),
+                                          flags.mysql_package()));
 
         /** Sneaky Pete formats and mounts volumes based on the bool flag
           *'volume_format_and_mount'.

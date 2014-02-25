@@ -497,4 +497,8 @@ const char * FlagValues::conductor_queue() const {
     return map->get("conductor_queue", "trove-conductor");
 }
 
+const char * FlagValues::mysql_package() const {
+    return map->get("mysql_package", "mysql-server-5.1");
+}
+
 } } // end nova::flags

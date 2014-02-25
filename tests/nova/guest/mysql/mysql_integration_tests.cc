@@ -151,7 +151,7 @@ bool user_list_contains(MySqlUserListPtr users, const char * user_name) {
 
 void set_up_tests() {
     { // Wipe
-        apt::remove("mysql-server-5.1", TIME_OUT);
+        apt::remove(get_flags().mysql_package(), TIME_OUT);
         //apt::remove("mysql-server", TIME_OUT);
         // BOOST_REQUIRE( ! is_mysql_running());
         // Make sure the directories are gone too so the old usernames

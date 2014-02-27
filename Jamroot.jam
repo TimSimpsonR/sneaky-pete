@@ -58,7 +58,7 @@ cpp-pch pch
 #
 # Debian wheezy has a newer version of gcc (4.7) with '-static-libstdc++'
 
-local WHEEZY = [ SHELL "find /etc -maxdepth 1 -name *-release 2>&1 | grep wheezy" ] ;
+local WHEEZY = [ SHELL "cat /etc/*-release 2>&1 | grep wheezy" ] ;
 local EXE_LINK_FLAGS = "" ;
 if $(WHEEZY) != "" {
     EXE_LINK_FLAGS = " -static-libstdc++ -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.7/. -pthread -ldl" ;
@@ -99,7 +99,7 @@ lib lib_pthread : : <name>pthread ; # Seems to only be needed in static builds
 lib lib_m : : <name>m ;
 lib lib_stdc++ : : <name>stdc++ ;
 
-local WHEEZY = [ SHELL "find /etc -maxdepth 1 -name *-release 2>&1 | grep wheezy" ] ;
+local WHEEZY = [ SHELL "cat /etc/*-release 2>&1 | grep wheezy" ] ;
 if $(WHEEZY) != "" {
     lib lib_z : : <name>z ;
 } else {
@@ -110,7 +110,12 @@ if $(WHEEZY) != "" {
 #lib lib_z : : <file>/lib/x86_64-linux-gnu/libz.so.1 ;
 lib lib_c : : <name>c ;
 
-lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
+local WHEEZY = [ SHELL "cat /etc/*-release 2>&1 | grep wheezy" ] ;
+if $(WHEEZY) != "" {
+    lib lib_mysqlclient_r : : <file>/usr/lib/x86_64-linux-gnu/libmysqlclient_r.so.18.0.0 ;
+} else {
+    lib lib_mysqlclient_r : : <file>/usr/lib/libmysqlclient.so.16.0.0 ;
+}
 
 # Note: In Ubuntu, use this:
 # lib lib_mysqlclient_r :

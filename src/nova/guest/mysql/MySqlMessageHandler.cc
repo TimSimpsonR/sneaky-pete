@@ -494,14 +494,14 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         // Mount volume
         if (volumeManager) {
             const auto device_path = input.args->get_optional_string("device_path");
-            const auto mount_point = input.args->get_optional_string("mount_point");
+            const auto mount_point = volumeManager->get_mount_point();
             if (device_path && device_path.get().length() > 0) {
                 NOVA_LOG_INFO("Mounting volume for prepare call...");
                 bool write_to_fstab = true;
                 VolumeManagerPtr volume_manager = this->create_volume_manager();
                 VolumeDevice vol_device = volume_manager->create_volume_device(device_path.get());
                 vol_device.format();
-                vol_device.mount(mount_point.get(), write_to_fstab);
+                vol_device.mount(mount_point, write_to_fstab);
                 NOVA_LOG_INFO("Mounted the volume.");
             }
         }
@@ -582,11 +582,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         if (volumeManager) {
             bool write_to_fstab = false;
             const auto device_path = input.args->get_optional_string("device_path");
-            const auto mount_point = input.args->get_optional_string("mount_point");
+            const auto mount_point = volumeManager->get_mount_point();
             VolumeManagerPtr volume_manager = this->create_volume_manager();
             VolumeDevice vol_device = volume_manager->create_volume_device(device_path.get());
 
-            vol_device.mount(mount_point.get(), write_to_fstab);
+            vol_device.mount(mount_point, write_to_fstab);
         }
 
         return JsonData::from_null();
@@ -594,11 +594,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Calling unmount_volume...");
         if (volumeManager) {
             const auto device_path = input.args->get_optional_string("device_path");
-            const auto mount_point = input.args->get_optional_string("mount_point");
+            const auto mount_point = volumeManager->get_mount_point();
             VolumeManagerPtr volume_manager = this->create_volume_manager();
             VolumeDevice vol_device = volume_manager->create_volume_device(device_path.get());
 
-            vol_device.unmount(mount_point.get());
+            vol_device.unmount(mount_point);
         }
 
         return JsonData::from_null();
@@ -606,11 +606,11 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Calling resize_fs...");
         if (volumeManager) {
             const auto device_path = input.args->get_optional_string("device_path");
-            const auto mount_point = input.args->get_optional_string("mount_point");
+            const auto mount_point = volumeManager->get_mount_point();
             VolumeManagerPtr volume_manager = this->create_volume_manager();
             VolumeDevice vol_device = volume_manager->create_volume_device(device_path.get());
 
-            vol_device.resize_fs(mount_point.get());
+            vol_device.resize_fs(mount_point);
         }
 
         return JsonData::from_null();

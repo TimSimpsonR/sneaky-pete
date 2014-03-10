@@ -68,8 +68,8 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
         }
     } else if (input.method_name == "get_filesystem_stats") {
         NOVA_LOG_DEBUG("handling the get_filesystem_stats method");
-        string fs_path = input.args->get_string("fs_path");
-        FileSystemStatsPtr fs_stats = interrogator.get_filesystem_stats(fs_path);
+        //TODO: Make this configurable.
+        FileSystemStatsPtr fs_stats = interrogator.get_filesystem_stats("/var/lib/mysql");
         JsonDataPtr rtn(new JsonObject(fs_stats_to_json_object(fs_stats)));
         return rtn;
     } else if (input.method_name == "get_hwinfo") {

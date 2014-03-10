@@ -171,7 +171,7 @@ alias test_dependencies
 # will also be built as "link=shared" to meet this requirement.
 #
 # Tests can be avoided by specifying a specific target when running bjam (i.e.
-# nova-guest) or setting the environment variable SKIP_SNEAKY_TESTS.
+# sneaky-pete) or setting the environment variable SKIP_SNEAKY_TESTS.
 #
 # Note: This rule used to enforce that the unit tests were run for each
 # object, but to do this it had to build the obj twice. This made things too
@@ -926,7 +926,8 @@ exe sfturbo_recv
     ;
 
 
-exe sneaky-pete
+#TODO: Rename this to "sneaky-pete"
+exe nova-guest
     :   pch
         src/sneaky-pete.cc
         u_nova_Log
@@ -936,6 +937,17 @@ exe sneaky-pete
     ;
 
 install deploy
-    :   sneaky-pete
+    :   nova-guest
         sneaky-pete-mysql
+    ;
+
+install tools
+    :   download_file
+        format_file
+        greedy_pete
+        mount_file
+        resizefs_file
+        unmount_file
+        upload_file
+        send_forever_turbo
     ;

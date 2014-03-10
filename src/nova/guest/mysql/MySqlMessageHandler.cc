@@ -398,6 +398,19 @@ namespace {
         const MySqlMessageHandler::MethodPtr ptr;
     };
 
+
+    // Grabs the packages argument from a JSON object.
+    vector<string> get_packages_argument(JsonObjectPtr obj) {
+        try {
+            const auto packages = obj->get_array("packages")->to_string_vector();
+            return packages;
+        } catch(const JsonException) {
+            NOVA_LOG_DEBUG("Interpretting \"packages\" as a single string.");
+            vector<string> packages;
+            packages.push_back(obj->get_string("packages"));
+            return packages;
+        }
+    }
 }
 
 MySqlMessageHandler::MySqlMessageHandler()
@@ -475,6 +488,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
         NOVA_LOG_INFO("Calling prepare...");
         MySqlAppPtr app = this->create_mysql_app();
+        const auto packages = get_packages_argument(input.args);
         const auto config_contents = input.args->get_string("config_contents");
         const auto overrides = input.args->get_optional_string("overrides");
         // Mount volume
@@ -505,7 +519,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             restore = optional<BackupRestoreInfo>(
                 BackupRestoreInfo(token.get(), backup_url.get(), backup_checksum.get()));
         }
-        app->prepare(*this->apt, config_contents, overrides, restore);
+        app->prepare(*this->apt, packages, config_contents, overrides, restore);
 
         // The argument signature is the same as create_database so just
         // forward the method.

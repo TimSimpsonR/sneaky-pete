@@ -14,7 +14,7 @@ DEB_PYTHON_SYSTEM=pysupport
 %:
 	dh $@
 
-# If you want to run an automated build (for something like Jenkins), 
+# If you want to run an automated build (for something like Jenkins),
 # this is the thing for you.  Just run:
 #
 #   debian/rules automated-build
@@ -43,6 +43,6 @@ automated-build:
 	# Put the upstream debian/control back in place
 	mv -v debian/control.pristine debian/control
 
-override_dh_auto_build: 
-	bjam -d+2 release link=static nova-guest
+override_dh_auto_build:
+	bjam -d+2 release link=static deploy
 	#dh_auto_build

@@ -28,7 +28,7 @@ Boost Build, type "bjam" at the command line.
 
 To build the Sneaky Pete, cd into this directory and type the following:
 
-bjam -d+2 link=static release -q nova-guest
+bjam -d+2 link=static release -q sneaky-pete
 
 "-d+2" is optional and tells Boost Build to print out every command it executes.
 Boost Build will take awhile to start up, so if you keep getting compiler
@@ -45,7 +45,7 @@ can not be built statically (see the Jamroot.jam file for details) and ignore
 this request (the tests are an example).
 
 NOTE: Currently Curl is set up as a dependency which can only be used
-statically. Because of that, certain metatargets- such as the "nova-guest"
+statically. Because of that, certain metatargets- such as the "sneaky-pete"
 exe- won't build unless "link=static" is set.
 
 "release" causes bjam to build in the release configuration. By default it will
@@ -133,7 +133,7 @@ container appears as container 1 when you execute "sudo vzlist", then:
 3. Enter the container with "sudo vzctl enter 1".
 
 4. An instance of the agent will already be running. Stop it with "sudo service
-nova-guest stop".
+sneaky-pete stop".
 
 4. Login as the nova user (remember, Sneaky Pete needs to run as this user
 so there's not much point in debugging as root).
@@ -143,7 +143,7 @@ su nova
 5. The copy-to-guest.sh script will have place things inside the /agent
 directory. Execute the newer version of SP with the following command:
 
-/agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/etc/nova/guest.conf
+/agent/deploy/sneaky-pete --flagfile=/etc/nova/guest.conf
 
 
 A Note on Logging when Testing
@@ -167,7 +167,7 @@ what Sneaky Pete does.
 However, its also possible to make Sneaky Pete start up and instantly run an
 RPC method by setting the flag "--method", like so:
 
-/agent/bin/gcc-4.4.5/debug/link-static/nova-guest --flagfile=/etc/nova/guest.conf '--message={"method":"create_user", "args": {"users":[{"_name":"blah", "_password":"poo", "_databases":[]}]}}'
+/agent/deploy/sneaky-pete --flagfile=/etc/nova/guest.conf '--message={"method":"create_user", "args": {"users":[{"_name":"blah", "_password":"poo", "_databases":[]}]}}'
 
 This will run the method "create_user".
 
@@ -180,7 +180,7 @@ purpose to ensure erroneous calls to "prepare" aren't being made, but it makes
 it hard to debug. To get around it, set the flag "--skip_install_for_prepare",
 like so:
 
-/agent/bin/gcc-4.4.5/release/link-static/nova-guest --flagfile=/etc/nova/guest.conf '--message={"method":"prepare", "args":{"memory_mb":512, "databases":[{"_name":"blah"}], "users":[] }}' --skip_install_for_prepare=true
+/agent/deploy/sneaky-pete --flagfile=/etc/nova/guest.conf '--message={"method":"prepare", "args":{"memory_mb":512, "databases":[{"_name":"blah"}], "users":[] }}' --skip_install_for_prepare=true
 
 
 Using a Debugger
@@ -204,7 +204,7 @@ su nova
 
 4. Execute the debug version of SP with the following command:
 
-gdb /agent/bin/gcc-4.4.5/debug/link-static/nova-guest
+gdb /agent/deploy/sneaky-pete
 
 7. Inside the gdb session, run it with the flag files via
 

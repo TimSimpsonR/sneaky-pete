@@ -75,9 +75,6 @@ class FlagMap {
 
         std::list<std::string> get_as_list(const char * const name) const;
 
-        void get_sql_connection(std::string & host, std::string & user,
-                                std::string & password, std::string & database);
-
     private:
 
         typedef std::map<std::string, std::string> Map;
@@ -154,17 +151,9 @@ class FlagValues {
 
         const char * node_availability_zone() const;
 
-        const char * nova_sql_database() const;
-
-        const char * nova_sql_host() const;
-
-        const char * nova_sql_password() const;
-
-        unsigned long nova_sql_reconnect_wait_time() const;
-
-        const char * nova_sql_user() const;
-
         unsigned long periodic_interval() const;
+
+        std::list<std::string> possible_packages_for_mysql() const;
 
         size_t rabbit_client_memory() const;
 
@@ -202,20 +191,10 @@ class FlagValues {
 
         const char * conductor_queue() const;
 
-        const char * mysql_package() const;
-
 
     private:
 
         FlagMapPtr map;
-
-        std::string _nova_sql_database;
-
-        std::string _nova_sql_host;
-
-        std::string _nova_sql_password;
-
-        std::string _nova_sql_user;
 
 };
 

@@ -375,10 +375,16 @@ optional<string> AptGuest::version(const char * package_name,
     proc::Process<proc::StdErrAndStdOut> process(cmds);
 
     vector<string> patterns;
-    // 0 = Not found
+    // 0 = Not found in Squeeze: looks like:
+    //      No packages found matching cowsay
     patterns.push_back("No packages found matching (" PACKAGE_NAME_REGEX
                        ")\\.");
-    // 1 = success
+    // 1 = Not found in Wheezy: looks like:
+    //      dpkg-query: no packages found matching cowsay
+    patterns.push_back("no packages found matching ("
+                        PACKAGE_NAME_REGEX ")");
+    // 2 = success: looks like:
+    //      cowsay  0.0.1-placeholder
     patterns.push_back("(" PACKAGE_NAME_REGEX ")\\s+(\\S*).*");
     optional<ProcessResult> result;
     try  {
@@ -389,6 +395,7 @@ optional<string> AptGuest::version(const char * package_name,
     if (!!result) {
         // 0 and 1 should return the package name as the first regex match.
         string output_package_name = result.get().matches->get(1);
+        NOVA_LOG_DEBUG("Match=%d", result.get().index);
         NOVA_LOG_DEBUG("Got the output_package_name: %s", output_package_name.c_str());
         if (result.get().matches->get(1) != package_name) {
             NOVA_LOG_ERROR("dpkg called the package something different. "
@@ -396,10 +403,10 @@ optional<string> AptGuest::version(const char * package_name,
             throw AptException(AptException::GENERAL);
         }
         NOVA_LOG_DEBUG("Got the result index: %d", result.get().index);
-        if (result.get().index == 0) {
+        if (result.get().index == 0 || result.get().index == 1) {
             return boost::none;
         }
-        else if (result.get().index == 1) {
+        else if (result.get().index == 2) {
             string version = result.get().matches->get(2);
             NOVA_LOG_DEBUG("Got the version: %s", version.c_str());
             if (version == "<none>" || version.empty()) {

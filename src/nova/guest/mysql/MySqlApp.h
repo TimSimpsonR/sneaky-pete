@@ -6,6 +6,7 @@
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/guest/backup/BackupRestore.h"
 #include <boost/optional.hpp>
+#include <vector>
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -21,14 +22,14 @@ class MySqlApp {
                  nova::guest::backup::BackupRestoreManagerPtr
                     backup_restore_manager,
                  int state_change_wait_time,
-                 bool skip_install_for_prepare,
-                 const char * mysql_package);
+                 bool skip_install_for_prepare);
 
         virtual ~MySqlApp();
 
         /** Installs MySql, secures it, and possibly runs a backup. */
         void prepare(
             nova::guest::apt::AptGuest & apt,
+            const std::vector<std::string> packages,
             const std::string & config_contents,
             const boost::optional<std::string> & overrides,
             boost::optional<nova::guest::backup::BackupRestoreInfo> restore
@@ -74,7 +75,8 @@ class MySqlApp {
         /*
          * Just installs MySQL, but doesn't secure it.
          */
-        void install_mysql(nova::guest::apt::AptGuest & apt);
+        void install_mysql(nova::guest::apt::AptGuest & apt,
+                           const std::vector<std::string> & packages);
 
         /** Stop mysql. Only update the DB if update_db is true. */
         void internal_stop_mysql(bool update_db=false);
@@ -91,8 +93,6 @@ class MySqlApp {
 
         /* Runs mysqld_safe with the init-file option to set up the database. */
         void run_mysqld_with_init();
-
-        const char * mysql_package;
 
         const bool skip_install_for_prepare;
 

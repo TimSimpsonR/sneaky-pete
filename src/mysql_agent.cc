@@ -166,6 +166,7 @@ struct Func {
             flags.volume_file_system_type(),
             flags.volume_format_options(),
             flags.volume_format_timeout(),
+            "/var/lib/mysql",
             flags.volume_mount_options()
           ));
         }

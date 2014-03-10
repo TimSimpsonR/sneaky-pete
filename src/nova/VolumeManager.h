@@ -69,6 +69,7 @@ public:
                   const std::string & volume_fstype,
                   const std::string & format_options,
                   const unsigned int volume_format_timeout,
+                  const std::string & mount_point,
                   const std::string & mount_options);
 
     ~VolumeManager();
@@ -81,6 +82,8 @@ public:
 
     unsigned int get_volume_format_timeout() const;
 
+    std::string get_mount_point() const;
+
     std::string get_mount_options() const;
 
     VolumeDevice create_volume_device(const std::string device_path);
@@ -92,6 +95,7 @@ private:
     const std::string volume_fstype;
     const std::string format_options;
     const unsigned int volume_format_timeout;
+    const std::string mount_point;
     const std::string mount_options;
 };
 

@@ -320,11 +320,13 @@ VolumeManager::VolumeManager(
     const std::string & volume_fstype,
     const std::string & format_options,
     const unsigned int volume_format_timeout,
+    const std::string & mount_point,
     const std::string & mount_options)
 :   num_tries_device_exists(num_tries_device_exists),
     volume_fstype(volume_fstype),
     format_options(format_options),
     volume_format_timeout(volume_format_timeout),
+    mount_point(mount_point),
     mount_options(mount_options)
 {
 }
@@ -346,6 +348,10 @@ std::string VolumeManager::get_format_options() const {
 
 unsigned int VolumeManager::get_volume_format_timeout() const {
     return volume_format_timeout;
+}
+
+std::string VolumeManager::get_mount_point() const {
+    return mount_point;
 }
 
 std::string VolumeManager::get_mount_options() const {

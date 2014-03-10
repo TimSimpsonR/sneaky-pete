@@ -4,6 +4,7 @@
 using boost::lexical_cast;
 using boost::optional;
 using std::string;
+using std::vector;
 
 namespace nova {
 
@@ -413,6 +414,14 @@ void JsonArray::initialize(const char * json_text) {
     length = json_object_array_length(object);
 }
 
+vector<string> JsonArray::to_string_vector() const {
+    vector<string> container;
+    for (int index = 0; index < get_length(); ++ index) {
+        string s(get_any(index)->to_string());
+        container.push_back(s);
+    }
+    return container;
+}
 
 /**---------------------------------------------------------------------------
  *- JsonObject

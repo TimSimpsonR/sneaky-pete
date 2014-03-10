@@ -6,6 +6,7 @@
 #include <boost/intrusive_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
+#include <vector>
 #include <boost/utility.hpp>
 
 
@@ -392,6 +393,8 @@ namespace nova {
             const char * get_string(const int index) const;
 
             void get_string(const int index, std::string & value) const;
+
+            std::vector<std::string> to_string_vector() const;
 
         protected:
             JsonArray(json_object * obj, Root * root);

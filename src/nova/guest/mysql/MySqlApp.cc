@@ -124,10 +124,8 @@ namespace {
 MySqlApp::MySqlApp(MySqlAppStatusPtr status,
                    BackupRestoreManagerPtr backup_restore_manager,
                    int state_change_wait_time,
-                   bool skip_install_for_prepare,
-                   const char * mysql_package)
+                   bool skip_install_for_prepare)
 :   backup_restore_manager(backup_restore_manager),
-    mysql_package(mysql_package),
     skip_install_for_prepare(skip_install_for_prepare),
     state_change_wait_time(state_change_wait_time),
     status(status)
@@ -204,6 +202,7 @@ void MySqlApp::reset_configuration(AptGuest & apt,
 }
 
 void MySqlApp::prepare(AptGuest & apt,
+                       const std::vector<std::string> packages,
                        const string & config_contents,
                        const optional<string> & overrides,
                        optional<BackupRestoreInfo> restore) {
@@ -224,7 +223,7 @@ void MySqlApp::prepare(AptGuest & apt,
 
     try {
         NOVA_LOG_INFO("Preparing Guest as MySQL Server");
-        install_mysql(apt);
+        install_mysql(apt, packages);
 
         NOVA_LOG_INFO("Waiting until we can connect to MySQL...");
         wait_for_initial_connection();
@@ -317,9 +316,12 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
     init_file << "FLUSH PRIVILEGES;" << std::endl;
 }
 
-void MySqlApp::install_mysql(AptGuest & apt) {
+void MySqlApp::install_mysql(AptGuest & apt, const vector<string> & packages) {
     NOVA_LOG_INFO("Installing mysql server.");
-    apt.install(this->mysql_package, TIME_OUT);
+    BOOST_FOREACH(const string & package, packages) {
+        NOVA_LOG_INFO("Installing package %s...", package);
+        apt.install(package.c_str(), TIME_OUT);
+    }
 }
 
 void MySqlApp::internal_stop_mysql(bool update_db) {

@@ -187,28 +187,6 @@ int FlagMap::get_as_int(const char * const name, int default_value) {
     return boost::lexical_cast<int>(map[name].c_str());
 }
 
-void FlagMap::get_sql_connection(string & host, string & user,
-                                 string & password,
-                                 string & database) {
-    const char * value = get("sql_connection");
-    //--sql_connection=mysql://nova:novapass@10.0.4.15/nova
-    Regex regex("mysql:\\/\\/(\\w+):(\\w+)@([0-9\\.]+)\\/(\\w+)");
-    RegexMatchesPtr matches = regex.match(value);
-    if (!matches) {
-        throw FlagException(FlagException::PATTERN_NOT_MATCHED, value);
-    }
-    for (int i = 0; i < 4; i ++) {
-        if (!matches->exists_at(i)) {
-            throw FlagException(FlagException::PATTERN_GROUP_NOT_MATCHED,
-                                value);
-        }
-    }
-    user = matches->get(1);
-    password = matches->get(2);
-    host = matches->get(3);
-    database = matches->get(4);
-}
-
 template<typename T>
 optional<T> get_flag_value(FlagMap & map, const char * name) {
     const char * value = map.get(name, false);
@@ -268,8 +246,6 @@ T get_flag_value(FlagMap & map, const char * name, T default_value) {
 FlagValues::FlagValues(FlagMapPtr map)
 : map(map)
 {
-    map->get_sql_connection(_nova_sql_host, _nova_sql_user,
-                            _nova_sql_password, _nova_sql_database);
 }
 
 const char * FlagValues::apt_self_package_name() const {
@@ -336,6 +312,10 @@ const char * FlagValues::control_exchange() const {
     return map->get("control_exchange", "trove");
 }
 
+const char * FlagValues::datastore_manager() const {
+    return map->get("datastore_manager");
+}
+
 const char * FlagValues::db_backend() const {
     return map->get("db_backend", "sqlalchemy");
 }
@@ -397,29 +377,13 @@ const char * FlagValues::node_availability_zone() const {
     return map->get("node_availability_zone", "nova");
 }
 
-const char * FlagValues::nova_sql_database() const {
-    return _nova_sql_database.c_str();
-}
-
-const char * FlagValues::nova_sql_host() const {
-    return _nova_sql_host.c_str();
-}
-
-const char * FlagValues::nova_sql_password() const {
-    return _nova_sql_password.c_str();
-}
-
-unsigned long FlagValues::nova_sql_reconnect_wait_time() const {
-    return get_flag_value(*map, "nova_sql_reconnect_wait_time",
-                          (unsigned long) 30);
-}
-
-const char * FlagValues::nova_sql_user() const {
-    return _nova_sql_user.c_str();
-}
-
 unsigned long FlagValues::periodic_interval() const {
     return get_flag_value(*map, "periodic_interval", (unsigned long) 60);
+}
+
+std::list<std::string> FlagValues::possible_packages_for_mysql() const {
+    return get_flag_value_as_string_list(*map, "possible_packages_for_mysql",
+        "mysql-server-5.1,mysql-server-5.5");
 }
 
 size_t FlagValues::rabbit_client_memory() const {
@@ -495,10 +459,6 @@ bool FlagValues::use_syslog() const {
 
 const char * FlagValues::conductor_queue() const {
     return map->get("conductor_queue", "trove-conductor");
-}
-
-const char * FlagValues::mysql_package() const {
-    return map->get("mysql_package", "mysql-server-5.1");
 }
 
 } } // end nova::flags

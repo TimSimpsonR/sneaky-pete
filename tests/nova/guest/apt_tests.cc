@@ -47,7 +47,7 @@ FlagMapPtr get_flags() {
 
 
 bool zivot_exists() {
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     return guest.version("zivot") != boost::none;
 }
 
@@ -59,7 +59,7 @@ bool zivot_exists() {
 BOOST_AUTO_TEST_CASE(remove_real_package_should_succeed) {
     LogApiScope log(log_options_from_flags(get_flags()));
     if (zivot_exists()){
-        apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+        apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
         guest.remove("zivot", 60);
     }
     BOOST_REQUIRE_EQUAL(zivot_exists(), false);
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(remove_real_package_should_succeed) {
 BOOST_AUTO_TEST_CASE(not_real_package_returns_nothing)
 {
     LogApiScope log(log_options_from_flags(get_flags()));
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     optional<string> version = guest.version("ghsdfhbsd", 30);
     BOOST_REQUIRE_EQUAL(version, boost::none);
 }
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(not_real_package_returns_nothing)
 BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 {
     LogApiScope log(log_options_from_flags(get_flags()));
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     optional<string> version = guest.version("dpkg");
     BOOST_REQUIRE_EQUAL(!!version, true);
     Regex regex("(\\w+)\\.(\\w+)\\.(\\w+)\\.(\\w+)");
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(installed_package_returns_something)
 BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)
 {
     LogApiScope log(log_options_from_flags(get_flags()));
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     // Wonder if this is could be a bug..
     // CHECK_APT_EXCEPTION(guest.version(""), UNEXPECTED_PROCESS_OUTPUT);
     CHECK_APT_EXCEPTION(guest.version(""), GENERAL);
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)
 
 BOOST_AUTO_TEST_CASE(install_should_throw_exceptions_with_invalid_packages) {
     LogApiScope log(log_options_from_flags(get_flags()));
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     CHECK_APT_EXCEPTION(guest.install(INVALID_PACKAGE_NAME, 60),
                         PACKAGE_NOT_FOUND);
 }
@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(install_should_throw_exceptions_with_invalid_packages) {
 
 BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
     LogApiScope log(log_options_from_flags(get_flags()));
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     CHECK_APT_EXCEPTION(guest.remove(INVALID_PACKAGE_NAME, 60),
                         PACKAGE_NOT_FOUND);
 }
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
 BOOST_AUTO_TEST_CASE(abuse_zivot) {
 
     LogApiScope log(log_options_from_flags(get_flags()));
-    apt::AptGuest guest(USE_SUDO, "nova-guest", 1 * 60);
+    apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
 
     NOVA_LOG_DEBUG("Checking for existance...");
     const bool zivot_originally_installed = zivot_exists();

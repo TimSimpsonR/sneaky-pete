@@ -96,6 +96,15 @@ struct Func {
     // threads.
     nova::db::mysql::MySqlApiScope mysql_api_scope;
 
+    static bool is_mysql_installed(std::list<std::string> package_list,
+                                   AptGuestPtr & apt_worker) {
+        BOOST_FOREACH(const auto & package_name, package_list) {
+            if (apt_worker->version(package_name.c_str())) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     boost::tuple<std::vector<MessageHandlerPtr>, PeriodicTasksPtr>
         operator() (const FlagValues & flags,
@@ -113,11 +122,11 @@ struct Func {
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
 
-        const auto mysql_version = apt_worker->version("mysql-server-5.1");
+        const auto package_list = flags.possible_packages_for_mysql();
 
         /* Create MySQL updater. */
         MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(
-            sender, !!mysql_version));
+            sender, is_mysql_installed(package_list, apt_worker)));
 
         /* Create MySQL Guest. */
         MessageHandlerPtr handler_mysql(new MySqlMessageHandler());
@@ -142,8 +151,7 @@ struct Func {
         MySqlAppPtr mysqlApp(new MySqlApp(mysql_status_updater,
                                           backup_restore_manager,
                                           flags.mysql_state_change_wait_time(),
-                                          flags.skip_install_for_prepare(),
-                                          flags.mysql_package()));
+                                          flags.skip_install_for_prepare()));
 
         /** Sneaky Pete formats and mounts volumes based on the bool flag
           *'volume_format_and_mount'.

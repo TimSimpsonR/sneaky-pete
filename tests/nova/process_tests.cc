@@ -184,8 +184,8 @@ BOOST_AUTO_TEST_CASE(test_giga_flood) {
     char buffer[1024];
     IndependentStdErrAndStdOut::ReadResult result;
 
-    bool expecting_eof_stdout = false;
-    bool expecting_eof_stderr = false;
+    // bool expecting_eof_stdout = false;
+    // bool expecting_eof_stderr = false;
 
     size_t actual_stdout_count = 0;
     size_t actual_stderr_count = 0;
@@ -211,13 +211,13 @@ BOOST_AUTO_TEST_CASE(test_giga_flood) {
                 BOOST_REQUIRE_EQUAL(true, false);
             }
         }
-        if (result.write_length < sizeof(buffer) - 1) {
-            if (IndependentStdErrAndStdOut::ReadResult::StdOut == result.file) {
-                expecting_eof_stdout = true;
-            } else {
-                expecting_eof_stderr = true;
-            }
-        }
+        // if (result.write_length < sizeof(buffer) - 1) {
+        //     if (IndependentStdErrAndStdOut::ReadResult::StdOut == result.file) {
+        //         expecting_eof_stdout = true;
+        //     } else {
+        //         expecting_eof_stderr = true;
+        //     }
+        // }
     }
     BOOST_REQUIRE_EQUAL(actual_stdout_count, 1024 * 1024);
     BOOST_REQUIRE_EQUAL(actual_stderr_count, 1024 * 1024);

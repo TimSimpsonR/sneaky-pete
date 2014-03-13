@@ -1,5 +1,5 @@
-bin/**/release/link-static/nova-guest usr/bin/
-bin/**/release/link-static/sneaky-pete-mysql usr/bin/
+deploy/nova-guest usr/bin/
+deploy/sneaky-pete-mysql usr/bin/
 debian/guest_sudoers etc/sudoers.d
 debian/backup var/lib/nova/
 debian/restore var/lib/nova/

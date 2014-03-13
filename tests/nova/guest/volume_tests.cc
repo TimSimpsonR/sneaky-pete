@@ -30,7 +30,6 @@ using nova::LogOptions;
 
 const std::string device_path= "/DEVICE_DOESNT_EXIST";
 const std::string mount_point= "/MOUNT_POINT_DOESNT_EXIST";
-
 const unsigned int num_tries_device_exists = 3;
 const std::string volume_fstype = "ext3";
 const std::string format_options = "-m 5";
@@ -48,6 +47,7 @@ BOOST_AUTO_TEST_CASE(check_device_exists_test)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        mount_point,
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
@@ -64,6 +64,7 @@ BOOST_AUTO_TEST_CASE(format_device_test)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        mount_point,
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
@@ -79,6 +80,7 @@ BOOST_AUTO_TEST_CASE(check_format_test)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        mount_point,
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
@@ -94,6 +96,7 @@ BOOST_AUTO_TEST_CASE(mount_test)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        mount_point,
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
@@ -109,6 +112,7 @@ BOOST_AUTO_TEST_CASE(unmount_test)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        mount_point,
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);
@@ -124,6 +128,7 @@ BOOST_AUTO_TEST_CASE(check_fs_test)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        mount_point,
         mount_options
     );
     VolumeDevice vol_device = volumeManager.create_volume_device(device_path);

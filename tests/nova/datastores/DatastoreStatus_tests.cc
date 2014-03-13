@@ -5,7 +5,7 @@
 #include <boost/optional.hpp>
 #include "nova/Log.h"
 #include "nova/datastores/DatastoreStatus.h"
-#include "nova/rpc/Sender.h"
+#include "nova/rpc/sender.h"
 #include "nova/guest/utils.h"
 
 using namespace nova::flags;

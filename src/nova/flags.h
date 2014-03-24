@@ -173,6 +173,8 @@ class FlagValues {
 
         size_t status_thread_stack_size() const;
 
+        const char * sql_connection() const;
+
         bool use_syslog() const;
 
         bool volume_format_and_mount() const;

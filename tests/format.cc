@@ -35,6 +35,7 @@ int main(int argc, char **argv)
         volume_fstype,
         format_options,
         volume_format_timeout,
+        "/mount_point",
         mount_options
     );
 

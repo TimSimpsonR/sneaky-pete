@@ -183,12 +183,12 @@ BOOST_AUTO_TEST_CASE(match_package_with_period_squeeze)
 BOOST_AUTO_TEST_CASE(match_package_with_period_wheezy)
 {
     #define PACKAGE_NAME_REGEX "\\S+"
-    Regex regex("dpkg-query: no packages found matching ("
-        PACKAGE_NAME_REGEX ")$");
+    Regex regex("no packages found matching ("
+        PACKAGE_NAME_REGEX ")");
     RegexMatchesPtr matches = regex.match(
         "no packages found matching mysql-server-5.5");
     std::cout << "0=" << matches->get(0) << std::endl;
     std::cout << "1=" << matches->get(1) << std::endl;
-    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches.get() != 0, true);
     BOOST_REQUIRE_EQUAL(matches->get(1), "mysql-server-5.5");
 }

@@ -281,8 +281,10 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
                        "'sudo dpkg --configure -a'");
     // 6 = lock error
     patterns.push_back("Unable to lock the administration directory");
-    // 7 - 8 = Success, but the captured string must be our package followed by EOF.
+    // 7 - 9 = Success, but the captured string must be our package followed by EOF.
     patterns.push_back("Removing (" PACKAGE_NAME_REGEX ")");
+    patterns.push_back("Package ('" PACKAGE_NAME_REGEX "') is not installed, "
+                       "so not removed");  // Wheezy! Curse your single quotes.
     patterns.push_back("Package (" PACKAGE_NAME_REGEX ") is not installed, "
                        "so not removed");
 
@@ -306,7 +308,7 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
         } else if (index == 6) {
             throw AptException(AptException::ADMIN_LOCK_ERROR);
         } else {
-            if (index == 7 || index == 8) {
+            if (index == 7 || index == 8 || index == 9) {
                 string output_package_name = result.get().matches->get(1);
                 if (output_package_name != package_name) {
                     NOVA_LOG_ERROR("Wait, saw 'Setting up' but it wasn't our "

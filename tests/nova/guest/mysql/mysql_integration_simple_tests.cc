@@ -10,12 +10,14 @@
 #include <memory>
 #include "nova/db/mysql.h"
 #include "nova/db/MySqlConfigReader.h"
+#include "nova/utils/regex.h"
 #include <stdlib.h>
 
 using nova::Log;
 using nova::LogApiScope;
 using nova::LogOptions;
-
+using nova::utils::Regex;
+using nova::utils::RegexMatchesPtr;
 
 struct GlobalFixture {
 
@@ -104,16 +106,22 @@ BOOST_AUTO_TEST_CASE(integration_tests)
     MySqlApiScope mysql_api_scope;
 
     FlagValues flags(get_flags());
-    string host, user, password, database;
-    //BOOST_REQUIRE_EQUAL(user, "nova");
-    //BOOST_REQUIRE_EQUAL(password, "novapass");
-    //BOOST_REQUIRE_EQUAL(host, "10.0.4.15");
-    //BOOST_REQUIRE_EQUAL(!!database, true);
-    //BOOST_REQUIRE_EQUAL(database.get(), "nova");
 
-    MySqlConnectionWithDefaultDb connection(flags.nova_sql_host(),
-        flags.nova_sql_user(), flags.nova_sql_password(),
-        flags.nova_sql_database());
+    const char * sql_connection_string = flags.sql_connection();
+    //--sql_connection=mysql://nova:novapass@10.0.4.15/nova
+    Regex regex("mysql:\\/\\/(\\w+):(\\w+)@([0-9\\.]+)\\/(\\w+)");
+    RegexMatchesPtr matches = regex.match(sql_connection_string);
+    BOOST_REQUIRE(matches);
+    for (int i = 0; i < 4; i ++) {
+        BOOST_REQUIRE(matches->exists_at(i));
+    }
+    const string user(matches->get(1));
+    const string password(matches->get(2));
+    const string host(matches->get(3));
+    const string database(matches->get(4));
+
+    MySqlConnectionWithDefaultDb connection(host.c_str(), user.c_str(),
+                                            password.c_str(), database.c_str());
 
     CHECK_EXCEPTION({ connection.query("use not_real"); }, QUERY_FAILED);
 

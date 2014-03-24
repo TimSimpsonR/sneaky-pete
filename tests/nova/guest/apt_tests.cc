@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
 }
 
 /** This is taken from the original Python tests.
- *  Because it picks on zivot it probably should not be a unit test,but for
+ *  Because it picks on zivot it probably should not be a unit test, but for
  *  now its the best way to prove this code is working. */
 BOOST_AUTO_TEST_CASE(abuse_zivot) {
 

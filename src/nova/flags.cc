@@ -424,6 +424,10 @@ size_t FlagValues::status_thread_stack_size() const {
                           (size_t) 1024 * 1024);
 }
 
+const char * FlagValues::sql_connection() const {
+    return map->get("sql_connection");
+}
+
 bool FlagValues::volume_format_and_mount() const {
     return get_flag_value<bool>(*map, "volume_format_and_mount", false);
 }

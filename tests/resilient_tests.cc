@@ -70,32 +70,19 @@ struct GlobalFixture {
 };
 
 
-struct SenderWorker {
-    ResilientSenderPtr sender;
-    int threadid;
-    int count;
+void work_thread(ResilientSenderPtr sender, int threadid, int count) {
+    const char * MESSAGE = "{\"oslo.message\": \"{"
+                               "\\\"method\\\": \\\"testing\\\", "
+                               "\\\"args\\\": {"
+                                   "\\\"order\\\": %d, "
+                                   "\\\"thread\\\": %d"
+                                   "}}\"}";
 
-    SenderWorker(ResilientSenderPtr sender, int threadid, int count)
-    :
-    sender(sender),
-    threadid(threadid),
-    count(count)
-    {}
-
-    void work() {
-        const char * MESSAGE = "{\"oslo.message\": \"{"
-                                   "\\\"method\\\": \\\"testing\\\", "
-                                   "\\\"args\\\": {"
-                                       "\\\"order\\\": %d, "
-                                       "\\\"thread\\\": %d"
-                                       "}}\"}";
-        
-        for (int i=0; i<count; i++){
-            std::string msg = str(format(MESSAGE) % i % threadid);
-            sender->send(msg.c_str());
-        }
+    for (int i=0; i<count; i++){
+        std::string msg = str(format(MESSAGE) % i % threadid);
+        sender->send_plain_string(msg.c_str());
     }
-};
+}
 
 
 BOOST_GLOBAL_FIXTURE(GlobalFixture);
@@ -107,13 +94,18 @@ BOOST_AUTO_TEST_CASE(SendingSomeMessages)
 
     ResilientSenderPtr sender(new ResilientSender(flags.rabbit_host(), flags.rabbit_port(),
                                                   flags.rabbit_userid(), flags.rabbit_password(),
-                                                  flags.rabbit_client_memory(), TOPIC, "restests", 60));
+                                                  flags.rabbit_client_memory(),
+                                                  TOPIC, "trove",
+                                                  "restests", 60));
 
     NOVA_LOG_INFO("TEST - Created RSender");
 
     CHECK_POINT();
 
-    ResilientReceiver receiver(flags.rabbit_host(), flags.rabbit_port(), flags.rabbit_userid(), flags.rabbit_password(), flags.rabbit_client_memory(), TOPIC, "restests", 60);
+    ResilientReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
+                               flags.rabbit_userid(), flags.rabbit_password(),
+                               flags.rabbit_client_memory(),
+                               TOPIC, "trove", 60);
 
     NOVA_LOG_INFO("TEST - Created RReceiver");
 
@@ -122,15 +114,11 @@ BOOST_AUTO_TEST_CASE(SendingSomeMessages)
     const int worker_count = 10;
     typedef boost::shared_ptr <boost::thread> thread_ptr;
     vector<thread_ptr> threads;
-    vector<SenderWorker> workers;
 
     const int message_count = 1000;
-    for (int t = 0; t < worker_count; t ++) {
-        workers.push_back(SenderWorker(sender, t, message_count));
-    }
     for (int i = 0; i < worker_count; i ++) {
         CHECK_POINT();
-        thread_ptr ptr(new boost::thread(&SenderWorker::work, &workers[i]));
+        thread_ptr ptr(new boost::thread(work_thread, sender, i, message_count));
         threads.push_back(ptr);
     }
 
@@ -162,5 +150,5 @@ BOOST_AUTO_TEST_CASE(SendingSomeMessages)
         NOVA_LOG_INFO("Seen count for %i: %i", t, seen[t]);
         BOOST_CHECK_EQUAL(seen[t], message_count);
     }
-    
+
 }

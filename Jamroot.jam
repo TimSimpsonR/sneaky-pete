@@ -939,6 +939,7 @@ exe nova-guest
 install deploy
     :   nova-guest
         sneaky-pete-mysql
+    :   <link>static <variant>release
     ;
 
 install tools
@@ -950,4 +951,23 @@ install tools
         unmount_file
         upload_file
         send_forever_turbo
+    :   <link>static <variant>release
+    ;
+
+install deploy-debug
+    :   nova-guest
+        sneaky-pete-mysql
+    :   <link>static <variant>debug
+    ;
+
+install tools-debug
+    :   download_file
+        format_file
+        greedy_pete
+        mount_file
+        resizefs_file
+        unmount_file
+        upload_file
+        send_forever_turbo
+    :   <link>static <variant>debug
     ;

@@ -28,7 +28,7 @@ Boost Build, type "bjam" at the command line.
 
 To build the Sneaky Pete, cd into this directory and type the following:
 
-bjam -d+2 link=static release -q sneaky-pete
+bjam -d+2 -q deploy
 
 "-d+2" is optional and tells Boost Build to print out every command it executes.
 Boost Build will take awhile to start up, so if you keep getting compiler
@@ -39,17 +39,11 @@ that instead until you can build the necessary target without errors.
 good to build it this way in a CI setup but when building locally it can
 make life easier.
 
-"link=static" will, as implied, build the project with static linking.
-Otherwise, all dependencies will be dynamically linked. Some targets however
-can not be built statically (see the Jamroot.jam file for details) and ignore
-this request (the tests are an example).
+To build tooling that can be used for debugging and testing Sneaky Pete run:
 
-NOTE: Currently Curl is set up as a dependency which can only be used
-statically. Because of that, certain metatargets- such as the "sneaky-pete"
-exe- won't build unless "link=static" is set.
+bjam -d+2 -q tools
 
-"release" causes bjam to build in the release configuration. By default it will
-use the debug version (you can specify this with "debug").
+To build the debug versions, run "deploy-debug" and "tools-debug" respectively.
 
 
 Understanding the Build File

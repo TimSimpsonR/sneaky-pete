@@ -4,24 +4,16 @@
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
-#include "nova/utils/Curl.h"
+#include "Curl.h"
 #include <boost/format.hpp>
-#include "nova/utils/Md5.h"
-#include "nova/Log.h"
+#include "Md5.h"
+#include "Log.h"
 #include <boost/assign/list_of.hpp>
-#include "nova/utils/swift.h"
+#include "swift.h"
 
 using namespace std;
 using namespace boost;
 using namespace boost::assign;
-using nova::Log;
-using nova::LogApiScope;
-using nova::LogOptions;
-
-using nova::utils::Curl;
-using nova::utils::CurlScope;
-
-using namespace nova::utils::swift;
 
 /*
  * This example shows a HTTP PUT operation. PUTs a file given as a command
@@ -68,8 +60,6 @@ private:
 
 int main(int argc, char **argv)
 {
-  LogApiScope log(LogOptions::simple());
-
   if (argc < 6) {
     cerr << "Usage: " << (argc > 0 ? argv[0] : "upload_file")
          << " src_file token base_url container base_file_name" << endl;

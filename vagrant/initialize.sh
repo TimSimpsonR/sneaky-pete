@@ -104,7 +104,7 @@ set -e
 mkdir -p /opt/sp-deps/libcurl
 
 # Now build the library Sneaky Pete will use from source.
-pkg_checkout git://github.com/bagder/curl.git curl e305f5ec71
+pkg_checkout git://github.com/bagder/curl.git curl 4f041c9d6e61829310eb0715d8edb2a232478123
 cd $BUILD_DIR/curl
 ./buildconf
 # TODO(tim.simpson): Add SSL / SSH back... of course.
@@ -115,6 +115,7 @@ LIBS="-ldl" ./configure \
     --disable-ldaps \
     --without-gnutls \
     --without-libssh2 \
+    --enable-debug \
     --prefix=/opt/sp-deps/libcurl
 
 make LDFLAGS="-all-static -ldl"

@@ -1,15 +1,14 @@
-#include "pch.hpp"
 #include "Curl.h"
 #include <algorithm>
 #include <boost/foreach.hpp>
 #include <boost/optional.hpp>
-#include "nova/Log.h"
+#include "Log.h"
 #include <boost/format.hpp>
+#include <sstream>
+
 using namespace std;
 using namespace boost;
 
-
-namespace nova { namespace utils {
 
 
 /**---------------------------------------------------------------------------
@@ -117,7 +116,7 @@ void Curl::perform(const Curl::HttpCodeList & expected_http_codes,
         error_msg << code << ", ";
     }
     error_msg << "], Actual code: " << actual_http_code;
-    NOVA_LOG_ERROR(error_msg.str().c_str());
+    NOVA_LOG_ERROR("%s", error_msg.str().c_str());
     throw CurlException(CurlException::CURL_UNEXPECTED_HTTP_CODE);
 }
 
@@ -155,5 +154,4 @@ const char * CurlException::what() const throw() {
 }
 
 
-} }  // end namespace nova::utils
 

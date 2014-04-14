@@ -1,4 +1,3 @@
-#include "pch.hpp"
 #include "swift.h"
 #include <stdio.h>
 #include <fcntl.h>
@@ -6,28 +5,17 @@
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
-#include "nova/utils/Curl.h"
+#include "Curl.h"
 #include <boost/format.hpp>
-#include "nova/utils/Md5.h"
-#include "nova/Log.h"
+#include <boost/thread.hpp>
+#include "Md5.h"
+#include "Log.h"
 #include <boost/assign/list_of.hpp>
 
 using namespace std;
 using namespace boost;
 using namespace boost::assign;
-using nova::utils::Curl;
-using nova::utils::CurlScope;
-using nova::Log;
-using nova::LogApiScope;
-using nova::LogOptions;
-using nova::utils::Md5;
 
-
-// Define _NOVA_SWIFT_VERBOSE when building to get log messages for almost
-// everything.
-#define NOVA_SWIFT_LOG(msg) { std::string m = str(msg); NOVA_LOG_DEBUG(m.c_str()); }
-
-namespace nova { namespace utils { namespace swift {
 
 
 struct SwiftUploader::SegmentInfo {
@@ -60,8 +48,8 @@ struct SwiftUploader::SegmentInfo {
         this->bytes_read += bytes_read;
         this->checksum.update(buffer, bytes_read);
         this->file_checksum.update(buffer, bytes_read);
-        NOVA_SWIFT_LOG(format("Curl upload call back.\n bytes_read=%d, "
-                       "total bytes_read=%d") % bytes_read % this->bytes_read);
+        NOVA_LOG_DEBUG("Curl upload call back.\n bytes_read=%d, "
+                       "total bytes_read=%d", bytes_read, this->bytes_read);
         return bytes_read;
     }
 
@@ -177,7 +165,7 @@ SwiftDownloader::SwiftDownloader(const string & token,
 void SwiftDownloader::read(SwiftDownloader::Output & output) {
     reset_session();
 
-    NOVA_SWIFT_LOG(format("Reading segment..."));
+    NOVA_LOG_DEBUG("Reading segment...");
     session.set_opt(CURLOPT_URL, url.c_str());
 
     struct CallBack {
@@ -186,7 +174,7 @@ void SwiftDownloader::read(SwiftDownloader::Output & output) {
             Output * output = reinterpret_cast<Output *>(userdata);
             const char * buffer = reinterpret_cast<const char *>(ptr);
             const size_t buffer_size = size * nmemb;
-            NOVA_SWIFT_LOG(format("Read callback: %d") % buffer_size);
+            NOVA_LOG_DEBUG("Read callback: %d", buffer_size);
             output->write(buffer, buffer_size);
             // Assume success. In C++ land we have exceptions.
             return buffer_size;
@@ -207,11 +195,11 @@ void SwiftDownloader::read(SwiftDownloader::Output & output) {
     // e.g. 'etag': '"c4bf3693422e0e5a3350dac64e002987"'
     // hence we start substr at position 1
     string etag = (*headers)["etag"].substr(1, 32);
-    NOVA_LOG_DEBUG("Verifying swift download etag: %s", etag);
+    NOVA_LOG_DEBUG("Verifying swift download etag: %s", etag.c_str());
     if (checksum != etag) {
         NOVA_LOG_ERROR("Checksum match failed for swift download."
                        "Original Swift Upload Checksum: %s, Swift Download Checksum: %s.",
-                       checksum, etag);
+                       checksum.c_str(), etag.c_str());
         throw SwiftException(SwiftException::SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL);
     }
 }
@@ -277,12 +265,12 @@ void SwiftUploader::write_manifest(int file_number,
     // hence we start substr at position 1
     string etag = (*headers)["etag"].substr(1, 32);
     // string etag = (*headers)["etag"].c_str();
-    NOVA_LOG_DEBUG("Manifest etag: %s", etag);
+    NOVA_LOG_DEBUG("Manifest etag: %s", etag.c_str());
 
     if (concatenated_checksum != etag) {
         NOVA_LOG_ERROR("Checksum match failed for checksum of concatenated segment "
                        "checksums. Expected: %s, Actual: %s.",
-                       concatenated_checksum, etag);
+                       concatenated_checksum.c_str(), etag.c_str());
         throw SwiftException(SwiftException::SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL);
     }
 
@@ -290,8 +278,7 @@ void SwiftUploader::write_manifest(int file_number,
 
 void SwiftUploader::write_container(){
     reset_session();
-    NOVA_SWIFT_LOG(format("Writing container to %s...")
-                   % file_info.container_url());
+    NOVA_LOG_DEBUG("Writing container to %s...", file_info.container_url().c_str());
     /* enable uploading */
     session.set_opt(CURLOPT_UPLOAD, 1L);
 
@@ -307,14 +294,14 @@ void SwiftUploader::write_container(){
 
     /* Make it happen */
     session.perform(list_of(200)(201)(202));
-    NOVA_SWIFT_LOG(format("Containing write complete."));
+    NOVA_LOG_DEBUG("Containing write complete.");
 }
 
 string SwiftUploader::write_segment(const string & url,
                                     SwiftUploader::Input & input) {
     reset_session();
 
-    NOVA_SWIFT_LOG(format("Writing segment..."));
+    NOVA_LOG_DEBUG("Writing segment...");
     session.set_opt(CURLOPT_UPLOAD, 1L);
     session.set_opt(CURLOPT_PUT, 1L);    // Use PUT
     session.set_opt(CURLOPT_URL, url.c_str());
@@ -333,8 +320,8 @@ string SwiftUploader::write_segment(const string & url,
     Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
     const string checksum = info.checksum.finalize();
     string etag = (*headers)["etag"].substr(0, 32);
-    NOVA_LOG_DEBUG("Response etag: %s", etag);
-    NOVA_LOG_DEBUG("Our calculated checksum: %s", checksum);
+    NOVA_LOG_DEBUG("Response etag: %s", etag.c_str());
+    NOVA_LOG_DEBUG("Our calculated checksum: %s", checksum.c_str());
     if (checksum != etag) {
         NOVA_LOG_ERROR("Checksum match failed on segment. Expected %s, "
                         "actual %s.", checksum.c_str(), etag.c_str());
@@ -351,7 +338,7 @@ string SwiftUploader::write(SwiftUploader::Input & input){
         const string url = file_info.formatted_url(file_number);
         NOVA_LOG_DEBUG("Time to write segment %d.", file_number);
         string md5 = write_segment(url, input);
-        NOVA_LOG_DEBUG("checksum: %s", md5);
+        NOVA_LOG_DEBUG("checksum: %s", md5.c_str());
         // The swift checksum is the checksum of the concatenated segment checksums
         // Instead of holding a vector of segment checksums and then joining them
         // to calculate the checksum at the end, lets just continuously calculate
@@ -362,10 +349,10 @@ string SwiftUploader::write(SwiftUploader::Input & input){
 
     NOVA_LOG_DEBUG("Finalizing files...");
     const string final_file_checksum = file_checksum.finalize();
-    NOVA_LOG_DEBUG("Checksum for entire file: %s", final_file_checksum);
+    NOVA_LOG_DEBUG("Checksum for entire file: %s", final_file_checksum.c_str());
     const string final_swift_checksum = swift_checksum.finalize();
     NOVA_LOG_DEBUG("Checksum of concatenated segment checksums: %s",
-                   final_swift_checksum);
+                   final_swift_checksum.c_str());
 
     write_manifest(file_number, final_file_checksum, final_swift_checksum);
     return final_swift_checksum;
@@ -396,5 +383,3 @@ const char * SwiftException::what() const throw() {
     }
 }
 
-
-} } }  // end namespace nova::guest::backup

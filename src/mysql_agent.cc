@@ -194,6 +194,7 @@ struct Func {
                       job_runner,
                       flags.backup_process_commands(),
                       flags.backup_segment_max_size(),
+                      flags.checksum_wait_time(),
                       flags.backup_swift_container(),
                       flags.backup_timeout(),
                       flags.backup_zlib_buffer_size());

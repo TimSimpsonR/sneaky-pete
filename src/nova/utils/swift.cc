@@ -233,8 +233,10 @@ SwiftUploader::Input::~Input() {
 
 SwiftUploader::SwiftUploader(const string & token,
                              const size_t & max_bytes,
-                             const SwiftFileInfo & file_info)
+                             const SwiftFileInfo & file_info,
+                             const int checksum_wait_time)
 :   SwiftClient(token),
+    checksum_wait_time(checksum_wait_time),
     file_checksum(),
     swift_checksum(),
     file_info(file_info),
@@ -243,6 +245,46 @@ SwiftUploader::SwiftUploader(const string & token,
 {
 }
 
+string SwiftUploader::await_etag_match(const string & url,
+    const string & checksum, const char * error_text,
+    SwiftException::Code exception_code, const bool etag_has_double_quotes)
+{
+    // Sometimes an etag that is double quoted, such as:
+    //   'etag': '"c4bf3693422e0e5a3350dac64e002987"'
+    // Hence we start substr at position 1.
+    const unsigned int etag_start_index = etag_has_double_quotes ? 1 : 0;
+    const int sleep_time = 3;
+    long wait_time = checksum_wait_time;
+    while(true) {
+        /* Give Swift a few seconds before confirming the checksum. We have noticed
+         * in testing that sometimes it won't match immediately. */
+        //TODO(tim.simpson): Make this time limit driven by a flag value.
+        boost::this_thread::sleep(boost::posix_time::seconds(sleep_time));
+
+        Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
+        string etag = (*headers)["etag"].substr(etag_start_index, 32);
+        NOVA_LOG_DEBUG("Response etag: %s", etag);
+        NOVA_LOG_DEBUG("Our calculated checksum: %s", checksum);
+        if (checksum != etag) {
+            if (wait_time < 0)
+            {
+                NOVA_LOG_ERROR("%s. Expected %s, actual %s.", error_text,
+                               checksum.c_str(), etag.c_str());
+                throw SwiftException(exception_code);
+            }
+            else
+            {
+                NOVA_LOG_ERROR("Swift checksum didn't match (yet). Retrying"
+                               " for %ld ms.", wait_time);
+                wait_time -= sleep_time;
+            }
+        }
+        else
+        {
+            return checksum;
+        }
+    }
+}
 
 void SwiftUploader::write_manifest(int file_number,
                                    const string & final_file_checksum,
@@ -268,26 +310,10 @@ void SwiftUploader::write_manifest(int file_number,
     /* Make it happen */
     session.perform(list_of(200)(201)(202));
 
-    /* Give Swift a few seconds before confirming the checksum. We have noticed
-     * in testing that sometimes it won't match immediately. */
-    //TODO(tim.simpson): Make this time limit driven by a flag value.
-    boost::this_thread::sleep(boost::posix_time::seconds(3));
-
-    Curl::HeadersPtr headers = session.head(file_info.manifest_url(), list_of(200)(202));
-    // So it looks like HEAD of the manifest file returns an etag that is double quoted
-    // e.g. 'etag': '"c4bf3693422e0e5a3350dac64e002987"'
-    // hence we start substr at position 1
-    string etag = (*headers)["etag"].substr(1, 32);
-    // string etag = (*headers)["etag"].c_str();
-    NOVA_LOG_DEBUG("Manifest etag: %s", etag);
-
-    if (concatenated_checksum != etag) {
-        NOVA_LOG_ERROR("Checksum match failed for checksum of concatenated segment "
-                       "checksums. Expected: %s, Actual: %s.",
-                       concatenated_checksum, etag);
-        throw SwiftException(SwiftException::SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL);
-    }
-
+    await_etag_match(file_info.manifest_url(), concatenated_checksum,
+        "Checksum match failed for checksum of concatenated segment checksums.",
+        SwiftException::SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL,
+        true);  // For some reason, the manifest file's etag is double quoted.
 }
 
 void SwiftUploader::write_container(){
@@ -332,19 +358,13 @@ string SwiftUploader::write_segment(const string & url,
     /* Let's do this! */
     session.perform(list_of(201)(202));
 
-    Curl::HeadersPtr headers = session.head(url, list_of(200)(202));
     const string checksum = info.checksum.finalize();
-    string etag = (*headers)["etag"].substr(0, 32);
-    NOVA_LOG_DEBUG("Response etag: %s", etag);
-    NOVA_LOG_DEBUG("Our calculated checksum: %s", checksum);
-    if (checksum != etag) {
-        NOVA_LOG_ERROR("Checksum match failed on segment. Expected %s, "
-                        "actual %s.", checksum.c_str(), etag.c_str());
-        throw SwiftException(SwiftException::SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL);
-    }
-    return checksum;
-
+    return await_etag_match(url, checksum,
+        "Checksum match failed on segment.",
+        SwiftException::SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL,
+        false);
 }
+
 string SwiftUploader::write(SwiftUploader::Input & input){
     NOVA_LOG_DEBUG("Writing to Swift!");
     write_container();

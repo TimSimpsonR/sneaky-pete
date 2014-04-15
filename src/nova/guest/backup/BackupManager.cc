@@ -195,6 +195,7 @@ public:
         ResilientSenderPtr sender,
         const CommandList commands,
         const int & segment_max_size,
+        const int checksum_wait_time,
         const string & swift_container,
         const double time_out,
         const string & tenant,
@@ -202,6 +203,7 @@ public:
         const size_t & zlib_buffer_size,
         const BackupInfo & backup_info)
     :   backup_info(backup_info),
+        checksum_wait_time(checksum_wait_time),
         sender(sender),
         commands(commands),
         segment_max_size(segment_max_size),
@@ -216,6 +218,7 @@ public:
     // from one thread to another.
     BackupJob(const BackupJob & other)
     :   backup_info(other.backup_info),
+        checksum_wait_time(other.checksum_wait_time),
         sender(other.sender),
         commands(other.commands),
         segment_max_size(other.segment_max_size),
@@ -262,6 +265,7 @@ private:
     };
 
     const BackupInfo backup_info;
+    const int checksum_wait_time;
     ResilientSenderPtr sender;
     const CommandList commands;
     const int segment_max_size;
@@ -284,7 +288,8 @@ private:
         // Setup SwiftClient
         SwiftFileInfo file_info(backup_info.location, swift_container,
                                 backup_info.id);
-        SwiftUploader writer(token, segment_max_size, file_info);
+        SwiftUploader writer(token, segment_max_size, file_info,
+                             checksum_wait_time);
 
         // Save the backup information to the database in case of failure
         // This allows delete calls to clean up after failures.
@@ -358,6 +363,7 @@ BackupManager::BackupManager(
     JobRunner & runner,
     const CommandList commands,
     const int segment_max_size,
+    const int checksum_wait_time,
     const string swift_container,
     const double time_out,
     const int zlib_buffer_size)
@@ -365,6 +371,7 @@ BackupManager::BackupManager(
     commands(commands),
     runner(runner),
     segment_max_size(segment_max_size),
+    checksum_wait_time(checksum_wait_time),
     swift_container(swift_container),
     time_out(time_out),
     zlib_buffer_size(zlib_buffer_size)
@@ -383,7 +390,7 @@ void BackupManager::run_backup(const string & tenant,
         NOVA_LOG_INFO("Token = %s", token.c_str());
     #endif
 
-    BackupJob job(sender, commands, segment_max_size,
+    BackupJob job(sender, commands, segment_max_size, checksum_wait_time,
                   swift_container, time_out, tenant, token,
                   zlib_buffer_size, backup_info);
     runner.run(job);

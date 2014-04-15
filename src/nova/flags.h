@@ -115,6 +115,8 @@ class FlagValues {
 
         double backup_timeout() const;
 
+        const int checksum_wait_time() const;
+
         const char * control_exchange() const;
 
         const char * datastore_manager() const;

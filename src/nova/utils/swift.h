@@ -50,6 +50,26 @@ struct SwiftFileInfo {
 };
 
 
+class SwiftException : public std::exception {
+
+    public:
+        enum Code {
+            SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL,
+            SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL,
+            SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL
+        };
+
+        SwiftException(Code code) throw();
+
+        virtual ~SwiftException() throw();
+
+        virtual const char * what() const throw();
+
+    private:
+        Code code;
+};
+
+
 class SwiftClient : boost::noncopyable {
 public:
     SwiftClient(const std::string & token);
@@ -111,20 +131,26 @@ public:
 
     SwiftUploader(const std::string & token,
                   const size_t & max_bytes,
-                  const SwiftFileInfo & file_info);
+                  const SwiftFileInfo & file_info,
+                  const int checksum_wait_time);
 
     std::string write(Input & reader);
 
 private:
     struct SegmentInfo;
 
+    const int checksum_wait_time;
     Md5 file_checksum;
     Md5 swift_checksum;
     SwiftFileInfo file_info;
     int file_number;
-
     const size_t max_bytes;
 
+    std::string await_etag_match(const std::string & url,
+                                 const std::string & checksum,
+                                 const char * error_text,
+                                 SwiftException::Code exception_code,
+                                 const bool etag_has_double_quotes);
     void write_container();
     void write_manifest(int file_number,
                         const std::string & final_file_checksum,
@@ -133,26 +159,6 @@ private:
 
     /* Returns a MD5 checksum. */
     std::string write_segment(const std::string & url, Input & input);
-};
-
-
-class SwiftException : public std::exception {
-
-    public:
-        enum Code {
-            SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL,
-            SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL,
-            SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL
-        };
-
-        SwiftException(Code code) throw();
-
-        virtual ~SwiftException() throw();
-
-        virtual const char * what() const throw();
-
-    private:
-        Code code;
 };
 
 

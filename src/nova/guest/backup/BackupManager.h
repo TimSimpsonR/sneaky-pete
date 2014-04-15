@@ -31,6 +31,7 @@ namespace nova { namespace guest { namespace backup {
                    nova::utils::JobRunner & runner,
                    const nova::process::CommandList commands,
                    const int segment_max_size,
+                   const int checksum_wait_time,
                    const std::string swift_container,
                    const double time_out,
                    const int zlib_buffer_size);
@@ -47,6 +48,7 @@ namespace nova { namespace guest { namespace backup {
             const nova::process::CommandList commands;
             nova::utils::JobRunner & runner;
             const int segment_max_size;
+            const int checksum_wait_time;
             const std::string swift_container;
             const std::string swift_url;
             const double time_out;

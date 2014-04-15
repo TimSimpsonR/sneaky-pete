@@ -308,6 +308,10 @@ double FlagValues::backup_timeout() const {
     return get_flag_value<double>(*map, "backup_timeout", 60.0);
 }
 
+const int FlagValues::checksum_wait_time() const {
+    return get_flag_value<long>(*map, "checksum_wait_time", 5 * 60);
+}
+
 const char * FlagValues::control_exchange() const {
     return map->get("control_exchange", "trove");
 }

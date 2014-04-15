@@ -23,16 +23,6 @@ using nova::utils::CurlScope;
 
 using namespace nova::utils::swift;
 
-/*
- * This example shows a HTTP PUT operation. PUTs a file given as a command
- * line argument to the URL also given on the command line.
- *
- * This example also uses its own read callback.
- *
- * Here's an article on how to setup a PUT handler for Apache:
- * http://www.apacheweek.com/features/put
- */
-
 
 class FileReader : public SwiftUploader::Input {
 public:
@@ -84,22 +74,15 @@ int main(int argc, char **argv)
   file_info.container = argv[4];
   file_info.base_file_name = argv[5];
 
-
   FileReader file(src_file);
-  /* get a FILE * of the same file, could also be made with
-     fdopen() from the previous descriptor, but hey this is just
-     an example! */
 
-
-  /* In windows, this will init the winsock stuff */
   CurlScope scope;
 
   // TODO: make this a argument
   const auto max_bytes = 32 * 1024;
-  //const auto chunk_size = 16 * 1024; //<-- This is make believe LOL!
-  SwiftUploader writer(token, max_bytes, file_info);
+  const int checksum_wait_time = 60;
+  SwiftUploader writer(token, max_bytes, file_info, checksum_wait_time);
 
-  // http://localhost/container/file_0000001
   writer.write(file);
 
 

@@ -91,7 +91,7 @@ lib lib_uuid : : <name>uuid ;
 
 alias dependencies
 	:   lib_json lib_rabbitmq  lib_uuid lib_confuse lib_boost_thread
- 	;
+    ;
 
 lib lib_pthread : : <name>pthread ; # Seems to only be needed in static builds
                                     # static builds also require lib_c.
@@ -562,6 +562,55 @@ unit u_nova_guest_agent
     :   src/nova/guest/agent.cc
     ;
 
+unit u_redis_client
+    :   src/nova/guest/redis/client.cc
+    ;
+
+unit u_redis_commands
+    :   src/nova/guest/redis/commands.cc
+    ;
+
+unit u_redis_config
+    :   src/nova/guest/redis/config.cc
+    ;
+
+unit u_redis_connection
+    :   src/nova/guest/redis/connection.cc
+    ;
+
+unit u_redis_control
+    :   src/nova/guest/redis/control.cc
+    ;
+
+unit u_redis_response
+    :   src/nova/guest/redis/response.cc
+    ;
+
+unit u_redis_status
+    :   src/nova/guest/redis/status.cc
+    :   u_nova_datastores_DatastoreStatus
+    ;
+
+unit u_nova_guest_redis_message_handler
+    :   src/nova/guest/redis/message_handler.cc
+    :   u_nova_guest_apt_apt
+        u_nova_guest_apt_AptException
+        u_nova_guest_apt_AptMessageHandler
+        u_nova_json
+        u_nova_db_mysql
+        u_nova_guest_monitoring_Monitoring
+        u_nova_guest_monitoring_MonitoringMessageHandler
+        u_nova_guest_backup_BackupRestore
+        u_nova_volume
+        u_redis_client
+        u_redis_commands
+        u_redis_config
+        u_redis_connection
+        u_redis_control
+        u_redis_response
+        u_redis_status
+    ;
+
 alias empty_agent_lib
     :   pch
         u_nova_flags
@@ -595,7 +644,6 @@ alias mysql_agent_lib
         u_nova_guest_monitoring_MonitoringMessageHandler
         u_nova_guest_mysql_MySqlMessageHandler
     ;
-
 
 
 ###############################################################################
@@ -783,6 +831,18 @@ exe sneaky-pete-mysql
     :   <linkflags>$(EXE_LINK_FLAGS)
 	;
 
+exe sneaky-pete-redis
+    :   static_dependencies
+        empty_agent_lib
+        u_nova_guest_redis_message_handler
+        u_nova_datastores_DatastoreStatus
+        src/redis_agent.cc
+        lib_m
+        lib_c
+        pch
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
 # Run this in Valgrind to find possible leaks.
 exe leak_tester
 	:	pch
@@ -790,7 +850,7 @@ exe leak_tester
 		mysql_agent_lib
 		src/leak_tester.cc
 	:   #<link>shared:<dependency>sql_guest_tests
-	    #<link>shared:<dependency>memory_tests
+        #<link>shared:<dependency>memory_tests
 	;
 
 # Run this to find out how much memory is availble in the container

@@ -9,6 +9,9 @@
 #include "commands.h"
 #include "control.h"
 #include "config.h"
+#include "nova/Log.h"
+
+using nova::Log;
 
 
 namespace nova { namespace redis {
@@ -229,6 +232,10 @@ Response Client::_reconnect()
     _authed = false;
     _name_set = false;
     _socket = -1;
+    config = new Config(_config_file);
+    _find_config_command();
+    _commands = new Commands(config->get_require_pass(),
+                             _config_command);
     Response res = _connect();
     if (res.status != CCONNECTED_RESPONSE)
     {
@@ -271,13 +278,13 @@ Client::Client(std::string host, std::string port,
     _find_config_command();
     _commands = new Commands(config->get_require_pass(),
                              _config_command);
-    control = new Control(config->get_pidfile());
+    control = new Control();
     _authed = false;
     _name_set = false;
     _socket = -1;
     _connect();
-    Response res = _auth();
-    res = _set_client();
+    _auth();
+    _set_client();
 }
 
 Client::~Client()
@@ -287,6 +294,10 @@ Client::~Client()
 
 Response Client::ping()
 {
+    if (_socket == -1)
+    {
+        _reconnect();
+    }
     Response res = _send_redis_message(_commands->ping());
     if (res.status != CMESSAGE_SENT_RESPONSE)
     {

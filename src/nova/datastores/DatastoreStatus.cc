@@ -119,24 +119,30 @@ void DatastoreStatus::set_status(DatastoreStatus::Status status) {
 const char * DatastoreStatus::status_name(DatastoreStatus::Status status) {
     // Make sure this matches the integers used by Trove!
     switch(status) {
-        case BUILDING:
-            return "building";
+        //! BEGIN GENERATED CODE
         case BLOCKED:
             return "blocked";
-        case PAUSED:
-            return "paused";
+        case BUILDING:
+            return "building";
         case CRASHED:
             return "crashed";
+        case DELETED:
+            return "deleted";
         case FAILED:
-            return "failed";
+            return "failed to spawn";
+        case FAILED_TIMEOUT_GUESTAGENT:
+            return "guestagent error";
+        case NEW:
+            return "new";
+        case PAUSED:
+            return "paused";
         case RUNNING:
             return "running";
         case SHUTDOWN:
             return "shutdown";
-        case NEW:
-            return "new";
         case UNKNOWN:
-            return "unknown_case";
+            return "unknown";
+        //! END GENERATED CODE
         default:
             return "!invalid status code!";
     }

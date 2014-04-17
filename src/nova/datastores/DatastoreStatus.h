@@ -39,15 +39,19 @@ namespace nova { namespace datastores {
             /* NOTE: These *MUST* match the values found in
              * trove.instance.models.ServiceStatuses! */
             enum Status {
-                RUNNING = 0x01, // Datastore is active.
-                BLOCKED = 0x02,
-                PAUSED = 0x03,  // Instance is rebooting (this is set in Nova).
-                SHUTDOWN = 0x04, // Datastore is not running.
-                CRASHED = 0x06, // When Datastore died after starting.
-                FAILED = 0x08,
-                BUILDING = 0x09, // Datastore is being installed / prepared.
-                UNKNOWN=0x16,  // Set when the guest becomes unresponsive
-                NEW = 0x17 // Set when the instance is shiny and new.
+                //! BEGIN GENERATED CODE
+                BLOCKED = 0x2,  // blocked
+                BUILDING = 0x9,  // building
+                CRASHED = 0x6,  // crashed
+                DELETED = 0x5,  // deleted
+                FAILED = 0x8,  // failed to spawn
+                FAILED_TIMEOUT_GUESTAGENT = 0x18,  // guestagent error
+                NEW = 0x17,  // new
+                PAUSED = 0x3,  // paused
+                RUNNING = 0x1,  // running
+                SHUTDOWN = 0x4,  // shutdown
+                UNKNOWN = 0x16  // unknown
+                //! END GENERATED CODE
             };
 
             virtual ~DatastoreStatus();

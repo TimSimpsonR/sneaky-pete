@@ -6,6 +6,7 @@
 #include <boost/tuple/tuple.hpp>
 
 
+using nova::json_obj;
 using nova::guest::agent::execute_main;
 using namespace nova::flags;
 using namespace nova::guest;
@@ -45,10 +46,12 @@ typedef boost::shared_ptr<EmptyAppUpdate> EmptyAppUpdatePtr;
 
 
 void SendMessages(ResilientSenderPtr sender) {
-    int index = 0;
     while(!quit) {
-        sender->send("hello",
-                     "msg_number", index ++);
+        sender->send("heartbeat",
+                         "payload", json_obj(
+                             "service_status", "running"
+                         )
+                     );
     }
     NOVA_LOG_INFO("I am quitting.")
 }

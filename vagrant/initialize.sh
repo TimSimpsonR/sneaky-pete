@@ -8,7 +8,7 @@ set -o xtrace
 # Bail on errors.
 set -e
 
-BUILD_DIR=${BUILD_DIR:-/home/vagrant/}sneaky_deps
+BUILD_DIR=${BUILD_DIR:-$HOME/}sneaky_deps
 
 pkg_install () {
     echo Installing $@...

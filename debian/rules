@@ -44,5 +44,5 @@ automated-build:
 	mv -v debian/control.pristine debian/control
 
 override_dh_auto_build:
-	bjam -d+2 release link=static deploy
+	bjam release link=static deploy
 	#dh_auto_build

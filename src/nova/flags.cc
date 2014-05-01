@@ -271,7 +271,7 @@ size_t FlagValues::backup_restore_zlib_buffer_size() const {
 
 const char * FlagValues::backup_restore_delete_file_pattern() const {
     return map->get("backup_restore_delete_file_pattern",
-                    "^ib|^xtrabackup|^mysql$|lost|^backup-my.cnf$|^db2/db.opt");
+                    "^ib|^xtrabackup|^mysql$|lost|^backup-my.cnf$|^db2/db.opt|^performance_schema$");
 }
 
 const char * FlagValues::backup_restore_restore_directory() const {
@@ -292,7 +292,7 @@ list<string> FlagValues::backup_restore_process_commands() const {
 
 const char * FlagValues::backup_restore_save_file_pattern() const {
     return map->get("backup_restore_save_file_pattern",
-                    "^my.cnf$|^mysql_upgrade_info$|^debian-5.1.flag$");
+                    "^my.cnf$|^mysql_upgrade_info$|^debian-5.1.flag$|^debian-5.5.flag$");
 }
 
 int FlagValues::backup_segment_max_size() const {

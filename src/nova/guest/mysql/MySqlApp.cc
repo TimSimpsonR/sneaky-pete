@@ -405,9 +405,8 @@ void MySqlApp::run_mysqld_with_init() {
         }
     }
     NOVA_LOG_INFO("Killing mysqld_safe...");
-    string pid_str = str(format("%d") % mysqld_safe.get_pid());
-    process::CommandList kill_cmd = list_of("/usr/bin/sudo")("/bin/kill")
-                                           (pid_str.c_str());
+    process::CommandList kill_cmd = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
+                                           ("stop");
     process::execute(kill_cmd);
     NOVA_LOG_INFO("Waiting for process to die...");
     mysqld_safe.wait_for_exit(60);

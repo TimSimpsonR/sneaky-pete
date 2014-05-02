@@ -91,6 +91,11 @@ LogOptions LogOptions::simple() {
     return log_options;
 }
 
+LogOptions LogOptions::silent() {
+    LogOptions log_options(boost::none, false, false);
+    return log_options;
+}
+
 
 /**---------------------------------------------------------------------------
  *- LogApiScope

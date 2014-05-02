@@ -25,7 +25,9 @@ project
         # The line below makes the Process class print all output.
         <define>_NOVA_PROCESS_VERBOSE
         #TODO: Add  -Wall -Wextra
-        <cxxflags>"-std=c++0x -Werror -Wno-error=strict-aliasing -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" "
+        #TODO(jcru): Remove '-Wno-error=deprecated-declarations'
+        #            Kept getting auto_ptr deprecated error for greedy_pete.cc
+        <cxxflags>"-std=c++0x -Werror -Wno-error=strict-aliasing -Wno-error=deprecated-declarations -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" "
         # Enable the very little bit of C++0x functionality available in GCC
         # 4.4.5 and turn warnings into errors except for strict-aliasing, which
         # unfortunatley issues false warnings as verified here:

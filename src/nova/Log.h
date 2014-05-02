@@ -56,6 +56,8 @@ namespace nova {
 
         /** Creates a simple set of LogOptions. Useful for tests. */
         static LogOptions simple();
+
+        static LogOptions silent();
     };
 
     class LogApiScope : boost::noncopyable  {

@@ -24,8 +24,31 @@ struct Segment {
     }
 };
 
+void write_diag_diff(const char * file_name,
+                     const DiagInfoPtr & start_diags,
+                     const DiagInfoPtr & end_diags) {
+  auto diff = (*end_diags) - (*start_diags);
 
-void max_out() {
+  std::stringstream out;
+  out << std::endl;
+
+  out << "{ " << std::endl;
+  out << "  \"fd_size\":" << diff.fd_size << ", " << std::endl;
+  out << "  \"vm_size\":" << diff.vm_size << ", " << std::endl;
+  out << "  \"vm_peak\":" << diff.vm_peak << ", " << std::endl;
+  out << "   \"vm_rss\":" << diff.vm_rss << ", " << std::endl;
+  out << "   \"vm_hwm\":" << diff.vm_hwm << ", " << std::endl;
+  out << "  \"threads\":" << diff.threads << std::endl;
+  out << "}" << std::endl;
+
+  std::ofstream myfile;
+  myfile.open(file_name);
+  myfile << out.str();
+  myfile.close();
+}
+
+
+void max_out(const DiagInfoPtr start_diags, const char * file_name) {
     try {
         size_t sum = 0;
         Segment * current = 0;
@@ -44,6 +67,12 @@ void max_out() {
             sstr << "Current = " << current << ", Sum = " << sum
                 << " (" << (sum / MB) << " MB)" << std::endl;
             std::cerr << sstr.str();
+
+            // We write (_not_ append)  the diag differnece every time since
+            // we can receive a kill 9 signal which we can't handle
+            Interrogator interrogator;
+            DiagInfoPtr diags_now = interrogator.get_diagnostics();
+            write_diag_diff(file_name, start_diags, diags_now);
         }
 
     } catch (std::bad_alloc& ba) {
@@ -52,8 +81,11 @@ void max_out() {
 
 }
 
+
 int main(int argc, char* argv[]) {
-    LogApiScope log(LogOptions::simple());
+    // Logs are disabled since interrogator logs every get_diagnostics call
+    // which is being called many times.
+    LogApiScope log(LogOptions::silent());
 
     if (argc > 2) {
         std::cerr << "Usage: " << argv[0] << " [outputfile]" << std::endl;
@@ -67,29 +99,7 @@ int main(int argc, char* argv[]) {
               << std::endl;
 
     Interrogator interrogator;
-    auto diags_before = interrogator.get_diagnostics();
-    max_out();
-    auto diags_after = interrogator.get_diagnostics();
-    auto diff = (*diags_after) - (*diags_before);
+    DiagInfoPtr diags_start = interrogator.get_diagnostics();
 
-    std::stringstream out;
-    out << std::endl;
-    std::cout << "Differences between start and end of diagnostics:" << std::endl;
-
-    out << "{ " << std::endl;
-    out << "  \"fd_size\":" << diff.fd_size << ", " << std::endl;
-    out << "  \"vm_size\":" << diff.vm_size << ", " << std::endl;
-    out << "  \"vm_peak\":" << diff.vm_peak << ", " << std::endl;
-    out << "   \"vm_rss\":" << diff.vm_rss << ", " << std::endl;
-    out << "   \"vm_hwm\":" << diff.vm_hwm << ", " << std::endl;
-    out << "  \"threads\":" << diff.threads << std::endl;
-    out << "}" << std::endl;
-
-    std::cerr << out.str();
-
-    std::ofstream myfile;
-    myfile.open(file_name);
-    myfile << out.str();
-    myfile.close();
-
+    max_out(diags_start, file_name);
 }

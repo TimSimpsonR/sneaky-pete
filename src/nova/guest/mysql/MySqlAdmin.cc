@@ -43,7 +43,7 @@ namespace {
 }
 
 string extract_user(const string & user) {
-    Regex regex("^'(.+)'@");
+    Regex regex("^'(.*)'@");
     RegexMatchesPtr matches = regex.match(user.c_str());
     if (matches && matches->exists_at(1)) {
         return matches->get(1);
@@ -54,7 +54,7 @@ string extract_user(const string & user) {
 }
 
 string extract_host(const string & user) {
-    Regex regex("^'.+'@'(.+)'");
+    Regex regex("^'.*'@'(.+)'");
     RegexMatchesPtr matches = regex.match(user.c_str());
     if (matches && matches->exists_at(1)) {
         return matches->get(1);

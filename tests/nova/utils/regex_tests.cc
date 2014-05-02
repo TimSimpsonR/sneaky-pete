@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(sql_pid_file)
 
 BOOST_AUTO_TEST_CASE(match_user_db_assoc)
 {
-    Regex regex("^'(.+)'@");
+    Regex regex("^'(.*)'@");
     RegexMatchesPtr matches = regex.match("'test'@%'");
     BOOST_REQUIRE_EQUAL(!!matches, true);
     BOOST_REQUIRE_EQUAL(matches->get(1), "test");
@@ -103,10 +103,18 @@ BOOST_AUTO_TEST_CASE(match_user_db_assoc)
 
 BOOST_AUTO_TEST_CASE(match_user_db_assoc1)
 {
-    Regex regex("^'(.+)'@");
+    Regex regex("^'(.*)'@");
     RegexMatchesPtr matches = regex.match("'te@st@'@%'");
     BOOST_REQUIRE_EQUAL(!!matches, true);
     BOOST_REQUIRE_EQUAL(matches->get(1), "te@st@");
+}
+
+BOOST_AUTO_TEST_CASE(match_user_db_assoc2)
+{
+    Regex regex("^'(.*)'@");
+    RegexMatchesPtr matches = regex.match("''@%'");
+    BOOST_REQUIRE_EQUAL(!!matches, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "");
 }
 
 BOOST_AUTO_TEST_CASE(match_dpkg_output)

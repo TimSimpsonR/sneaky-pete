@@ -317,7 +317,7 @@ const char * FlagValues::control_exchange() const {
 }
 
 const char * FlagValues::datastore_manager() const {
-    return map->get("datastore_manager");
+    return map->get("datastore_manager", "mysql");
 }
 
 const char * FlagValues::db_backend() const {

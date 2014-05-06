@@ -122,7 +122,7 @@ struct Func {
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
 
-        const auto package_list = flags.possible_packages_for_mysql();
+        const auto package_list = flags.datastore_packages();
 
         /* Create MySQL updater. */
         MySqlAppStatusPtr mysql_status_updater(new MySqlAppStatus(

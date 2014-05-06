@@ -155,7 +155,7 @@ class FlagValues {
 
         unsigned long periodic_interval() const;
 
-        std::list<std::string> possible_packages_for_mysql() const;
+        std::list<std::string> datastore_packages() const;
 
         size_t rabbit_client_memory() const;
 

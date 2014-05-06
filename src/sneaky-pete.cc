@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
 
     std::string manager = flags.datastore_manager();
     const char * program_name = 0;
-    if (manager == "mysql") {
+    if (manager == "mysql" || manager == "percona") {
         program_name = "sneaky-pete-mysql";
     }
 

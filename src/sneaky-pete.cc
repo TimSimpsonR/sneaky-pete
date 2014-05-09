@@ -37,6 +37,10 @@ int main(int argc, char* argv[]) {
     if (manager == "mysql") {
         program_name = "sneaky-pete-mysql";
     }
+    else if (manager == "redis")
+    {
+        program_name = "sneaky-pete-redis";
+    }
 
     if (program_name) {
         run(program_name, argc, argv);

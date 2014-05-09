@@ -1,5 +1,6 @@
 #include "pch.hpp"
 #include "control.h"
+
 #include <boost/lexical_cast.hpp>
 #include <cstdlib>
 #include <unistd.h>
@@ -36,8 +37,7 @@ static const std::string REDIS_START = "sudo /etc/init.d/redis-server start";
  * Constructor for the Control class.
  * std::string pid_file: string that is a path to the pid_file for redis.
  */
-Control::Control(std::string pid_file) :
-    _pid_file(pid_file)
+Control::Control()
 {
     //Nothing in here.
 }
@@ -59,7 +59,7 @@ int Control::stop()
     int status;
     if((status = system(REDIS_STOP.c_str())) == -1)
     {
-        if((pid = _get_pid()) != -1)
+        if((pid = get_pid()) != -1)
         {
             if (kill(pid, 0) == 0)
             {
@@ -74,10 +74,6 @@ int Control::stop()
                 status = 0;
             }
         }
-    }
-    if (status == 0)
-    {
-        unlink(_pid_file.c_str());
     }
     return status;
 }
@@ -95,10 +91,10 @@ int Control::start()
 
 /*
  * disable method of the Control class.
- * This method uses system to call the 
+ * This method uses system to call the
  * update-rc.d command to disable the
  * redis-server daemon.
- * This method returns an int and will return 
+ * This method returns an int and will return
  * a non zero status code on failure.
  */
 int Control::disable()
@@ -108,7 +104,7 @@ int Control::disable()
 
 /*
  * enable method of the Control class.
- * This method uses system to call the 
+ * This method uses system to call the
  * update-rc.d command to enable the
  * redis-server daemon.
  * This method returns an int and will return
@@ -120,31 +116,57 @@ int Control::enable()
 }
 
 /*
- * get_pid private method of the Control class.
+ * get_pid method of the Control class.
  * This method attempts to get the pid from the redis-server
- * pid file.
- * This method opens the pid file.
- * Ensures that the file is open.
- * grabs the first line of the pid file
+ * using popen and the pidof command.
  * Checks to see if the length of the line is longer than zero.
  * Then does a boost::lexical_cast to change the resulting string into an int.
- * This method returns an int and will return a -1 
+ * This method returns an int and will return a -1
  * on error of locating the pid.
  */
-int Control::_get_pid()
+int Control::get_pid()
 {
-    std::string line = "";
-    std::ifstream pfile(_pid_file.c_str());
-    if (!pfile.is_open())
+    FILE * fd;
+    char data[11];
+    fd = popen("pidof redis-server", "r");
+    if (!fd)
     {
         return -1;
     }
-    std::getline(pfile, line);
-    if (line.length() <= 0)
+    fgets(data, 20, fd);
+    fclose(fd);
+    std::string pid(data);
+    if (pid.length() <= 0)
     {
         return -1;
     }
-    return boost::lexical_cast<int>(line);
+    return boost::lexical_cast<int>(data);
+}
+
+/*
+ * get_process_status method of the Control class.
+ * This method attempts to see if the redis-server process is running.
+ * This method opens the pid file.
+ * Checks to see if the pid file is not -1.
+ * Then if it is not -1 it will SIGNULL the process to see if it is running.
+ * If it is not we return -1 if it is running we return 0.
+ */
+int Control::get_process_status()
+{
+    int pid;
+    pid = get_pid();
+    if (pid == -1)
+    {
+        return -1;
+    }
+    if (kill(pid, 0) == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 

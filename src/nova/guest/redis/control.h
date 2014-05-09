@@ -9,7 +9,7 @@ namespace nova { namespace redis {
 class Control
 {
     public:
-        Control(std::string pid_file);
+        Control();
 
         int stop();
 
@@ -19,15 +19,10 @@ class Control
 
         int enable();
 
-        int install(std::string pkg_name);
-
-        int uninstall(std::string pkg_name);
-
         int get_pid();
-    private:
-        std::string _pid_file;
 
-        int _get_pid();
+        int get_process_status();
+
 };
 
 

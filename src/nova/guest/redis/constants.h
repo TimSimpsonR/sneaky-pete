@@ -7,172 +7,274 @@
 namespace nova { namespace redis {
 
 //Redis responses.
+
+
+//This is the base good response code from redis.
+//You will only see this response code when getting data from redis.
 static const std::string STRING_RESPONSE = "+";
 
+//This is the base description for the string response.
+//You will only see this description when getting data from redis.
 static const std::string STRING_DESCRIPTION = "String.";
 
+//This is the base error response code from redis.
+//You will only see this response code when getting data from redis
+//and there is an error
 static const std::string ERROR_RESPONSE = "-";
 
+//This is the base description for an error response.
+//You will only see this description when getting data from redis
+//and there is an error
 static const std::string ERROR_DESCRIPTION = "Error.";
 
+//This is the base response code for an integer response.
+//You will only see this response code when getting data from redis
+//and only an integer is returned.
 static const std::string INTEGER_RESPONSE = ":";
 
+//This is the base response description for an integer response.
+//You will only see this response description when getting data from redis
+//and only when an integer is returned.
 static const std::string INTEGER_DESCRIPTION = "Integer.";
 
+//This is the base response for a multipart redis response.
+//You will only see this response when getting data from redis
+//and only if there is a multipart response from redis.
 static const std::string MULTIPART_RESPONSE = "*";
 
+//This is the base response description for a multipart redis response.
+//You will only see this response description when getting data from redis
+//and only if there is a multipart response from redis.
 static const std::string MULTIPART_DESCRIPTION = "Multipart string response.";
 
+//This is the base client error response code.
+//This is returned when the client has an error.
 static const std::string CERROR_RESPONSE = "cerror";
 
+//This is the base client error description.
+//This is returned when the client has an error.
 static const std::string CERROR_DESCRIPTION = "Client error.";
 
+//This is returned when an unsupported response comes from a redis server.
+//I.E not string error int or multipart response
 static const std::string UNSUPPORTED_RESPONSE = "unsupported";
 
+//This is returned when an unsupported response type is returned from the redis server.
 static const std::string UNSUPPORTED_DESCRIPTION = "Unsupported response type.";
 
+//This is returned when a redis server has a an server error
+//that is unrelated to the redis protocol itself.
 static const std::string SERROR_RESPONSE = "serror";
 
+//This is the status description when the redis server returns a server error
+//that is unrelated to the redis protocol itself.
 static const std::string SERROR_DESCRIPTION = "Redis server error.";
 
+//This status is returned when the redis server times out.
 static const std::string STIMEOUT_RESPONSE = "stimeout";
 
+//This status description is returned when a the redis server connection 
+//times out.
 static const std::string STIMEOUT_DESCRIPTION = "Redis server timeout.";
 
+//This status is returned when the client is timed out.
 static const std::string CTIMEOUT_RESPONSE = "ctimeout";
 
+//This status description is returned when a the redis client times out.
 static const std::string CTIMEOUT_DESCRIPTION = "Redis client timed out.";
 
+//This status is returned when the client is connected.
 static const std::string CCONNECTED_RESPONSE = "cconnected";
 
+//This status description is returned when the client is connected.
 static const std::string CCONNECTED_DESCRIPTION = "Redis client connected.";
 
-static const std::string CCONNECTION_ERR_RESPONSE = "sconnection_err";
+//This status is returned when the client has a connection error.
+static const std::string CCONNECTION_ERR_RESPONSE = "cconnection_err";
 
+//This status description is returned when a client is unable to
+//connect to the server.
 static const std::string CCONNECTION_ERR_DESCRIPTION = "Redis client unable "
                                                         "to connect.";
 
+//This status is returned when a message has been sent to a redis server.
 static const std::string CMESSAGE_SENT_RESPONSE = "cmessage_sent";
 
+//This status description is returned when a message has been
+//sent to the redis server.
 static const std::string CMESSAGE_SENT_DESCRIPTION = "Redis client"
                                                         "sent message.";
 
+//This is returned when a command results in no response nothing to parse.
 static const std::string CNOTHING_TO_DO_RESPONSE  = "cnothing";
 
+//This status description is returned when the client has nothing to parse.
 static const std::string CNOTHING_TO_DO_DESCRIPTION = "No command sent "
                                                         "nothing to do.";
 
 //Client options.
 
+//Default path to the redis config file
 static const std::string DEFAULT_REDIS_CONFIG = "/etc/redis/redis.conf";
 
+//Default redis port.
 static const std::string REDIS_PORT = "6379";
 
+//Default redis agent name for the guestagent.
 static const std::string REDIS_AGENT_NAME = "trove-guestagent";
 
+//Default socket for the guest agent to connect to.
 static const std::string SOCKET_NAME = "localhost";
 
+//Length of a Carrage return line feed.
 static const int CRLF_LEN = 2;
 
+//Socket error status code.
 static const int SOCK_ERROR = -1;
 
+//Max number of retries.
 static const int MAX_RETRIES = 100;
 
+//The length of one byte.
 static const int FIRST_BYTE_READ = 1;
 
+//Max read length in bytes, for the client.
 static const int READ_LEN = 2048;
 
+//CRLF constant.
 static const std::string CRLF = "\r\n";
 
 //This is bad but it is a value that is never used by redis.
 //So it means the item does not exist in the vector.
-
 static const int INT_NULL = -42;
 
 //Config keys.
+
+//Hash disables a config value in the config file.
 static const std::string DISABLE = "#";
 
+//Other config files to include.
 static const std::string INCLUDE_FILE = "include";
 
+//Run as a daemon can be yes or no
 static const std::string DAEMONIZE = "daemonize";
 
+//Path to the pidfile.
 static const std::string PIDFILE = "pidfile";
 
+//The redis server port.
 static const std::string PORT = "port";
 
+//tcp backlog length
 static const std::string TCP_BACKLOG = "tcp-backlog";
 
+//The bind addresses for this redis instance.
 static const std::string BIND_ADDR = "bind";
 
+//Path to the unix socket.
 static const std::string UNIX_SOCKET = "unixsocket";
 
+//socket perms for the socket file in numnumnum format
 static const std::string UNIX_SOCKET_PERMISSION = "unixsocketperm";
 
+//the tcp keepalive in seconds.
 static const std::string TCP_KEEPALIVE = "tcp-keepalive";
 
+//default log level for redis.
 static const std::string LOG_LEVEL = "loglevel";
 
+//path to the redis log file.
 static const std::string LOG_FILE = "logfile";
 
+//enable or disable syslog can be yes or no.
 static const std::string SYSLOG = "syslog-enabled";
 
+//the syslog user name.
 static const std::string SYSLOG_IDENT = "syslog-ident";
 
+//what syslog faculty are you using.
 static const std::string SYSLOG_FACILITY = "syslog-facility";
 
+//the number of databases in this redis db.
 static const std::string DATABASES = "databases";
 
+//The save interval for RDB dumps.
 static const std::string SAVE = "save";
 
+//Stops writing if bgsave fails can be yes or no.
 static const std::string STOP_WRITES_ON_BGSAVE_ERROR = "stop-writes-on-bgsave"
                                                         "-error";
 
+//Should we use rdbcompression can be yes or no.
 static const std::string RDB_COMPRESSION = "rdbcompression";
 
+//Should we create a checksum when writing the rdbfile can be yes or no.
 static const std::string RDB_CHECKSUM = "rdbchecksum";
 
+//name of the rdb database file.
 static const std::string DB_FILENAME = "dbfilename";
 
+//The default path that the rdb and aof databases files are written to.
 static const std::string DB_DIR = "dir";
 
+//host or ip address of the master for this redis instance.
 static const std::string SLAVE_OF = "slaveof";
 
+//the password for the redis master server.
 static const std::string MASTER_AUTH = "masterauth";
 
+//Should we serve stale slave data? can be yes or no.
 static const std::string SLAVE_SERVE_STALE_DATA = "slave-serve-stale-data";
 
+//Set a slave to read only can be yes or no.
 static const std::string SLAVE_READ_ONLY = "slave-read-only";
 
+//timeout for a slave to respond. Set in seconds.
 static const std::string REPL_PING_SLAVE_PERIOD = "repl-ping-slave-period";
 
+//General replication timeout. Set in seconds.
 static const std::string REPL_TIMEOUT = "repl-timeout";
 
+//Turn of replication delay can be set to yes or no.
 static const std::string REPL_DISABLE_TCP_NODELAY = "repl-disable-tcp-nodelay";
 
+//How large of a replication backlog to keep set in bytes.
 static const std::string REPL_BACKLOG_SIZE = "repl-backlog-size";
 
+//How long to save the replication backlog in seconds.
 static const std::string REPL_BACKLOG_TTL = "repl-backlog-ttl";
 
+//Set your instances save priority.
 static const std::string SLAVE_PRIORITY = "slave-priority";
 
+//Set the min number of slaves to write to. Set in bytes.
 static const std::string MIN_SLAVES_TO_WRITE = "min-slaves-to-write";
 
+//What is min replication lag time for slaves. Set in seconds.
 static const std::string MIN_SLAVES_MAX_LAG = "min-slaves-max-lag";
 
+//Enable password protection.
 static const std::string REQUIRE_PASS = "requirepass";
 
+//Rename a base redis command.
 static const std::string RENAME_COMMAND = "rename-command";
 
+//Max number of connected clients.
 static const std::string MAX_CLIENTS = "maxclients";
 
+//Max memory consumed by the redis daemon.
 static const std::string MAX_MEMORY = "maxmemory";
 
+//Max memory policy used for key eviction when the db fills up.
 static const std::string MAX_MEMORY_POLICY = "maxmemory-policy";
 
+//Number of samples to take for volitile eviction policies.
 static const std::string MAX_MEMORY_SAMPLES = "maxmemory-samples";
 
+//Enable AOF file.
 static const std::string APPEND_ONLY = "appendonly";
 
+//path to write the aof file to.
 static const std::string APPEND_FILENAME = "appendfilename";
 
 static const std::string APPEND_FSYNC = "appendfsync";

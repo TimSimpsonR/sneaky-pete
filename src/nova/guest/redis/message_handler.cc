@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <exception>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/assign/list_of.hpp>
@@ -110,9 +111,18 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Installing packages.")
         BOOST_FOREACH(const string & package, packages)
         {
-            //TODO: cweid need to add some error handling here.
             NOVA_LOG_INFO("Installing...");
-            apt->install(package.c_str(), 60);
+            try
+            {
+                apt->install(package.c_str(), 500);
+            }
+            catch (std::exception & e)
+            {
+                NOVA_LOG_ERROR("Unable to install redis-server");
+                app_status->end_failed_install();
+                return JsonData::from_string("prepare fail:"
+                                               "Error installing redis-server");
+            }
             NOVA_LOG_INFO("Installed...");
         }
         NOVA_LOG_INFO("Removing the redis conf file.");

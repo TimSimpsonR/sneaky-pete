@@ -188,9 +188,10 @@ BOOST_AUTO_TEST_CASE(match_package_with_period_squeeze)
     BOOST_REQUIRE_EQUAL(!matches2, true);
 }
 
+#define PACKAGE_NAME_REGEX "\\S+"
+
 BOOST_AUTO_TEST_CASE(match_package_with_period_wheezy)
 {
-    #define PACKAGE_NAME_REGEX "\\S+"
     Regex regex("no packages found matching ("
         PACKAGE_NAME_REGEX ")");
     RegexMatchesPtr matches = regex.match(
@@ -199,4 +200,31 @@ BOOST_AUTO_TEST_CASE(match_package_with_period_wheezy)
     std::cout << "1=" << matches->get(1) << std::endl;
     BOOST_REQUIRE_EQUAL(matches.get() != 0, true);
     BOOST_REQUIRE_EQUAL(matches->get(1), "mysql-server-5.5");
+}
+
+BOOST_AUTO_TEST_CASE(match_package_version_appropriately)
+{
+    #define PACKAGE_NAME_REGEX "\\S+"
+    Regex regex("(" PACKAGE_NAME_REGEX ")\\s+(\\S*).*");
+    RegexMatchesPtr matches = regex.match("dpkg 1.15.10");
+    std::cout << "0=" << matches->get(0) << std::endl;
+    std::cout << "1=" << matches->get(1) << std::endl;
+    std::cout << "2=" << matches->get(2) << std::endl;
+    BOOST_REQUIRE_EQUAL(matches.get() != 0, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "dpkg");
+    BOOST_REQUIRE_EQUAL(matches->get(2), "1.15.10");
+}
+
+BOOST_AUTO_TEST_CASE(match_package_version)
+{
+    Regex regex("(\\w+)\\.(\\w+)\\.(\\w+)");
+    RegexMatchesPtr matches = regex.match("1.15.10", 5);
+    std::cout << "0=" << matches->get(0) << std::endl;
+    std::cout << "1=" << matches->get(1) << std::endl;
+    std::cout << "2=" << matches->get(2) << std::endl;
+    BOOST_REQUIRE_EQUAL(matches.get() != 0, true);
+    BOOST_REQUIRE_EQUAL(matches->get(1), "1");
+    BOOST_REQUIRE_EQUAL(matches->get(2), "15");
+    BOOST_REQUIRE_EQUAL(matches->get(3), "10");
+    BOOST_REQUIRE(!!matches);
 }

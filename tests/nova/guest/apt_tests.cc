@@ -79,11 +79,11 @@ BOOST_AUTO_TEST_CASE(installed_package_returns_something)
     apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
     optional<string> version = guest.version("dpkg");
     BOOST_REQUIRE_EQUAL(!!version, true);
-    Regex regex("(\\w+)\\.(\\w+)\\.(\\w+)\\.(\\w+)");
+    Regex regex("(\\w+)\\.(\\w+)\\.(\\w+)");
     RegexMatchesPtr matches = regex.match(version.get().c_str(), 5);
     BOOST_REQUIRE(!!matches);
     BOOST_REQUIRE(matches->exists_at(0));
-    BOOST_REQUIRE(matches->exists_at(4));
+    BOOST_REQUIRE(matches->exists_at(3));
 }
 
 BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)

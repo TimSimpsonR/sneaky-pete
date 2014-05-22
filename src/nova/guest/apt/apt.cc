@@ -415,7 +415,7 @@ optional<string> AptGuest::version(const char * package_name,
                 NOVA_LOG_DEBUG("No version found.");
                 return boost::none;
             } else {
-                NOVA_LOG_DEBUG("Retruning version %s.", version.c_str());
+                NOVA_LOG_DEBUG("Returning version %s.", version.c_str());
                 return optional<string>(version);
             }
         }

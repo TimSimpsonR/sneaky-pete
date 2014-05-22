@@ -133,14 +133,14 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
             return JsonData::from_string("prepare fail:"
                                          "Error removing redis config file.");
         }
-        NOVA_LOG_INFO("Chmoding /etc/redis to 766.");
+        NOVA_LOG_INFO("Chmoding /etc/redis to 777.");
         if (system("sudo chmod -R 777 /etc/redis") == -1)
         {
-            NOVA_LOG_ERROR("Unable to chmod /etc/redis to 766");
+            NOVA_LOG_ERROR("Unable to chmod /etc/redis to 777");
             app_status->end_failed_install();
             return JsonData::from_string("prepare fail :"
                                          "Error chmoding /etc/redis "
-                                         "to 766.");
+                                         "to 777.");
         }
         NOVA_LOG_INFO("Creating new config file.");
         ofstream fd;
@@ -213,14 +213,32 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
                                          "/etc/redis/conf.d/local.conf "
                                          "for writing.");
         }
-        NOVA_LOG_INFO("Chmoding -R  /etc/redis to 755");
-        if (system("sudo chmod -R 755 /etc/redis") == -1)
+        NOVA_LOG_INFO("Chmoding /etc/redis/conf.d/local.conf to 644");
+        if (system("sudo chmod 644 /etc/redis/conf.d/local.conf") == -1)
+        {
+            NOVA_LOG_ERROR("Unable to chmod /etc/redis/conf.d/local.conf"
+                           "to 644");
+            app_status->end_failed_install();
+            return JsonData::from_string("prepare fail:"
+                                         "Error unable to revert file perms"
+                                         "for /etc/redis/conf.d/local.conf");
+        }
+        NOVA_LOG_INFO("Chmoding  /etc/redis to 755");
+        if (system("sudo chmod 755 /etc/redis") == -1)
         {
             NOVA_LOG_ERROR("Unable to chmod -R /etc/redis to 755");
             app_status->end_failed_install();
             return JsonData::from_string("prepare fail:"
                                          "Error unable to return "
                                          "/etc/redis back to 755 perms");
+        }
+        if (system("sudo chmod 755 /etc/redis/conf.d") == -1)
+        {
+            NOVA_LOG_ERROR("Unable to chmod -R /etc/redis/conf.d to 755");
+            app_status->end_failed_install();
+            return JsonData::from_string("prepare fail:"
+                                         "Error unable to return "
+                                         "/etc/redis/conf.d back to 755 perms");
         }
         NOVA_LOG_INFO("Chowing /etc/redis to root:root");
         if (system("sudo chown -R root:root /etc/redis") == -1)
@@ -231,8 +249,18 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
                                          "Error unable to chown "
                                          "/etc/redis to root:root");
         }
+        NOVA_LOG_INFO("Connecting to redis instance.");
+        nova::redis::Client client = nova::redis::Client(SOCKET_NAME,
+                                                         REDIS_PORT,
+                                                         REDIS_AGENT_NAME,
+                                                         DEFAULT_REDIS_CONFIG);
+        NOVA_LOG_INFO("Stopping redis instance.");
+        if (client.control->stop() != 0)
+        {
+            NOVA_LOG_INFO("Unable to stop redis instance.");
+        }
         NOVA_LOG_INFO("Starting redis instance.");
-        if (system("sudo /etc/init.d/redis-server start") == -1)
+        if (client.control->start() != 0)
         {
             NOVA_LOG_ERROR("Unable to start redis instance!");
             app_status->end_failed_install();

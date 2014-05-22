@@ -231,18 +231,8 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
                                          "Error unable to chown "
                                          "/etc/redis to root:root");
         }
-        NOVA_LOG_INFO("Connecting to redis instance.");
-        nova::redis::Client client = nova::redis::Client(SOCKET_NAME,
-                                                         REDIS_PORT,
-                                                         REDIS_AGENT_NAME,
-                                                         DEFAULT_REDIS_CONFIG);
-        NOVA_LOG_INFO("Stopping redis instance.");
-        if (client.control->stop() != 0)
-        {
-            NOVA_LOG_INFO("Unable to stop redis instance.");
-        }
         NOVA_LOG_INFO("Starting redis instance.");
-        if (client.control->start() != 0)
+        if (system("sudo /etc/init.d/redis-server start") == -1)
         {
             NOVA_LOG_ERROR("Unable to start redis instance!");
             app_status->end_failed_install();

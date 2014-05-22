@@ -100,7 +100,7 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Creating local.conf contents");
         std::string password = "password";
         std::string local_config =
-            std::string(boost::str(boost::format("requirepass %1%\n"
+        std::string(boost::str(boost::format("requirepass %1%\n"
                                                  "rename-command CONFIG %2%\n"
                                                  "rename-command MONITOR %3%")
                                                  % password
@@ -239,13 +239,13 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Stopping redis instance.");
         if (client.control->stop() != 0)
         {
-            NOVA_LOG_ERROR("Unable to stop redis instance!");
-            return JsonData::from_string("Unable to stop redis instance!");
+            NOVA_LOG_INFO("Unable to stop redis instance.");
         }
         NOVA_LOG_INFO("Starting redis instance.");
         if (client.control->start() != 0)
         {
             NOVA_LOG_ERROR("Unable to start redis instance!");
+            app_status->end_failed_install();
             return JsonData::from_string("Unable to start redis instance!");
         }
         app_status->end_install_or_restart();

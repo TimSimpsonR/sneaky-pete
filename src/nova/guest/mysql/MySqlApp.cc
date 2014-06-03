@@ -264,7 +264,11 @@ void MySqlApp::prepare(AptGuest & apt,
     }
 }
 
-string fetch_debian_sys_maint_password() {
+boost::optional<std::string> fetch_debian_sys_maint_password() {
+
+    if (!is_file(TRUE_DEBIAN_CNF)) {
+        return boost::none;
+    }
     // Have to copy the debian file to tmp and chown it just to read it. LOL!
     process::execute(list_of("/usr/bin/sudo")("cp")(TRUE_DEBIAN_CNF)
                             (TMP_DEBIAN_CNF));
@@ -307,10 +311,12 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
               << "'@'localhost' WITH GRANT OPTION;" << std::endl;
 
     NOVA_LOG_INFO("Setting debian-sys-maint password.");
-    string debian_sys_maint_password = fetch_debian_sys_maint_password();
-    init_file << "UPDATE mysql.user SET Password=PASSWORD('"
-              << debian_sys_maint_password << "') "
-              << "WHERE User='debian-sys-maint';" << std::endl;
+    boost::optional<std::string> debian_sys_maint_password = fetch_debian_sys_maint_password();
+    if (debian_sys_maint_password != boost::none) {
+        init_file << "UPDATE mysql.user SET Password=PASSWORD('"
+                  << debian_sys_maint_password << "') "
+                  << "WHERE User='debian-sys-maint';" << std::endl;
+    }
 
     NOVA_LOG_INFO("Flushing privileges");
     init_file << "FLUSH PRIVILEGES;" << std::endl;

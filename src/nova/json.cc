@@ -417,7 +417,8 @@ void JsonArray::initialize(const char * json_text) {
 vector<string> JsonArray::to_string_vector() const {
     vector<string> container;
     for (int index = 0; index < get_length(); ++ index) {
-        string s(get_any(index)->to_string());
+        string s;
+        get_string(index, s);
         container.push_back(s);
     }
     return container;

@@ -201,7 +201,10 @@ OperationResult _install(bool with_sudo, const char * package_name,
             return OK;
         }
     }
-    NOVA_LOG_ERROR("Got EOF calling apt-get install!");
+    if (process.successful()) {
+        return OK;
+    }
+    NOVA_LOG_ERROR("Got EOF calling apt-get install and process failed!");
     throw AptException(AptException::GENERAL);
 }
 

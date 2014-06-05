@@ -127,14 +127,14 @@ int Control::enable()
 int Control::get_pid()
 {
     FILE * fd;
-    char data[11];
+    char data[11] = "";
     fd = popen("pidof redis-server", "r");
     if (!fd)
     {
         return -1;
     }
     fgets(data, 20, fd);
-    fclose(fd);
+    pclose(fd);
     std::string pid(data);
     if (pid.length() <= 0)
     {

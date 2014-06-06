@@ -63,6 +63,10 @@ using std::vector;
 // Begin anonymous namespace.
 namespace {
 
+
+const char * const MOUNT_POINT="/var/lib/mysql";
+
+
 class PeriodicTasks
 {
 public:
@@ -83,6 +87,7 @@ private:
     MonitoringManagerPtr monitoring_manager;
     MySqlAppStatusPtr mysql_app_status;
 };
+
 
 typedef boost::shared_ptr<PeriodicTasks> PeriodicTasksPtr;
 
@@ -166,7 +171,7 @@ struct Func {
             flags.volume_file_system_type(),
             flags.volume_format_options(),
             flags.volume_format_timeout(),
-            "/var/lib/mysql",
+            MOUNT_POINT,
             flags.volume_mount_options()
           ));
         }
@@ -183,7 +188,7 @@ struct Func {
         handlers.push_back(handler_mysql_app);
 
         /* Create the Interrogator for the guest. */
-        Interrogator interrogator;
+        Interrogator interrogator(MOUNT_POINT);
         MessageHandlerPtr handler_interrogator(
             new InterrogatorMessageHandler(interrogator));
         handlers.push_back(handler_interrogator);
@@ -192,6 +197,7 @@ struct Func {
         BackupManager backup(
                       sender,
                       job_runner,
+                      interrogator,
                       flags.backup_process_commands(),
                       flags.backup_segment_max_size(),
                       flags.checksum_wait_time(),

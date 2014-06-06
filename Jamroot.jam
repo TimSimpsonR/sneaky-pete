@@ -838,6 +838,8 @@ exe sneaky-pete-redis
         empty_agent_lib
         u_nova_guest_redis_message_handler
         u_nova_datastores_DatastoreStatus
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_guest_diagnostics_InterrogatorMessageHandler
         src/redis_agent.cc
         lib_m
         lib_c

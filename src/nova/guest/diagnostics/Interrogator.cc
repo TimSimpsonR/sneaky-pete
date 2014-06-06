@@ -35,7 +35,17 @@ ProcStatus ProcStatus::operator - (const ProcStatus & rhs) const
  *- Interrogator
  *---------------------------------------------------------------------------*/
 
-DiagInfoPtr Interrogator::get_diagnostics() {
+Interrogator::Interrogator(const std::string mount_point)
+:   mount_point(mount_point)
+{
+}
+
+Interrogator::Interrogator(const Interrogator & other)
+:   mount_point(other.mount_point)
+{
+}
+
+DiagInfoPtr Interrogator::get_diagnostics() const {
     NOVA_LOG_DEBUG("getDiagnostics call ");
 
     DiagInfo * process_info;
@@ -51,7 +61,7 @@ DiagInfoPtr Interrogator::get_diagnostics() {
     return retValue;
 }
 
-HwInfoPtr Interrogator::get_hwinfo() {
+HwInfoPtr Interrogator::get_hwinfo() const {
     NOVA_LOG_DEBUG("get_hwinfo call");
 
     HwInfo * hwinfo;
@@ -63,7 +73,7 @@ HwInfoPtr Interrogator::get_hwinfo() {
     return hwinfo_ptr;
 }
 
-int Interrogator::get_mem_total() {
+int Interrogator::get_mem_total() const {
     string proc_meminfo_file = "/proc/meminfo";
     NOVA_LOG_DEBUG("getting memory info from : %s", proc_meminfo_file.c_str());
 
@@ -105,7 +115,7 @@ int Interrogator::get_mem_total() {
     return mem_total;
 }
 
-int Interrogator::get_num_cpus() {
+int Interrogator::get_num_cpus() const {
     string proc_cpuinfo_file = "/proc/cpuinfo";
     NOVA_LOG_DEBUG("getting cpu info from : %s", proc_cpuinfo_file.c_str());
 
@@ -147,7 +157,7 @@ int Interrogator::get_num_cpus() {
     return num_cpus;
 }
 
-void Interrogator::get_proc_status(pid_t pid, ProcStatus & process_info) {
+void Interrogator::get_proc_status(const pid_t pid, ProcStatus & process_info) const {
     string proc_status_file = str(format("/proc/%s/status") % pid);
     NOVA_LOG_DEBUG("proc status file location : %s",
                     proc_status_file.c_str());
@@ -209,7 +219,7 @@ void Interrogator::get_proc_status(pid_t pid, ProcStatus & process_info) {
     status_file.close();
 }
 
-FileSystemStatsPtr Interrogator::get_filesystem_stats(std::string fs_path) {
+FileSystemStatsPtr Interrogator::get_filesystem_stats(const std::string & fs_path) const {
     NOVA_LOG_DEBUG("Retrieving FileSystem Stats for : %s", fs_path.c_str());
     struct statvfs stats_buf;
     FileSystemStatsPtr fs_stats(new FileSystemStats());
@@ -229,5 +239,10 @@ FileSystemStatsPtr Interrogator::get_filesystem_stats(std::string fs_path) {
         throw InterrogatorException(InterrogatorException::FILESYSTEM_NOT_FOUND);
     }
 }
+
+FileSystemStatsPtr Interrogator::get_mount_point_stats() const {
+    return get_filesystem_stats(mount_point);
+}
+
 
 } } } // end namespace nova::guest::diagnostics

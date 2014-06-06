@@ -3,6 +3,7 @@
 
 #include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
+#include "nova/guest/diagnostics.h"
 #include "nova/guest/guest.h"
 #include "nova/process.h"
 #include <map>
@@ -29,6 +30,7 @@ namespace nova { namespace guest { namespace backup {
             BackupManager(
                    nova::rpc::ResilientSenderPtr sender,
                    nova::utils::JobRunner & runner,
+                   const nova::guest::diagnostics::Interrogator interrogator,
                    const nova::process::CommandList commands,
                    const int segment_max_size,
                    const int checksum_wait_time,
@@ -47,6 +49,7 @@ namespace nova { namespace guest { namespace backup {
             nova::rpc::ResilientSenderPtr sender;
             const nova::process::CommandList commands;
             nova::utils::JobRunner & runner;
+            const nova::guest::diagnostics::Interrogator interrogator;
             const int segment_max_size;
             const int checksum_wait_time;
             const std::string swift_container;

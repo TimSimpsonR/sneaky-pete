@@ -60,23 +60,33 @@ namespace nova { namespace guest { namespace diagnostics {
 
     class Interrogator {
         public:
+            Interrogator(const std::string mount_point);
+
+            Interrogator(const Interrogator & other);
+
             /** Grabs diagnostics for this program. */
-            static DiagInfoPtr get_diagnostics();
+            DiagInfoPtr get_diagnostics() const;
 
             /** Grabs process status for the given process id. */
-            static void get_proc_status(pid_t pid, ProcStatus & status);
+            void get_proc_status(const pid_t pid, ProcStatus & status) const;
 
             /** Retrieves the File System stats for a given volume/device. */
-            static FileSystemStatsPtr get_filesystem_stats(std::string fs);
+            FileSystemStatsPtr get_filesystem_stats(const std::string & fs) const;
 
             /** Get hardware information */
-            static HwInfoPtr get_hwinfo();
+            HwInfoPtr get_hwinfo() const;
 
             /** Get the total memory from /proc/meminfo. */
-            static int get_mem_total();
+            int get_mem_total() const;
+
+            /* Returns file system stats for the mount point. */
+            FileSystemStatsPtr get_mount_point_stats() const;
 
             /** Get the total number of CPUs from /proc/cpuinfo. */
-            static int get_num_cpus();
+            int get_num_cpus() const;
+
+        private:
+            const std::string mount_point;
     };
 
     class InterrogatorException : public std::exception {

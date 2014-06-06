@@ -66,6 +66,10 @@ using std::vector;
 namespace
 {
 
+
+const char * const MOUNT_POINT="/";
+
+
 class PeriodicTasks
 {
     public:
@@ -124,6 +128,12 @@ struct Func {
         MessageHandlerPtr  handler_redis(new RedisMessageHandler(apt_worker,
                                                                  app_status,
                                                                  monitoring_manager));
+
+        Interrogator interrogator(MOUNT_POINT);
+        MessageHandlerPtr handler_interrogator(
+            new InterrogatorMessageHandler(interrogator));
+        handlers.push_back(handler_interrogator);
+
         handlers.push_back(handler_redis);
         PeriodicTasksPtr tasks(new PeriodicTasks(app_status));
         return boost::make_tuple(handlers, tasks);

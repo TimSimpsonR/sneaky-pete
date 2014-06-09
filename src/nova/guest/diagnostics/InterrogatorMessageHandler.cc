@@ -67,9 +67,11 @@ JsonDataPtr InterrogatorMessageHandler::handle_message(const GuestInput & input)
             return JsonData::from_null();
         }
     } else if (input.method_name == "get_filesystem_stats") {
+        // Yes, this RPC method is named wrong.
+
         NOVA_LOG_DEBUG("handling the get_filesystem_stats method");
         //TODO: Make this configurable.
-        FileSystemStatsPtr fs_stats = interrogator.get_filesystem_stats("/var/lib/mysql");
+        FileSystemStatsPtr fs_stats = interrogator.get_mount_point_stats();
         JsonDataPtr rtn(new JsonObject(fs_stats_to_json_object(fs_stats)));
         return rtn;
     } else if (input.method_name == "get_hwinfo") {

@@ -11,7 +11,6 @@
 #include "nova/Log.h"
 #include "nova/process.h"
 #include "nova/utils/Curl.h"
-#include "nova/guest/diagnostics.h"
 #include <sstream>
 #include <string>
 #include <sys/statvfs.h>
@@ -31,6 +30,7 @@ using namespace std;
 using nova::utils::Curl;
 using nova::utils::CurlScope;
 using nova::guest::utils::IsoDateTime;
+using nova::guest::diagnostics::Interrogator;
 using nova::utils::Job;
 using nova::utils::JobRunner;
 using nova::utils::swift::SwiftClient;
@@ -194,6 +194,7 @@ public:
     BackupJob(
         ResilientSenderPtr sender,
         const CommandList commands,
+        const Interrogator interrogator,
         const int & segment_max_size,
         const int checksum_wait_time,
         const string & swift_container,
@@ -206,6 +207,7 @@ public:
         checksum_wait_time(checksum_wait_time),
         sender(sender),
         commands(commands),
+        interrogator(interrogator),
         segment_max_size(segment_max_size),
         swift_container(swift_container),
         tenant(tenant),
@@ -221,6 +223,7 @@ public:
         checksum_wait_time(other.checksum_wait_time),
         sender(other.sender),
         commands(other.commands),
+        interrogator(other.interrogator),
         segment_max_size(other.segment_max_size),
         swift_container(other.swift_container),
         tenant(other.tenant),
@@ -268,6 +271,7 @@ private:
     const int checksum_wait_time;
     ResilientSenderPtr sender;
     const CommandList commands;
+    const Interrogator interrogator;
     const int segment_max_size;
     const string swift_container;
     const string tenant;
@@ -277,8 +281,7 @@ private:
 
     void dump() {
         // Record the filesystem stats before the backup is run
-        Interrogator question;
-        FileSystemStatsPtr stats = question.get_filesystem_stats("/var/lib/mysql");
+        FileSystemStatsPtr stats = interrogator.get_filesystem_stats("/var/lib/mysql");
 
         NOVA_LOG_DEBUG("Volume used: %.2f", stats->used);
 
@@ -361,6 +364,7 @@ private:
 BackupManager::BackupManager(
     ResilientSenderPtr sender,
     JobRunner & runner,
+    const Interrogator interrogator,
     const CommandList commands,
     const int segment_max_size,
     const int checksum_wait_time,
@@ -370,6 +374,7 @@ BackupManager::BackupManager(
 :   sender(sender),
     commands(commands),
     runner(runner),
+    interrogator(interrogator),
     segment_max_size(segment_max_size),
     checksum_wait_time(checksum_wait_time),
     swift_container(swift_container),
@@ -390,7 +395,7 @@ void BackupManager::run_backup(const string & tenant,
         NOVA_LOG_INFO("Token = %s", token.c_str());
     #endif
 
-    BackupJob job(sender, commands, segment_max_size, checksum_wait_time,
+    BackupJob job(sender, commands, interrogator, segment_max_size, checksum_wait_time,
                   swift_container, time_out, tenant, token,
                   zlib_buffer_size, backup_info);
     runner.run(job);

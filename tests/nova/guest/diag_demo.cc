@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 
     cout << "Starting up the Interrogator..." << endl;
 
-    Interrogator gator;
+    Interrogator gator("/var/lib/mysql");
     DiagInfoPtr output = gator.get_diagnostics();
     cout << endl << endl;
     cout << "getDiagnostics = " << output.get() << endl;

@@ -33,7 +33,7 @@ BOOST_GLOBAL_FIXTURE(GlobalFixture);
 
 BOOST_AUTO_TEST_CASE(get_something_back_from_diagnostics)
 {
-    diagnostics::Interrogator guest;
+    diagnostics::Interrogator guest("/var/lib/mysql");
     DiagInfoPtr diags = guest.get_diagnostics();
     BOOST_CHECK(diags.get() != 0);
     BOOST_CHECK_EQUAL(diags->fd_size, 64);
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(get_something_back_from_diagnostics)
 BOOST_AUTO_TEST_CASE(get_filesystem_stats)
 {
     unsigned long mb = 1024*1024;
-    diagnostics::Interrogator guest;
+    diagnostics::Interrogator guest("/var/lib/mysql");
     FileSystemStatsPtr stats = guest.get_filesystem_stats("/home");
     std::ostringstream oss;
     oss << "Block Size: " << stats->block_size << ", ";

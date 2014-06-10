@@ -70,7 +70,7 @@ void max_out(const DiagInfoPtr start_diags, const char * file_name) {
 
             // We write (_not_ append)  the diag differnece every time since
             // we can receive a kill 9 signal which we can't handle
-            Interrogator interrogator;
+            Interrogator interrogator("/");
             DiagInfoPtr diags_now = interrogator.get_diagnostics();
             write_diag_diff(file_name, start_diags, diags_now);
         }
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "My proc id is " << getpid() << " and I liked to eat and eat."
               << std::endl;
 
-    Interrogator interrogator;
+    Interrogator interrogator("/");
     DiagInfoPtr diags_start = interrogator.get_diagnostics();
 
     max_out(diags_start, file_name);

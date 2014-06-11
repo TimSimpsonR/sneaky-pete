@@ -18,7 +18,7 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /usr/bin/mysqld_safe,  \
                       /usr/bin/redis-server, \
                       /etc/init.d/redis-server, \
-                    /etc/init.d/rackspace-monitoring-agent,    \
+                      /etc/init.d/rackspace-monitoring-agent, \
                       /usr/bin/mysqladmin,  \
                       /bin/ps,              \
                       /usr/sbin/update-rc.d, \

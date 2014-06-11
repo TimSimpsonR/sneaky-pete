@@ -194,7 +194,8 @@ Config::Config(std::string config) : _redis_config(config)
             buff_limit[CLIENT_BUFFER_LIMIT_CLASS] = value;
             iss >> value;
             buff_limit[CLIENT_BUFFER_LIMIT_HARD_LIMIT] = value;
-            iss >> value;                                                                                                                                                        buff_limit[CLIENT_BUFFER_LIMIT_SOFT_LIMIT] = value;
+            iss >> value;                                                                                                                                                        
+            buff_limit[CLIENT_BUFFER_LIMIT_SOFT_LIMIT] = value;
             iss >> value;
             buff_limit[CLIENT_BUFFER_LIMIT_SOFT_SECONDS] = value;
             _client_output_buffer_limit.push_back(buff_limit);
@@ -226,8 +227,8 @@ bool Config::write_new_config(std::string config)
         NOVA_LOG_ERROR("Unable to create new config file");
         return false;
     }
-    NOVA_LOG_INFO("Chmoding config file to open perms");
-    if (system("sudo chmod 777 /etc/redis/redis.conf") == -1)
+    NOVA_LOG_INFO("Chmoding folders to open perms");
+    if (system("sudo chmod -R 777 /etc/redis") == -1)
     {
         NOVA_LOG_ERROR("Unable to change file perms");
     }
@@ -246,7 +247,7 @@ bool Config::write_new_config(std::string config)
         return false;
     }
     NOVA_LOG_INFO("Locking down permissions.");
-    if (system("sudo chmod 644 /etc/redis/redis.conf") == -1)
+    if (system("sudo chmod -R 755 /etc/redis") == -1)
     {
         NOVA_LOG_ERROR("Unable to revert file permissions.");
     }

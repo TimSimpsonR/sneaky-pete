@@ -27,6 +27,7 @@ extern char **environ;
 using namespace boost::assign;
 using std::auto_ptr;
 using boost::format;
+using std::ofstream;
 using boost::optional;
 namespace proc = nova::process;
 using nova::utils::Regex;
@@ -353,7 +354,8 @@ void AptGuest::remove(const char * package_name, const double time_out) {
     resilient_remove(package_name, time_out);
 }
 
-void AptGuest::update(const double time_out) {
+void AptGuest::update(const optional<double> time_out) {
+    NOVA_LOG_INFO("Calling apt-get update...");
     proc::CommandList cmds;
     if (with_sudo) {
         cmds += "/usr/bin/sudo", "-E";
@@ -425,6 +427,22 @@ optional<string> AptGuest::version(const char * package_name,
     }
     NOVA_LOG_ERROR("version() saw unexpected output from dpkg!");
     throw AptException(AptException::UNEXPECTED_PROCESS_OUTPUT);
+}
+
+void AptGuest::write_preferences_file(const std::string & preferences_file,
+                                      const optional<double> time_out) {
+    NOVA_LOG_INFO("Writing new preferences file.");
+    ofstream file("/tmp/cdb");
+    file.exceptions(ofstream::failbit | ofstream::badbit);
+    if (!file.good()) {
+        throw AptException(AptException::ERROR_WRITING_PREFERENCES);
+    }
+    file << preferences_file;
+    file.close();
+    NOVA_LOG_INFO("Copying new preferences file into place.");
+    process::execute(list_of("/usr/bin/sudo")("cp")("/tmp/cdb")
+                            ("/etc/apt/preferences.d/cdb"));
+    update();
 }
 
 } } }  // end namespace nova::guest::apt

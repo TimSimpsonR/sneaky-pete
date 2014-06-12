@@ -156,8 +156,7 @@ void MySqlApp::write_config_overrides(const string & overrides_content) {
                      ("chmod")("0711")(MYCNF_OVERRIDES));
 }
 
-void MySqlApp::write_mycnf(AptGuest & apt,
-                           const string & config_contents,
+void MySqlApp::write_mycnf(const string & config_contents,
                            const optional<string> & overrides,
                            const optional<string> & admin_password_arg) {
     NOVA_LOG_INFO("Writing my.cnf templates");
@@ -196,35 +195,14 @@ void MySqlApp::write_mycnf(AptGuest & apt,
     }
 }
 
-void MySqlApp::reset_configuration(AptGuest & apt,
-                                   const string & config_contents) {
-    write_mycnf(apt, config_contents, boost::none, boost::none);
+void MySqlApp::reset_configuration(const string & config_contents) {
+    write_mycnf(config_contents, boost::none, boost::none);
 }
 
-void MySqlApp::prepare(AptGuest & apt,
-                       const std::vector<std::string> packages,
-                       const string & config_contents,
+void MySqlApp::prepare(const string & config_contents,
                        const optional<string> & overrides,
                        optional<BackupRestoreInfo> restore) {
-    // This option allows prepare to be run multiple times. In fact, I'm
-    // wondering if this newer version might be safe to just run whenever
-    // we want.
-    if (!skip_install_for_prepare) {
-        if (status->is_installed()) {
-            NOVA_LOG_ERROR("Cannot install and secure MySQL because it is already "
-                           "installed.");
-            return;
-        }
-        NOVA_LOG_INFO("Updating status to BUILDING...");
-        status->begin_install();
-    } else {
-        NOVA_LOG_INFO("Skipping install check.");
-    }
-
     try {
-        NOVA_LOG_INFO("Preparing Guest as MySQL Server");
-        install_mysql(apt, packages);
-
         NOVA_LOG_INFO("Waiting until we can connect to MySQL...");
         wait_for_initial_connection();
 
@@ -242,7 +220,7 @@ void MySqlApp::prepare(AptGuest & apt,
         write_fresh_init_file(admin_password, !restore);
 
         NOVA_LOG_INFO("Writing my.cnf...");
-        write_mycnf(apt, config_contents, overrides, admin_password);
+        write_mycnf(config_contents, overrides, admin_password);
 
         NOVA_LOG_INFO("Starting MySQL with init file...");
         run_mysqld_with_init();
@@ -320,14 +298,6 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
 
     NOVA_LOG_INFO("Flushing privileges");
     init_file << "FLUSH PRIVILEGES;" << std::endl;
-}
-
-void MySqlApp::install_mysql(AptGuest & apt, const vector<string> & packages) {
-    NOVA_LOG_INFO("Installing mysql server.");
-    BOOST_FOREACH(const string & package, packages) {
-        NOVA_LOG_INFO("Installing package %s...", package);
-        apt.install(package.c_str(), TIME_OUT);
-    }
 }
 
 void MySqlApp::internal_stop_mysql(bool update_db) {
@@ -442,8 +412,7 @@ void MySqlApp::start_mysql(bool update_db) {
     }
 }
 
-void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
-                                          const string & config_contents) {
+void MySqlApp::start_db_with_conf_changes(const string & config_contents) {
     NOVA_LOG_INFO("Starting mysql with conf changes...");
     // Restart MySQL and wipe ib logs
     if (status->is_running()) {
@@ -452,9 +421,7 @@ void MySqlApp::start_db_with_conf_changes(AptGuest & apt,
         throw MySqlGuestException(MySqlGuestException::MYSQL_NOT_STOPPED);
     }
     NOVA_LOG_INFO("Initiating config.");
-    // Make sure dbaas package is upgraded during the install in write_mycnf.
-    apt.update(TIME_OUT);
-    write_mycnf(apt, config_contents, boost::none, boost::none);
+    write_mycnf(config_contents, boost::none, boost::none);
     start_mysql(true);
     guarantee_enable_starting_mysql_on_boot();
 }

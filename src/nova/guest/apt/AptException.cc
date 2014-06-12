@@ -18,6 +18,8 @@ const char * AptException::what() const throw() {
     switch(code) {
         case ADMIN_LOCK_ERROR:
             return "Cannot complete because admin files are locked.";
+        case ERROR_WRITING_PREFERENCES:
+            return "Error writing preferences file.";
         case PACKAGE_NOT_FOUND:
             return "Could not find the given package.";
         case PACKAGE_STATE_ERROR:

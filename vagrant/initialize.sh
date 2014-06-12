@@ -61,8 +61,8 @@ fi
 mkdir -p $BUILD_DIR
 
 # Installing Rabbit
-pkg_checkout git://github.com/rabbitmq/rabbitmq-codegen.git rabbitmq-codegen 80fdd87358
-pkg_checkout git://github.com/alanxz/rabbitmq-c.git rabbitmq-c 3ff795807f
+pkg_checkout https://github.com/rabbitmq/rabbitmq-codegen.git rabbitmq-codegen 80fdd87358
+pkg_checkout https://github.com/alanxz/rabbitmq-c.git rabbitmq-c 3ff795807f
 
 cd $BUILD_DIR/rabbitmq-c
 autoreconf -i
@@ -104,7 +104,7 @@ set -e
 mkdir -p /opt/sp-deps/libcurl
 
 # Now build the library Sneaky Pete will use from source.
-pkg_checkout git://github.com/bagder/curl.git curl e305f5ec71
+pkg_checkout https://github.com/bagder/curl.git curl e305f5ec71
 cd $BUILD_DIR/curl
 ./buildconf
 # TODO(tim.simpson): Add SSL / SSH back... of course.

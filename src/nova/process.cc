@@ -204,9 +204,14 @@ namespace {
  *- Global Functions
  *---------------------------------------------------------------------------*/
 
-void execute(const CommandList & cmds, double time_out) {
+void execute(const CommandList & cmds, optional<double> time_out) {
     Process<> proc(cmds);
-    proc.wait_for_exit(time_out);
+    if (time_out) {
+        proc.wait_for_exit(time_out.get());
+    } else {
+        NOVA_LOG_INFO("Warning: Waiting forever for process to end.");
+        proc.wait_forever_for_exit();
+    }
     if (!proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
     }

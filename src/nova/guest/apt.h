@@ -39,13 +39,18 @@ namespace nova { namespace guest { namespace apt {
 
             /** Updates the cache on this box. If output is not received for the
              *  duration of time_out, an exception is raised. */
-            void update(const double time_out);
+            void update(const boost::optional<double> time_out=boost::none);
 
             /** Find the version of the given package. Returns the string
              *  name of the package or boost::none if the package is not
              *  installed. */
             boost::optional<std::string> version(const char * package_name,
                                                  const double time_out=30);
+
+            /** Change the preferences file. */
+            void write_preferences_file(const std::string & preferences_file,
+                                        const boost::optional<double> time_out
+                                        =boost::none);
 
         private:
 
@@ -68,6 +73,7 @@ namespace nova { namespace guest { namespace apt {
             enum Code {
                 ADMIN_LOCK_ERROR = 0,
                 COULD_NOT_FIX = 10,
+                ERROR_WRITING_PREFERENCES = 100,
                 GENERAL = 20,
                 PACKAGE_NOT_FOUND = 30,
                 PACKAGE_STATE_ERROR = 40,

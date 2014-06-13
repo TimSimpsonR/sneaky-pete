@@ -24,6 +24,7 @@
 #include "nova/rpc/receiver.h"
 #include <json/json.h>
 #include "nova/Log.h"
+#include "nova/guest/common/PrepareHandler.h"
 #include <sstream>
 #include <boost/thread.hpp>
 #include "nova/utils/threads.h"
@@ -54,6 +55,7 @@ using namespace nova::guest::diagnostics;
 using namespace nova::guest::monitoring;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
+using nova::guest::common::PrepareHandler;
 using nova::utils::ThreadBasedJobRunner;
 using namespace nova::rpc;
 using std::string;
@@ -160,13 +162,13 @@ struct Func {
 
         /** Sneaky Pete formats and mounts volumes based on the bool flag
           *'volume_format_and_mount'.
-          * If disabled a volumeManager null pointer is passed to the mysql
+          * If disabled a volume_manager null pointer is passed to the mysql
           * message handler. */
-        VolumeManagerPtr volumeManager;
+        VolumeManagerPtr volume_manager;
         if (flags.volume_format_and_mount()) {
           /** Create Volume Manager.
             * Reset null pointer to reference VolumeManager */
-          volumeManager.reset(new VolumeManager(
+          volume_manager.reset(new VolumeManager(
             flags.volume_check_device_num_retries(),
             flags.volume_file_system_type(),
             flags.volume_format_options(),
@@ -179,12 +181,16 @@ struct Func {
         /** TODO (joe.cruz) There has to be a better way of enabling sneaky pete to
           * format/mount a volume and to create the volume manager based on that.
           * I did this because currently flags can only be retrived from
-          * receiver_daemon so the volumeManager has to be created here. */
+          * receiver_daemon so the volume_manager has to be created here. */
+          /* Register the prepare handler, which sets everything up. */
+        auto prepare_ptr = boost::make_shared<PrepareHandler>(
+          mysqlApp, apt_worker, mysql_status_updater, volume_manager);
         MessageHandlerPtr handler_mysql_app(
-            new MySqlAppMessageHandler(mysqlApp,
+            new MySqlAppMessageHandler(prepare_ptr,
+                                       mysqlApp,
                                        apt_worker,
                                        monitoring_manager,
-                                       volumeManager));
+                                       volume_manager));
         handlers.push_back(handler_mysql_app);
 
         /* Create the Interrogator for the guest. */

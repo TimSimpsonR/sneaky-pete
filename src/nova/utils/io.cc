@@ -312,8 +312,18 @@ int select_with_throw(int nfds, fd_set * readfds, fd_set * writefds,
         //                   class.
         ready = pselect(nfds, readfds, writefds, errorfds,
                         (!seconds ? NULL: &time_out), &empty_set);
+        if (ready == 0) {
+            // Zero can be returned if there are no file descriptors with data,
+            // meaning the time out was triggered.
+            if (Timer::time_out_occurred()) {
+                throw TimeOutException();
+            }
+        }
         if (ready < 0) {
             if (errno == EINTR) {
+                // Not sure if throwing this is 100% accurate, though it is
+                // possible pselect could be interrupted by the Timer class
+                // which sets a signal.
                 if (Timer::time_out_occurred()) {
                     throw TimeOutException();
                 } else {

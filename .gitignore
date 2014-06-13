@@ -3,4 +3,6 @@ bin/*
 debian/*
 parrot/*
 deploy/*
+deploy-debug/*
 tools/*
+tools-debug/*

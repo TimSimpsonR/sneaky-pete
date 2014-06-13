@@ -391,6 +391,14 @@ unit u_nova_volume
         <testing.launcher>"BOOST_TEST_CATCH_SYSTEM_ERRORS=no "
     ;
 
+unit u_nova_guest_common_PrepareHandler
+    :   src/nova/guest/common/PrepareHandler.cc
+    :   u_nova_guest_apt_apt
+        u_nova_datastores_DatastoreStatus
+        u_nova_guest_GuestException
+        u_nova_volume
+    ;
+
 unit u_nova_guest_mysql_MySqlGuestException
     :   src/nova/guest/mysql/MySqlGuestException.cc
     ;
@@ -551,6 +559,7 @@ unit u_nova_guest_mysql_MySqlMessageHandler
     :   src/nova/guest/mysql/MySqlMessageHandler.cc
     :   u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
+        u_nova_guest_common_PrepareHandler
         u_nova_json
         u_nova_db_mysql
         u_nova_guest_mysql_MySqlAdmin

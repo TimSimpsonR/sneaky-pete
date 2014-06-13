@@ -36,6 +36,8 @@ using nova::json_string;
 using nova::guest::mysql::MySqlGuestException;
 using namespace nova::db::mysql;
 using boost::optional;
+using nova::guest::common::PrepareHandler;
+using nova::guest::common::PrepareHandlerPtr;
 using namespace std;
 using boost::tie;
 using namespace nova::guest::monitoring;
@@ -469,6 +471,7 @@ MySqlAdminPtr MySqlMessageHandler::sql_admin() {
  *---------------------------------------------------------------------------*/
 
 MySqlAppMessageHandler::MySqlAppMessageHandler(
+    PrepareHandlerPtr prepare_handler,
     MySqlAppPtr mysqlApp,
     nova::guest::apt::AptGuestPtr apt,
     nova::guest::monitoring::MonitoringManagerPtr monitoring,
@@ -476,6 +479,7 @@ MySqlAppMessageHandler::MySqlAppMessageHandler(
 :   apt(apt),
     monitoring(monitoring),
     mysqlApp(mysqlApp),
+    prepare_handler(prepare_handler),
     volumeManager(volumeManager)
 {
 }
@@ -486,59 +490,13 @@ MySqlAppMessageHandler::~MySqlAppMessageHandler() {
 
 JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
     if (input.method_name == "prepare") {
-        NOVA_LOG_INFO("Calling prepare...");
-        MySqlAppPtr app = this->create_mysql_app();
-        const auto packages = get_packages_argument(input.args);
-        const auto config_contents = input.args->get_string("config_contents");
-        const auto overrides = input.args->get_optional_string("overrides");
-        // Mount volume
-        if (volumeManager) {
-            const auto device_path = input.args->get_optional_string("device_path");
-            const auto mount_point = volumeManager->get_mount_point();
-            if (device_path && device_path.get().length() > 0) {
-                NOVA_LOG_INFO("Mounting volume for prepare call...");
-                bool write_to_fstab = true;
-                VolumeManagerPtr volume_manager = this->create_volume_manager();
-                VolumeDevice vol_device = volume_manager->create_volume_device(device_path.get());
-                vol_device.format();
-                vol_device.mount(mount_point, write_to_fstab);
-                NOVA_LOG_INFO("Mounted the volume.");
-            }
-        }
-        // Restore the database?
-        optional<BackupRestoreInfo> restore;
-        const auto backup_url = input.args->get_optional_string("backup_url");
-        if (backup_url && backup_url.get().length() > 0) {
-            NOVA_LOG_INFO("Calling Restore...")
-            if (!input.token) {
-                NOVA_LOG_ERROR("No token given! Cannot do this restore!");
-                throw GuestException(GuestException::MALFORMED_INPUT);
-            }
-            const auto token = input.token;
-            const auto backup_checksum = input.args->get_optional_string("backup_checksum");
-            restore = optional<BackupRestoreInfo>(
-                BackupRestoreInfo(token.get(), backup_url.get(), backup_checksum.get()));
-        }
-        app->prepare(*this->apt, packages, config_contents, overrides, restore);
-
+        prepare_handler->prepare(input);
         // The argument signature is the same as create_database so just
         // forward the method.
         NOVA_LOG_INFO("Creating initial databases and users following successful prepare");
         _create_database(MySqlMessageHandler::sql_admin(), input.args);
         _create_user(MySqlMessageHandler::sql_admin(), input.args);
 
-        // installation of monitoring
-        const auto monitoring_info =
-            input.args->get_optional_object("monitoring_info");
-        if (monitoring_info) {
-            NOVA_LOG_INFO("Installing Monitoring Agent following successful prepare");
-            const auto token = monitoring_info->get_string("token");
-            const auto endpoints = monitoring_info->get_string("endpoints");
-            monitoring->install_and_configure_monitoring_agent(
-                *this->apt, token, endpoints);
-        } else {
-            NOVA_LOG_INFO("Skipping Monitoring Agent as no endpoints were supplied.");
-        }
         return JsonData::from_null();
     } else if (input.method_name == "restart") {
         NOVA_LOG_INFO("Calling restart...");
@@ -549,7 +507,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         NOVA_LOG_INFO("Calling start with conf changes...");
         MySqlAppPtr app = this->create_mysql_app();
         string config_contents = input.args->get_string("config_contents");
-        app->start_db_with_conf_changes(*this->apt, config_contents);
+        app->start_db_with_conf_changes(config_contents);
         return JsonData::from_null();
     } else if (input.method_name == "remove_overrides") {
         NOVA_LOG_INFO("Removing overrides file...");
@@ -561,7 +519,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         MySqlAppPtr app = this->create_mysql_app();
         JsonObjectPtr config = input.args->get_object("configuration");
         string config_contents = config->get_string("config_contents");
-        app->reset_configuration(*this->apt, config_contents);
+        app->reset_configuration(config_contents);
         return JsonData::from_null();
     } else if (input.method_name == "stop_db") {
         NOVA_LOG_INFO("Calling stop...");

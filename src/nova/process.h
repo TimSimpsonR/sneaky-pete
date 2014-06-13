@@ -51,7 +51,7 @@ typedef std::list<std::string> CommandList;
 /** Executes the given command, waiting until its finished. Returns
  *  true if the command runs successfully with a good exit code, false
  *  otherwise. */
-void execute(const CommandList & cmds, double time_out=30);
+void execute(const CommandList & cmds, boost::optional<double> time_out=30);
 
 /** Like the corresponding "execute" command but pipes stdout / stderr to
  *  a stream. Some processes need this to function correctly! */

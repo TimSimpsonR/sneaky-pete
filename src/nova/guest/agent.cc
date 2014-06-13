@@ -21,6 +21,20 @@ using std::vector;
 
 namespace nova {  namespace guest { namespace agent {
 
+namespace {
+    JsonDataPtr handle_message(vector<MessageHandlerPtr> & handlers,
+                               const GuestInput & input) {
+        BOOST_FOREACH(MessageHandlerPtr & handler, handlers) {
+            nova::JsonDataPtr result = handler->handle_message(input);
+            if (result) {
+                return result;
+            }
+        }
+        NOVA_LOG_ERROR("No method found!")
+        throw GuestException(GuestException::NO_SUCH_METHOD);
+    }
+}  // anonymous namespace
+
 LogOptions log_options_from_flags(const flags::FlagValues & flags) {
     boost::optional<LogFileOptions> log_file_options;
     if (flags.log_file_path()) {
@@ -47,29 +61,21 @@ void run_json_method(vector<MessageHandlerPtr> & handlers,
 }
 
 GuestOutput run_method(vector<MessageHandlerPtr> & handlers, GuestInput & input) {
-    GuestOutput output;
-
     #ifdef CATCH_RPC_METHOD_ERRORS
+    GuestOutput output;
     try {
     #endif
-        BOOST_FOREACH(MessageHandlerPtr & handler, handlers) {
-            output.result = handler->handle_message(input);
-            if (output.result) {
-                break;
-            }
-        }
-        if (!output.result) {
-            NOVA_LOG_ERROR("No method found!")
-            throw GuestException(GuestException::NO_SUCH_METHOD);
-        }
+        output.result = handle_message(handlers, input);
         output.failure = boost::none;
     #ifdef CATCH_RPC_METHOD_ERRORS
     } catch(const std::exception & e) {
         NOVA_LOG_ERROR("Error running method %s : %s",
                    input.method_name.c_str(), e.what());
         NOVA_LOG_ERROR(e.what());
-        output.result.reset();
-        output.failure = e.what();
+        GuestOutput failed_output;
+        failed_output.result.reset();
+        failed_output.failure = e.what();
+        return failed_output;
     }
     #endif
 

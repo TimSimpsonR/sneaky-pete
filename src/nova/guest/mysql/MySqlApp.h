@@ -1,7 +1,7 @@
 #ifndef __NOVA_GUEST_MYSQL_MYSQLAPP_H
 #define __NOVA_GUEST_MYSQL_MYSQLAPP_H
 
-#include "nova/guest/apt.h"
+#include "nova/datastores/DatastoreApp.h"
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
 #include "nova/guest/backup/BackupRestore.h"
@@ -13,7 +13,7 @@ namespace nova { namespace guest { namespace mysql {
 /** This class maintains the MySQL application on this machine.
  *  Administrative tasks performed not on the MySQL database but the actual
  *  application itself are performed using this. */
-class MySqlApp {
+class MySqlApp : public nova::datastores::DatastoreApp {
     friend class MySqlAppTestsFixture;
 
     public:
@@ -27,9 +27,7 @@ class MySqlApp {
         virtual ~MySqlApp();
 
         /** Installs MySql, secures it, and possibly runs a backup. */
-        void prepare(
-            nova::guest::apt::AptGuest & apt,
-            const std::vector<std::string> packages,
+        virtual void prepare(
             const std::string & config_contents,
             const boost::optional<std::string> & overrides,
             boost::optional<nova::guest::backup::BackupRestoreInfo> restore
@@ -41,11 +39,9 @@ class MySqlApp {
         /** Restarts MySQL on this host. */
         void restart();
 
-        void start_db_with_conf_changes(nova::guest::apt::AptGuest & apt,
-                                        const std::string & config_contents);
+        void start_db_with_conf_changes(const std::string & config_contents);
 
-        void reset_configuration(nova::guest::apt::AptGuest & apt,
-                                 const std::string & config_contents);
+        void reset_configuration(const std::string & config_contents);
 
         /** Stops MySQL on this host. */
         void stop_db(bool do_not_start_on_reboot=false);
@@ -67,16 +63,9 @@ class MySqlApp {
          *  container flavor. Update the os_admin user and password
          * to the my.cnf file for direct login from localhost
          **/
-        void write_mycnf(nova::guest::apt::AptGuest & apt,
-                         const std::string & config_contents,
+        void write_mycnf(const std::string & config_contents,
                          const boost::optional<std::string> & overrides,
                          const boost::optional<std::string> & admin_password_arg);
-
-        /*
-         * Just installs MySQL, but doesn't secure it.
-         */
-        void install_mysql(nova::guest::apt::AptGuest & apt,
-                           const std::vector<std::string> & packages);
 
         /** Stop mysql. Only update the DB if update_db is true. */
         void internal_stop_mysql(bool update_db=false);

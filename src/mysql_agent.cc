@@ -56,6 +56,7 @@ using namespace nova::guest::monitoring;
 using namespace nova::db::mysql;
 using namespace nova::guest::mysql;
 using nova::guest::common::PrepareHandler;
+using nova::guest::common::PrepareHandlerPtr;
 using nova::utils::ThreadBasedJobRunner;
 using namespace nova::rpc;
 using std::string;
@@ -183,8 +184,8 @@ struct Func {
           * I did this because currently flags can only be retrived from
           * receiver_daemon so the volume_manager has to be created here. */
           /* Register the prepare handler, which sets everything up. */
-        auto prepare_ptr = boost::make_shared<PrepareHandler>(
-          mysqlApp, apt_worker, mysql_status_updater, volume_manager);
+        PrepareHandlerPtr prepare_ptr(new PrepareHandler(
+            mysqlApp, apt_worker, mysql_status_updater, volume_manager));
         MessageHandlerPtr handler_mysql_app(
             new MySqlAppMessageHandler(prepare_ptr,
                                        mysqlApp,

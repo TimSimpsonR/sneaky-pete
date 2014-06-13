@@ -314,7 +314,7 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
     boost::optional<std::string> debian_sys_maint_password = fetch_debian_sys_maint_password();
     if (debian_sys_maint_password != boost::none) {
         init_file << "UPDATE mysql.user SET Password=PASSWORD('"
-                  << debian_sys_maint_password << "') "
+                  << debian_sys_maint_password.get() << "') "
                   << "WHERE User='debian-sys-maint';" << std::endl;
     }
 

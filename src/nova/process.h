@@ -58,6 +58,12 @@ void execute(const CommandList & cmds, boost::optional<double> time_out=30);
 void execute_with_stdout_and_stderr(const CommandList & cmds,
                                     double time_out=30, bool check_proc=true);
 
+
+/** Like the corresponding "execute" command but only pipes stdout
+ *  a stream. Some processes need this to function correctly! */
+void execute_with_stdout_only(const CommandList & cmds,
+                                    double time_out=30, bool check_proc=true);
+
 /** Similar to execute, but throws a TimeOutException if any reads take
  *  longer than the time_out argument. */
 void execute(std::stringstream & out, const CommandList & cmds,

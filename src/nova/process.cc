@@ -225,6 +225,14 @@ void execute_with_stdout_and_stderr(const CommandList & cmds, double time_out, b
     }
 }
 
+void execute_with_stdout_only(const CommandList & cmds, double time_out, bool check_proc) {
+    Process<StdOutOnly> proc(cmds);
+    proc.wait_for_exit(time_out);
+    if (check_proc && !proc.successful()) {
+        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
+    }
+}
+
 void execute(std::stringstream & out, const CommandList & cmds,
              double time_out) {
     Process<StdErrAndStdOut> proc(cmds); //, true);

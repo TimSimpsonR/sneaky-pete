@@ -96,55 +96,9 @@ void AptGuest::fix(double time_out) {
 
 
 // Returns -1 on EOF, an index of a regular expression that matched.
+template<typename ProcessClass>
 optional<ProcessResult> match_output(
-    proc::Process<proc::StdOutOnly> & process,
-    const vector<string> & patterns,
-    double seconds)
-{
-    typedef shared_ptr<Regex> RegexPtr;
-    vector<RegexPtr> regexes;
-    BOOST_FOREACH(const string & pattern, patterns) {
-        RegexPtr ptr(new Regex(pattern.c_str()));
-        regexes.push_back(ptr);
-    }
-    stringstream std_out;
-
-    Timer timer(seconds);
-    while(!process.is_finished()) {
-        auto read_result = process.read_into(std_out, seconds);
-        NOVA_LOG_TRACE("******************************************************");
-        NOVA_LOG_TRACE(std_out.str().c_str());
-        NOVA_LOG_TRACE("******************************************************");
-        if (read_result.write_length == 0) {
-            return boost::none;
-            if (!process.is_finished()) {
-                NOVA_LOG_ERROR("read should not exit until it gets data.");
-                throw AptException(AptException::GENERAL);
-            }
-        }
-        string output = std_out.str();
-        for (size_t index = 0; index < regexes.size(); index ++) {
-            RegexPtr & regex = regexes[index];;
-            RegexMatchesPtr matches = regex->match(output.c_str());
-            NOVA_LOG_TRACE("__________________________________________________");
-            NOVA_LOG_TRACE(output.c_str());
-            NOVA_LOG_TRACE("Trying to match %s against regex %s",
-                           output, patterns[index]);
-            NOVA_LOG_TRACE("__________________________________________________");
-            if (!!matches) {
-                ProcessResult result;
-                result.index = index;
-                result.matches = matches;
-                return optional<ProcessResult>(result);
-            }
-        }
-        // Nothing matches... let's try again until time_out or eof().
-    }
-    return boost::none;
-}
-
-optional<ProcessResult> match_output(
-    proc::Process<proc::StdErrAndStdOut> & process,
+    ProcessClass & process,
     const vector<string> & patterns,
     double seconds)
 {
@@ -163,6 +117,8 @@ optional<ProcessResult> match_output(
         NOVA_LOG_TRACE(std_out.str().c_str());
         NOVA_LOG_TRACE("******************************************************");
         if (count == 0) {
+            //NOTE(tim.simpson): Return boost::none here if we hit the timeout?
+            //                   Kevin reports this makes the code work.
             if (!process.is_finished()) {
                 NOVA_LOG_ERROR("read should not exit until it gets data.");
                 throw AptException(AptException::GENERAL);
@@ -196,7 +152,7 @@ optional<ProcessResult> match_output(
  *  recoverable-error occurred.
  *  Raises an exception if a non-recoverable error or time out occurs.
  */
-OperationResult _install(bool with_sudo, const string package_name,
+OperationResult _install(bool with_sudo, const string & package_name,
                          double time_out) {
     proc::CommandList cmds;
     if (with_sudo) {
@@ -230,6 +186,8 @@ OperationResult _install(bool with_sudo, const string package_name,
     } else {
       patterns.push_back(str(format("Setting up %s") % package_name));
     }
+    // 6
+    patterns.push_back("is already the newest version");
 
     optional<ProcessResult> result;
     try  {
@@ -323,7 +281,7 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
     cmds += "remove";
     cmds += package_name;
-    proc::Process<proc::StdOutOnly> process(cmds);
+    proc::Process<proc::StdErrAndStdOut> process(cmds);
 
     vector<string> patterns;
     // 0 = permissions issue

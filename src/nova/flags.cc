@@ -83,7 +83,8 @@ void FlagMap::add_from_arg(const char * arg, bool ignore_mismatch) {
 void FlagMap::add_from_arg(const std::string & arg, bool ignore_mismatch) {
     string line = arg;
     trim(line);
-    if (line.size() > 0 && line.substr(0, 1) == "#") {
+    // remove comments and '[sections]'
+    if (line.size() > 0 && (line[0] == '#' || line[0] == '[')) {
         return;
     }
 

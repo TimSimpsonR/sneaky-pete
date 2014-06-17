@@ -268,67 +268,6 @@ class StdErrToFile : public ProcessFileHandler, public virtual ProcessBase {
 };
 
 
-class StdOutOnly : public ProcessFileHandler, public virtual ProcessBase {
-    public:
-
-        struct ReadResult {
-            enum FileIndex {
-                StdErr = 2,
-                StdOut = 1,
-                NA = 0
-            };
-
-            inline bool err() const {
-                return file == StdErr;
-            }
-
-            FileIndex file;
-
-            inline bool na() const {
-                return file == NA;
-            }
-
-            inline bool out() const {
-                return file == StdOut;
-            }
-
-            size_t write_length;
-        };
-
-        StdOutOnly();
-
-        virtual ~StdOutOnly();
-
-        /* Reads from either stdour or stderr, and returns the bytes read
-         * as well as from which stream reading occurred. */
-        ReadResult read_into(std::stringstream & std_out,
-                             const boost::optional<double> seconds);
-        ReadResult read_into(char * buffer, const size_t length,
-                             boost::optional<double> seconds);
-
-        bool std_out_closed() const {
-            return !std_out_pipe.in_is_open();
-        }
-    protected:
-
-        virtual void drain_io(boost::optional<double> seconds);
-
-        virtual void post_spawn_actions();
-
-        virtual void pre_spawn_stdout_actions(SpawnFileActions & sp);
-
-        // Reads from the last remaing stream.
-        ReadResult _read_into(char * buffer, const size_t length,
-                              const boost::optional<double> seconds);
-
-        virtual void set_eof_actions();
-
-    private:
-        bool draining;
-        nova::utils::io::Pipe std_out_pipe;
-};
-
-
 class IndependentStdErrAndStdOut : public ProcessFileHandler,
                                    public virtual ProcessBase {
     public:
@@ -445,6 +384,11 @@ class StdErrAndStdOut : public ProcessFileHandler, public virtual ProcessBase {
         nova::utils::io::Pipe std_out_pipe;
 };
 
+
+class StdOutOnly : public virtual StdErrAndStdOut {
+    protected:
+        virtual void pre_spawn_stderr_actions(SpawnFileActions & sp);
+};
 
 } }  // end nova::process namespace
 

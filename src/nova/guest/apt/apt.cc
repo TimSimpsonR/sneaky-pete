@@ -97,6 +97,53 @@ void AptGuest::fix(double time_out) {
 
 // Returns -1 on EOF, an index of a regular expression that matched.
 optional<ProcessResult> match_output(
+    proc::Process<proc::StdOutOnly> & process,
+    const vector<string> & patterns,
+    double seconds)
+{
+    typedef shared_ptr<Regex> RegexPtr;
+    vector<RegexPtr> regexes;
+    BOOST_FOREACH(const string & pattern, patterns) {
+        RegexPtr ptr(new Regex(pattern.c_str()));
+        regexes.push_back(ptr);
+    }
+    stringstream std_out;
+
+    Timer timer(seconds);
+    while(!process.is_finished()) {
+        auto read_result = process.read_into(std_out, seconds);
+        NOVA_LOG_TRACE("******************************************************");
+        NOVA_LOG_TRACE(std_out.str().c_str());
+        NOVA_LOG_TRACE("******************************************************");
+        if (read_result.write_length == 0) {
+            return boost::none;
+            if (!process.is_finished()) {
+                NOVA_LOG_ERROR("read should not exit until it gets data.");
+                throw AptException(AptException::GENERAL);
+            }
+        }
+        string output = std_out.str();
+        for (size_t index = 0; index < regexes.size(); index ++) {
+            RegexPtr & regex = regexes[index];;
+            RegexMatchesPtr matches = regex->match(output.c_str());
+            NOVA_LOG_TRACE("__________________________________________________");
+            NOVA_LOG_TRACE(output.c_str());
+            NOVA_LOG_TRACE("Trying to match %s against regex %s",
+                           output, patterns[index]);
+            NOVA_LOG_TRACE("__________________________________________________");
+            if (!!matches) {
+                ProcessResult result;
+                result.index = index;
+                result.matches = matches;
+                return optional<ProcessResult>(result);
+            }
+        }
+        // Nothing matches... let's try again until time_out or eof().
+    }
+    return boost::none;
+}
+
+optional<ProcessResult> match_output(
     proc::Process<proc::StdErrAndStdOut> & process,
     const vector<string> & patterns,
     double seconds)
@@ -111,7 +158,7 @@ optional<ProcessResult> match_output(
 
     Timer timer(seconds);
     while(!process.is_finished()) {
-        size_t count = process.read_into(std_out, seconds);
+        auto count = process.read_into(std_out, seconds);
         NOVA_LOG_TRACE("******************************************************");
         NOVA_LOG_TRACE(std_out.str().c_str());
         NOVA_LOG_TRACE("******************************************************");
@@ -120,6 +167,7 @@ optional<ProcessResult> match_output(
                 NOVA_LOG_ERROR("read should not exit until it gets data.");
                 throw AptException(AptException::GENERAL);
             }
+            return boost::none;
         }
         string output = std_out.str();
         for (size_t index = 0; index < regexes.size(); index ++) {
@@ -148,7 +196,7 @@ optional<ProcessResult> match_output(
  *  recoverable-error occurred.
  *  Raises an exception if a non-recoverable error or time out occurs.
  */
-OperationResult _install(bool with_sudo, const char * package_name,
+OperationResult _install(bool with_sudo, const string package_name,
                          double time_out) {
     proc::CommandList cmds;
     if (with_sudo) {
@@ -156,8 +204,8 @@ OperationResult _install(bool with_sudo, const char * package_name,
     }
     setenv("DEBIAN_FRONTEND", "noninteractive", 1);
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
-            package_name;
-    proc::Process<proc::StdErrAndStdOut> process(cmds);  // Should be ok to make wait.
+            package_name.c_str();
+    proc::Process<proc::StdOutOnly> process(cmds);  // Should be ok to make wait.
 
     vector<string> patterns;
     // 0 = permissions issue
@@ -173,8 +221,15 @@ OperationResult _install(bool with_sudo, const char * package_name,
     // 4 = lock error
     patterns.push_back("Unable to lock the administration directory");
     // 5 - 6 = Success, but only if followed up by EOF.
-    patterns.push_back(str(format("Setting up %s") % package_name));
-    patterns.push_back("is already the newest version");
+    const auto index = package_name.find("=");
+    if (string::npos != index) {
+        string name = package_name.substr(0, index);
+        string value = package_name.substr(index + 1, string::npos);
+        NOVA_LOG_TRACE("Found versioned pkg %s (%s)", name, value)
+        patterns.push_back(str(format("Setting up %s (%s)") % name % value));
+    } else {
+      patterns.push_back(str(format("Setting up %s") % package_name));
+    }
 
     optional<ProcessResult> result;
     try  {
@@ -268,7 +323,7 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
     cmds += "remove";
     cmds += package_name;
-    proc::Process<proc::StdErrAndStdOut> process(cmds);
+    proc::Process<proc::StdOutOnly> process(cmds);
 
     vector<string> patterns;
     // 0 = permissions issue

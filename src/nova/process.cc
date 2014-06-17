@@ -438,6 +438,122 @@ void ProcessBase::wait_forever_for_exit() {
     _wait_for_exit_code(true);
 }
 
+/**---------------------------------------------------------------------------
+ *- StdOutOnly
+ *---------------------------------------------------------------------------*/
+
+StdOutOnly::StdOutOnly()
+:   std_out_pipe()
+{
+    ::fcntl(std_out_pipe.in(), F_SETFL, O_NONBLOCK);
+    add_io_handler(this);
+}
+
+StdOutOnly::~StdOutOnly() {}
+
+
+void StdOutOnly::drain_io(optional<double> seconds) {
+    if (draining) {
+        return;
+    }
+    NOVA_LOG_TRACE("Draining STDOUT...");
+    draining = true;
+    char buffer[1024];
+    std::unique_ptr<Timer> timer;
+    if (seconds) {
+        timer.reset(new Timer(seconds.get()));
+    }
+    ReadResult result;
+    while((result = read_into(buffer, sizeof(buffer), seconds)).write_length
+          != 0) {
+        NOVA_LOG_TRACE("Draining again! %d", result.write_length);
+    }
+}
+
+void StdOutOnly::post_spawn_actions() {
+    std_out_pipe.close_out();
+    NOVA_LOG_TRACE("Closing the out side of the stdout pipe.");
+}
+
+void StdOutOnly::pre_spawn_stdout_actions(
+    SpawnFileActions & file_actions)
+{
+    NOVA_LOG_TRACE("Opening up stdout pipes.");
+    file_actions.add_dup_to(std_out_pipe.out(), STDOUT_FILENO);
+    file_actions.add_close(std_out_pipe.in());
+}
+
+void StdOutOnly::set_eof_actions() {
+    std_out_pipe.close_in();
+    NOVA_LOG_TRACE("Closing in side of the stdout pipe.");
+}
+
+StdOutOnly::ReadResult StdOutOnly::read_into(
+        stringstream & std_out, const optional<double> seconds) {
+    char buf[BUFFER_SIZE];
+    const auto result = read_into(buf, BUFFER_SIZE-1, seconds);
+
+    buf[result.write_length] = 0;
+    std_out.write(buf, result.write_length);
+    NOVA_LOG_TRACE("buffer output:%s", buf);
+    NOVA_LOG_TRACE("count = %d, SO FAR %d", result.write_length, std_out.str().length());
+    return result;
+}
+
+StdOutOnly::ReadResult StdOutOnly::read_into(
+    char * buffer, const size_t length, const optional<double> seconds)
+{
+    NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    if (!std_out_pipe.in_is_open()) {
+        throw ProcessException(ProcessException::PROGRAM_FINISHED);
+    }
+
+    const auto result = ready(this->std_out_pipe.in(), seconds);
+    if (!result) {
+        NOVA_LOG_TRACE("ready returned nothing. Returning NA from read_into");
+        return { ReadResult::NA, 0 };
+    }
+    const size_t count = io::read_with_throw(this->std_out_pipe.in(), buffer, length);
+    if (count == 0) {
+        NOVA_LOG_TRACE("CLOSING STDOUT!!!!")
+        draining = true;  // Avoid re-draining.
+        wait_forever_for_exit();
+        return { ReadResult::FileIndex::StdOut, 0 };
+    }
+    // Data was read, so return info on which stream it came from.
+    return { ReadResult::StdOut, count };
+}
+
+StdOutOnly::ReadResult StdOutOnly::_read_into(
+    char * buffer, const size_t length, const optional<double> seconds)
+{
+    int filedesc;
+    ReadResult::FileIndex index;
+    if (!std_out_pipe.in_is_open()) {
+        throw ProcessException(ProcessException::PROGRAM_FINISHED);
+    }
+
+    filedesc = std_out_pipe.in();
+    index = ReadResult::FileIndex::StdOut;
+
+    NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
+    if (!ready(filedesc, seconds)) {
+        NOVA_LOG_TRACE("ready returned false, returning zero from read_into");
+        return { ReadResult::NA, 0 };
+    }
+    size_t count = io::read_with_throw(filedesc, buffer, length);
+    if (count == 0) {
+        NOVA_LOG_TRACE("read returned 0, EOF");
+        draining = true;  // Avoid re-draining.
+        wait_forever_for_exit();
+        return { index, 0 };
+    }
+    return { index, count };
+}
+
+
+
+
 
 /**---------------------------------------------------------------------------
  *- IndependentStdErrAndStdOut
@@ -502,15 +618,27 @@ void IndependentStdErrAndStdOut::set_eof_actions() {
 }
 
 IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
+        stringstream & std_out, const optional<double> seconds) {
+    char buf[BUFFER_SIZE];
+    const auto result = read_into(buf, BUFFER_SIZE-1, seconds);
+
+    buf[result.write_length] = 0;
+    std_out.write(buf, result.write_length);
+    NOVA_LOG_TRACE("buffer output:%s", buf);
+    NOVA_LOG_TRACE("count = %d, SO FAR %d", result.write_length, std_out.str().length());
+    return result;
+}
+
+IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
     char * buffer, const size_t length, const optional<double> seconds)
 {
     NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
-    if (!std_out_pipe.in_is_open()) {
-        if (!std_err_pipe.in_is_open()) {
-            throw ProcessException(ProcessException::PROGRAM_FINISHED);
-        } else {
-            return _read_into(buffer, length, seconds);
-        }
+    if (!std_out_pipe.in_is_open() && !std_err_pipe.in_is_open()) {
+        throw ProcessException(ProcessException::PROGRAM_FINISHED);
+    }
+
+    if (std_out_pipe.in_is_open() != std_err_pipe.in_is_open()) {
+        return _read_into(buffer, length, seconds);
     }
     const auto result = ready(this->std_out_pipe.in(), this->std_err_pipe.in(),
                               seconds);
@@ -560,7 +688,7 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::_read_into(
         NOVA_LOG_TRACE("read returned 0, EOF");
         draining = true;  // Avoid re-draining.
         wait_forever_for_exit();
-        return { ReadResult::NA, 0 };
+        return { index, 0 };
     }
     return { index, count };
 }

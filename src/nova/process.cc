@@ -66,7 +66,6 @@ namespace {
             :   new_argv_length(cmds.size() + 1),
                 new_argv(new char * [new_argv_length])
             {
-                new_argv = new char * [new_argv_length];
                 size_t i = 0;
                 BOOST_FOREACH(const string & cmd, cmds) {
                     new_argv[i ++] = strndup(cmd.c_str(), cmd.size());
@@ -535,8 +534,8 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
     const auto result = ready(this->std_out_pipe.in(), this->std_err_pipe.in(),
                               seconds);
     if (!result) {
-        NOVA_LOG_TRACE("ready returned nothing. Returning NA from read_into");
-        return { ReadResult::NA, 0 };
+        NOVA_LOG_TRACE("ready returned nothing. Returning TimeOut from read_into");
+        return { ReadResult::TimeOut, 0 };
     }
     const int file_desc = result.get();
     const size_t count = io::read_with_throw(file_desc, buffer, length);
@@ -573,14 +572,14 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::_read_into(
     NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
     if (!ready(filedesc, seconds)) {
         NOVA_LOG_TRACE("ready returned false, returning zero from read_into");
-        return { ReadResult::NA, 0 };
+        return { ReadResult::TimeOut, 0 };
     }
     size_t count = io::read_with_throw(filedesc, buffer, length);
     if (count == 0) {
         NOVA_LOG_TRACE("read returned 0, EOF");
         draining = true;  // Avoid re-draining.
         wait_forever_for_exit();
-        return { index, 0 };
+        return { ReadResult::Eof, 0 };
     }
     return { index, count };
 }

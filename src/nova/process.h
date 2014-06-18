@@ -282,7 +282,8 @@ class IndependentStdErrAndStdOut : public ProcessFileHandler,
             enum FileIndex {
                 StdErr = 2,
                 StdOut = 1,
-                NA = 0
+                Eof = 0,
+                TimeOut = 3
             };
 
             inline bool err() const {
@@ -291,12 +292,16 @@ class IndependentStdErrAndStdOut : public ProcessFileHandler,
 
             FileIndex file;
 
-            inline bool na() const {
-                return file == NA;
+            inline bool eof() const {
+                return file == Eof;
             }
 
             inline bool out() const {
                 return file == StdOut;
+            }
+
+            inline bool time_out() const {
+                return file == TimeOut;
             }
 
             size_t write_length;

@@ -225,14 +225,6 @@ void execute_with_stdout_and_stderr(const CommandList & cmds, double time_out, b
     }
 }
 
-void execute_with_stdout_only(const CommandList & cmds, double time_out, bool check_proc) {
-    Process<StdOutOnly> proc(cmds);
-    proc.wait_for_exit(time_out);
-    if (check_proc && !proc.successful()) {
-        throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
-    }
-}
-
 void execute(std::stringstream & out, const CommandList & cmds,
              double time_out) {
     Process<StdErrAndStdOut> proc(cmds); //, true);
@@ -510,27 +502,15 @@ void IndependentStdErrAndStdOut::set_eof_actions() {
 }
 
 IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
-        stringstream & std_out, const optional<double> seconds) {
-    char buf[BUFFER_SIZE];
-    const auto result = read_into(buf, BUFFER_SIZE-1, seconds);
-
-    buf[result.write_length] = 0;
-    std_out.write(buf, result.write_length);
-    NOVA_LOG_TRACE("buffer output:%s", buf);
-    NOVA_LOG_TRACE("count = %d, SO FAR %d", result.write_length, std_out.str().length());
-    return result;
-}
-
-IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::read_into(
     char * buffer, const size_t length, const optional<double> seconds)
 {
     NOVA_LOG_TRACE("read_into with timeout=%f", !seconds ? 0.0 : seconds.get());
-    if (!std_out_pipe.in_is_open() && !std_err_pipe.in_is_open()) {
-        throw ProcessException(ProcessException::PROGRAM_FINISHED);
-    }
-
-    if (std_out_pipe.in_is_open() != std_err_pipe.in_is_open()) {
-        return _read_into(buffer, length, seconds);
+    if (!std_out_pipe.in_is_open()) {
+        if (!std_err_pipe.in_is_open()) {
+            throw ProcessException(ProcessException::PROGRAM_FINISHED);
+        } else {
+            return _read_into(buffer, length, seconds);
+        }
     }
     const auto result = ready(this->std_out_pipe.in(), this->std_err_pipe.in(),
                               seconds);
@@ -580,7 +560,7 @@ IndependentStdErrAndStdOut::ReadResult IndependentStdErrAndStdOut::_read_into(
         NOVA_LOG_TRACE("read returned 0, EOF");
         draining = true;  // Avoid re-draining.
         wait_forever_for_exit();
-        return { index, 0 };
+        return { ReadResult::NA, 0 };
     }
     return { index, count };
 }
@@ -768,13 +748,5 @@ void StdErrAndStdOut::set_eof_actions() {
     NOVA_LOG_TRACE("Closing in side of the stderr/stdout pipe.");
 }
 
-
-/**---------------------------------------------------------------------------
- *- StdOutOnly
- *---------------------------------------------------------------------------*/
-
-void StdOutOnly::pre_spawn_stderr_actions(SpawnFileActions & file_actions) {
-    file_actions.add_close(STDERR_FILENO);
-}
 
 } }  // end nova::process namespace

@@ -395,7 +395,7 @@ void MySqlApp::start_mysql(bool update_db) {
     // As a precaution, make sure MySQL will run on boot.
     process::CommandList cmds = list_of("/usr/bin/sudo")("/etc/init.d/mysql")
                                        ("start");
-    process::execute_with_stdout_only(cmds, this->state_change_wait_time,
+    process::execute_with_stdout_and_stderr(cmds, this->state_change_wait_time,
                                             false);
     // Wait for MySQL to become pingable. Don't update the database until we're
     // positive of success (this is to follow what's expected by the Trove

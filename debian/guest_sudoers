@@ -14,6 +14,7 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /usr/bin/xtrabackup,  \
                       /var/lib/nova/backup, \
                       /var/lib/nova/restore, \
+                      /var/lib/nova/falco, \
                       /etc/init.d/mysql,    \
                       /usr/bin/mysqld_safe,  \
                       /usr/bin/redis-server, \

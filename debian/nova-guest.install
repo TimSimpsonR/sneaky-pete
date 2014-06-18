@@ -4,3 +4,4 @@ deploy/sneaky-pete-redis usr/bin/
 debian/guest_sudoers etc/sudoers.d
 debian/backup var/lib/nova/
 debian/restore var/lib/nova/
+debian/falco var/lib/nova/

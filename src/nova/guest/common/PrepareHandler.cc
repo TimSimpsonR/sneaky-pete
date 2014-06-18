@@ -114,14 +114,9 @@ void PrepareHandler::prepare(const GuestInput & input) {
     const auto overrides = input.args->get_optional_string("overrides");
 
     mount_volume(volume_manager, input.args);
-    const auto preferences_file
-        = input.args->get_optional_string("preferences_file");
-    if (preferences_file) {
-        NOVA_LOG_INFO("Updating the preferences file.");
-        apt->write_preferences_file(preferences_file.get());
-    } else {
-        NOVA_LOG_INFO("No repo preferences given.");
-    }
+
+    apt->write_repo_files(input.args->get_optional_string("preferences_file"),
+                          input.args->get_optional_string("sources_file"));
 
     const auto packages = get_packages_argument(input.args);
     install_packages(*apt, packages);

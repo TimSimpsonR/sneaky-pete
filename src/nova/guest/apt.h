@@ -48,9 +48,10 @@ namespace nova { namespace guest { namespace apt {
                                                  const double time_out=30);
 
             /** Change the preferences file. */
-            void write_preferences_file(const std::string & preferences_file,
-                                        const boost::optional<double> time_out
-                                        =boost::none);
+            void write_repo_files(
+              const boost::optional<std::string> & preferences_file,
+              const boost::optional<std::string> & sources_file,
+              const boost::optional<double> time_out=boost::none);
 
         private:
 
@@ -58,6 +59,10 @@ namespace nova { namespace guest { namespace apt {
 
             void resilient_remove(const char * package_name,
                                   const double time_out);
+
+            void write_file(const char * name,
+                            const boost::optional<std::string> & file_contents,
+                            const boost::optional<double> time_out);
 
             std::string self_package_name;
             int self_update_time_out;

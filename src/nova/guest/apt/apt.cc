@@ -448,19 +448,32 @@ optional<string> AptGuest::version(const char * package_name,
     throw AptException(AptException::UNEXPECTED_PROCESS_OUTPUT);
 }
 
-void AptGuest::write_preferences_file(const std::string & preferences_file,
-                                      const optional<double> time_out) {
-    NOVA_LOG_INFO("Writing new preferences file.");
+void AptGuest::write_file(const char * name,
+                          const optional<string> & file_contents,
+                          const optional<double> time_out) {
+    if (!file_contents) {
+        NOVA_LOG_INFO("No %s file given.", name);
+        return;
+    }
+    NOVA_LOG_INFO("Writing new %s file.", name);
     ofstream file("/tmp/cdb");
     file.exceptions(ofstream::failbit | ofstream::badbit);
     if (!file.good()) {
         throw AptException(AptException::ERROR_WRITING_PREFERENCES);
     }
-    file << preferences_file;
+    file << file_contents.get();
     file.close();
-    NOVA_LOG_INFO("Copying new preferences file into place.");
+    NOVA_LOG_INFO("Copying new %s file into place.", name);
+    string file_name = str(format("/etc/apt/%s.d/cdb") % name);
     process::execute(list_of("/usr/bin/sudo")("cp")("/tmp/cdb")
-                            ("/etc/apt/preferences.d/cdb"));
+                            (file_name.c_str()));
+}
+
+void AptGuest::write_repo_files(const optional<string> & preferences_file,
+                                const optional<string> & sources_file,
+                                const optional<double> time_out) {
+    write_file("preferences", preferences_file, time_out);
+    write_file("sources", sources_file, time_out);
     update();
 }
 

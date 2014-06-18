@@ -114,6 +114,7 @@ public:
             }
             const auto result = process.read_into(buffer, zlib_buffer_size,
                                                   time_out);
+
             if (result.err()) {
                 caboose.write(buffer, result.write_length);
                 xtrabackup_log.write(buffer, result.write_length);
@@ -121,8 +122,12 @@ public:
                 last_stdout_write_length = result.write_length;
                 return zlib::OK;
             } else {
-                NOVA_LOG_ERROR("Time out while looking for output from backup "
-                               "process. Reading again...");
+                if (result.time_out()) {
+                    NOVA_LOG_ERROR("Time out while looking for output from backup "
+                                   "process. Reading again...");
+                } else {
+                    NOVA_LOG_INFO("Out of input.");
+                }
             }
         }
     }

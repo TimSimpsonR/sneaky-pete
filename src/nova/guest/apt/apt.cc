@@ -161,7 +161,7 @@ OperationResult _install(bool with_sudo, const string & package_name,
     setenv("DEBIAN_FRONTEND", "noninteractive", 1);
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
             package_name.c_str();
-    proc::Process<proc::StdOutOnly> process(cmds);  // Should be ok to make wait.
+    proc::Process<proc::StdErrAndStdOut> process(cmds);  // Should be ok to make wait.
 
     vector<string> patterns;
     // 0 = permissions issue

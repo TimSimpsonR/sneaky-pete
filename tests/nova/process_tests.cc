@@ -152,8 +152,7 @@ void test_independent_redirects(CommandList & cmds) {
     stringstream err, out;
     char buffer[5];
     IndependentStdErrAndStdOut::ReadResult result;
-    while((result = process.read_into(buffer, sizeof(buffer) - 1, 60))
-          .file != IndependentStdErrAndStdOut::ReadResult::NA)
+    while(!(result = process.read_into(buffer, sizeof(buffer) - 1, 60)).eof())
     {
         NOVA_LOG_TRACE("HI!")
         stringstream & stream =

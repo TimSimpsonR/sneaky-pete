@@ -388,7 +388,7 @@ unsigned long FlagValues::periodic_interval() const {
 
 std::list<std::string> FlagValues::datastore_packages() const {
     return get_flag_value_as_string_list(*map, "datastore_packages",
-        "mysql-server-5.1,mysql-server-5.5,mysql-server-5.6,mariadb-server-10.0,percona-server-server-5.5,percona-server-server-5.6");
+        "mysql-server,mysql-server-5.1,mysql-server-5.5,mysql-server-5.6,mariadb-server-10.0,percona-server-server-5.5,percona-server-server-5.6");
 }
 
 size_t FlagValues::rabbit_client_memory() const {

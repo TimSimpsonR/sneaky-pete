@@ -48,6 +48,12 @@ namespace nova { namespace guest { namespace apt {
 
 namespace {
 
+    #ifdef NOVA_GUEST_WHEEZY
+        typedef proc::Process<proc::StdOutOnly> StreamingProcType;
+    #else
+        typedef proc::Process<proc::StdErrAndStdOut> StreamingProcType;
+    #endif
+
     enum OperationResult {
         OK = 0,
         RUN_DPKG_FIRST = 1,
@@ -161,7 +167,7 @@ OperationResult _install(bool with_sudo, const string & package_name,
     setenv("DEBIAN_FRONTEND", "noninteractive", 1);
     cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
             package_name.c_str();
-    proc::Process<proc::StdErrAndStdOut> process(cmds);  // Should be ok to make wait.
+    StreamingProcType process(cmds);  // Should be ok to make wait.
 
     vector<string> patterns;
     // 0 = permissions issue

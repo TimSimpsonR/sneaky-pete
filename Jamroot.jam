@@ -10,6 +10,17 @@ if ! $(VERSION_STRING) {
     VERSION_STRING = "_v" ;
 }
 
+local WHEEZY = [ SHELL "cat /etc/*-release 2>&1 | grep wheezy" ] ;
+local EXE_LINK_FLAGS = "" ;
+local COMPILER_FLAGS = "" ;
+if $(WHEEZY) != "" {
+    EXE_LINK_FLAGS = " -static-libstdc++ -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.7/. -pthread -ldl" ;
+    COMPILER_FLAGS = "-std=c++0x -Werror -Wno-error=strict-aliasing -Wno-error=deprecated-declarations -DNOVA_GUEST_WHEEZY -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" " ;
+} else {
+    EXE_LINK_FLAGS = " -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread -ldl" ;
+    COMPILER_FLAGS = "-std=c++0x -Werror -Wno-error=strict-aliasing -Wno-error=deprecated-declarations -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" " ;
+}
+
 
 ###############################################################################
 #       Project Settings
@@ -27,7 +38,7 @@ project
         #TODO: Add  -Wall -Wextra
         #TODO(jcru): Remove '-Wno-error=deprecated-declarations'
         #            Kept getting auto_ptr deprecated error for greedy_pete.cc
-        <cxxflags>"-std=c++0x -Werror -Wno-error=strict-aliasing -Wno-error=deprecated-declarations -DNOVA_GUEST_VERSION=\"\\\"$(VERSION_STRING)\\\"\" "
+        <cxxflags>$(COMPILER_FLAGS)
         # Enable the very little bit of C++0x functionality available in GCC
         # 4.4.5 and turn warnings into errors except for strict-aliasing, which
         # unfortunatley issues false warnings as verified here:
@@ -59,14 +70,6 @@ cpp-pch pch
 # seen below.
 #
 # Debian wheezy has a newer version of gcc (4.7) with '-static-libstdc++'
-
-local WHEEZY = [ SHELL "cat /etc/*-release 2>&1 | grep wheezy" ] ;
-local EXE_LINK_FLAGS = "" ;
-if $(WHEEZY) != "" {
-    EXE_LINK_FLAGS = " -static-libstdc++ -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.7/. -pthread -ldl" ;
-} else {
-    EXE_LINK_FLAGS = " -static-libgcc -L/home/vagrant/. -L/lib/. -L/usr/lib/gcc/x86_64-linux-gnu/4.4.3/. -lpthread -ldl" ;
-}
 
 ###############################################################################
 #       Dependencies

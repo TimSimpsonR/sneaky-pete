@@ -60,7 +60,7 @@ namespace nova { namespace guest { namespace apt {
             void resilient_remove(const char * package_name,
                                   const double time_out);
 
-            void write_file(const char * name,
+            void write_file(const char * name, const char * file_ext,
                             const boost::optional<std::string> & file_contents,
                             const boost::optional<double> time_out);
 

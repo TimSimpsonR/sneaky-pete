@@ -153,7 +153,7 @@ void MySqlApp::write_config_overrides(const string & overrides_content) {
                      ("mv")(MYCNF_OVERRIDES_TMP)(MYCNF_OVERRIDES));
     NOVA_LOG_INFO("Setting permissions on %s.", MYCNF_OVERRIDES);
     process::execute(list_of("/usr/bin/sudo")
-                     ("chmod")("0711")(MYCNF_OVERRIDES));
+                     ("chmod")("0744")(MYCNF_OVERRIDES));
 }
 
 void MySqlApp::write_mycnf(const string & config_contents,

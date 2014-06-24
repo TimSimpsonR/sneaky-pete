@@ -98,12 +98,12 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
         }
         app_status->begin_install();
         NOVA_LOG_INFO("Creating local.conf contents");
-        std::string password = "password";
+        const auto root_password = input.args->get_string("root_password");
         std::string local_config =
         std::string(boost::str(boost::format("requirepass %1%\n"
                                                  "rename-command CONFIG %2%\n"
                                                  "rename-command MONITOR %3%")
-                                                 % password
+                                                 % root_password
                                                  % get_uuid()
                                                  % get_uuid()));
         const auto packages = get_packages_argument(input.args);

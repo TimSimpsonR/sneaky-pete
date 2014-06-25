@@ -203,6 +203,10 @@ void MySqlApp::prepare(const string & config_contents,
                        const optional<string> & overrides,
                        optional<BackupRestoreInfo> restore) {
     try {
+
+        NOVA_LOG_INFO("Starting MySQL to ensure it is running...");
+        start_mysql();
+
         NOVA_LOG_INFO("Waiting until we can connect to MySQL...");
         wait_for_initial_connection();
 

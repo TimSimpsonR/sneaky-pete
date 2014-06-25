@@ -470,4 +470,9 @@ const char * FlagValues::conductor_queue() const {
     return map->get("conductor_queue", "trove-conductor");
 }
 
+std::list<std::string> FlagValues::python_guest_process_commands() const {
+    return get_flag_value_as_string_list(*map, "python_guest_process_commands",
+        "/usr/bin/sudo,-E,/var/lib/nova/falco");
+}
+
 } } // end nova::flags

@@ -1,3 +1,4 @@
+#include <boost/foreach.hpp>
 #include "nova/flags.h"
 #include "nova/Log.h"
 #include "nova/LogFlags.h"
@@ -11,6 +12,12 @@ void sad() {
     NOVA_LOG_ERROR("^                                   O  \\_\\   ^");
     NOVA_LOG_ERROR("^                                            ^");
     NOVA_LOG_ERROR("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+}
+
+void falco() {
+    NOVA_LOG_ERROR("##############################################");
+    NOVA_LOG_ERROR("#     Starting the python agent (falco)      #");
+    NOVA_LOG_ERROR("##############################################");
 }
 
 void run(const char * program, int argc, char* argv[]) {
@@ -40,6 +47,19 @@ int main(int argc, char* argv[]) {
     else if (manager == "redis")
     {
         program_name = "sneaky-pete-redis";
+    }
+    else if (manager == "falco")
+    {
+        std::list<std::string> commands = flags.python_guest_process_commands();
+        char * * argv = new char * [commands.size()+1];
+        int i = 0;
+        BOOST_FOREACH(std::string & element, commands) {
+            argv[i] = const_cast<char *>(element.c_str());
+            ++i;
+        }
+        argv[commands.size()] = NULL;
+        falco();
+        run("bash", commands.size(), argv);
     }
 
     if (program_name) {

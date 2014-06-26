@@ -1,3 +1,2 @@
-echo "deb http://repo.dev.ord1.clouddb.rackspace.net/apt wheezy clouddb" > /etc/apt/sources.list.d/clouddb.list
-apt-get update
-apt-get install -y --allow-unauthenticated trove trove-guestagent
+sudo apt-get update
+sudo apt-get install -y --allow-unauthenticated trove trove-guestagent

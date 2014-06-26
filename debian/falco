@@ -1,2 +1,2 @@
-apt-get update
-apt-get install -y --allow-unauthenticated trove trove-guestagent
+sudo apt-get update
+sudo apt-get install -y --allow-unauthenticated trove trove-guestagent

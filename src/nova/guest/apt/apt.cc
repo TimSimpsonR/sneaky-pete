@@ -65,6 +65,18 @@ namespace {
         RegexMatchesPtr matches;
     };
 
+    // Strip quotes off string if found.
+    string strip_quotes(const string & value) {
+        auto result = value;
+        if (result.length() > 1 &&
+            ((result[0] == '"'  && result[result.length() - 1] == '"') ||
+             (result[0] == '\'' && result[result.length() - 1] == '\''))) {
+            result.erase(0, 1);
+            result.erase(result.length() - 1, 1);
+        }
+        return result;
+    }
+
     void wait_for_proc_to_finish(pid_t pid, int time_out) {
         int time_left = time_out;
         while (proc::is_pid_alive(pid) && time_left > 0) {
@@ -333,9 +345,10 @@ OperationResult _call_remove(bool with_sudo, const char * package_name,
         } else {
             if (index == 7 || index == 8 || index == 9) {
                 string output_package_name = result.get().matches->get(1);
-                if (output_package_name != package_name) {
+                if (output_package_name != package_name &&
+                    (strip_quotes(output_package_name) != package_name)) {
                     NOVA_LOG_ERROR("Wait, saw 'Setting up' but it wasn't our "
-                                    "package! %s != %s", package_name,
+                                    "package! \"%s\" != \"%s\"", package_name,
                                     output_package_name.c_str());
                     throw AptException(AptException::GENERAL);
                 }
@@ -381,7 +394,7 @@ void AptGuest::update(const optional<double> time_out) {
     }
     cmds += "/usr/bin/apt-get", "update";
     try {
-        proc::execute(cmds, time_out);
+        proc::execute_with_stdout_and_stderr(cmds, time_out);
     } catch(const TimeOutException & toe) {
         throw AptException(AptException::PROCESS_TIME_OUT);
     } catch(const proc::ProcessException & pe) {

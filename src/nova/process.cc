@@ -216,17 +216,29 @@ void execute(const CommandList & cmds, optional<double> time_out) {
     }
 }
 
-void execute_with_stdout_and_stderr(const CommandList & cmds, double time_out, bool check_proc) {
+void execute_with_stdout_and_stderr(const CommandList & cmds,
+                                    optional<double> time_out, bool check_proc) {
     Process<StdErrAndStdOut> proc(cmds);
-    proc.wait_for_exit(time_out);
+    if (time_out) {
+        proc.wait_for_exit(time_out.get());
+    } else {
+        NOVA_LOG_INFO("Warning: Waiting forever for process to end.");
+        proc.wait_forever_for_exit();
+    }
     if (check_proc && !proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
     }
 }
 
-void execute_with_stdout_only(const CommandList & cmds, double time_out, bool check_proc) {
+void execute_with_stdout_only(const CommandList & cmds,
+                              optional<double> time_out, bool check_proc) {
     Process<StdOutOnly> proc(cmds);
-    proc.wait_for_exit(time_out);
+    if (time_out) {
+        proc.wait_for_exit(time_out.get());
+    } else {
+        NOVA_LOG_INFO("Warning: Waiting forever for process to end.");
+        proc.wait_forever_for_exit();
+    }
     if (check_proc && !proc.successful()) {
         throw ProcessException(ProcessException::EXIT_CODE_NOT_ZERO);
     }

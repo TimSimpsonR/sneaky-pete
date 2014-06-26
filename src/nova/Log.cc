@@ -21,6 +21,27 @@ namespace nova {
 
 namespace {
 
+    const char * const ANSI_RESET = "\033[0m";
+    const char * const ANSI_RED = "\033[31m";
+    const char * const ANSI_BLUE = "\033[34m";
+    const char * const ANSI_CYAN = "\033[36m";
+    const char * const ANSI_WHITE = "\033[37m";
+
+    const char * level_color(Log::Level level) {
+        switch(level) {
+            case Log::LEVEL_ERROR:
+                return ANSI_RED;
+            case Log::LEVEL_INFO:
+                return ANSI_BLUE;
+            case Log::LEVEL_DEBUG:
+                return ANSI_CYAN;
+            case Log::LEVEL_TRACE:
+                return ANSI_WHITE;
+            default:
+                return ANSI_RESET;
+        }
+    }
+
     const char * level_to_string(Log::Level level) {
         switch(level) {
             case Log::LEVEL_DEBUG:
@@ -265,7 +286,8 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
     if (options.use_std_streams) {
         std::ostream & out = (level == LEVEL_INFO) ? std::cout : std::cerr;
         out << time.c_str() << " " << boost::this_thread::get_id() << " "
-            << level_string << " " << message
+            << level_string << " "
+            << level_color(level) << message << ANSI_RESET
             << " for " << file_name <<  ":" << line_number << std::endl;
     }
     {

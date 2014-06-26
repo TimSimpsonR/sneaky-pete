@@ -93,7 +93,7 @@ def main(args):
         print(cc)
     if args.compare:
         if args.replace:
-            printf("--compare and --replace cannot be used together.")
+            print("--compare and --replace cannot be used together.")
             return 1
         if lines_are_different("h", old_h, new_h):
             return 1

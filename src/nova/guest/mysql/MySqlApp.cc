@@ -280,6 +280,13 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
                      "    WHERE User='root'"
                      "    AND Host!='localhost';" << std::endl;
     }
+    else {
+        NOVA_LOG_INFO("Dropping user os_admin for restore...");
+        init_file << "GRANT USAGE ON *.* TO '" << ADMIN_USER_NAME
+                  << "'@'localhost';" << std::endl;
+        init_file << "DROP USER '" << ADMIN_USER_NAME
+                  << "'@'localhost';" << std::endl;
+    }
 
     NOVA_LOG_INFO("Creating admin user...");
     init_file << "GRANT USAGE ON *.* TO '" << ADMIN_USER_NAME

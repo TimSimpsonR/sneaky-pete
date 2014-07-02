@@ -23,6 +23,8 @@
 #include "nova/guest/redis/status.h"
 #include "nova/guest/redis/message_handler.h"
 #include <boost/optional.hpp>
+#include "nova/guest/common/PrepareHandler.h"
+#include "nova/redis/RedisApp.h"
 #include "nova/rpc/receiver.h"
 #include <json/json.h>
 #include "nova/Log.h"
@@ -56,11 +58,18 @@ using namespace nova::flags;
 using namespace nova::guest;
 using namespace nova::guest::diagnostics;
 using namespace nova::guest::monitoring;
-using nova::utils::ThreadBasedJobRunner;
+using nova::guest::common::PrepareHandler;
+using nova::guest::common::PrepareHandlerPtr;
+using nova::redis::RedisApp;
+using nova::redis::RedisAppPtr;
+using nova::redis::RedisAppStatus;
+using nova::redis::RedisAppStatusPtr;
 using nova::rpc::ResilientSenderPtr;
 using namespace nova::rpc;
 using std::string;
 using nova::utils::Thread;
+using nova::utils::ThreadBasedJobRunner;
+using nova::VolumeManager;
 using std::vector;
 
 namespace
@@ -125,9 +134,13 @@ struct Func {
             apt_worker, monitoring_manager));
         handlers.push_back(handler_monitoring_app);
         RedisAppStatusPtr app_status(new RedisAppStatus(sender, is_redis_installed()));
-        MessageHandlerPtr  handler_redis(new RedisMessageHandler(apt_worker,
-                                                                 app_status,
-                                                                 monitoring_manager));
+        RedisAppPtr app(new RedisApp(app_status));
+        VolumeManagerPtr volume_manager;  // Intentionally leave this null.
+        PrepareHandlerPtr prepare_ptr(new PrepareHandler(
+            app, apt_worker, app_status, volume_manager));
+        RedisMessageHandler t(app, prepare_ptr, app_status);
+        MessageHandlerPtr handler_redis(new RedisMessageHandler(
+            app, prepare_ptr, app_status));
 
         Interrogator interrogator(MOUNT_POINT);
         MessageHandlerPtr handler_interrogator(

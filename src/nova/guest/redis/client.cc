@@ -269,12 +269,18 @@ void Client::_find_config_command()
     }
 }
 
-Client::Client(std::string host, std::string port,
-        std::string client_name, std::string config_file) :
-        _port(port), _host(host), _client_name(client_name),
-        _config_file(config_file), _config_command(COMMAND_CONFIG)
+Client::Client(
+    const boost::optional<std::string> & host,
+    const boost::optional<std::string> & port,
+    const boost::optional<std::string> & client_name,
+    const boost::optional<std::string> & config_file)
+:   _port(port.get_value_or(REDIS_PORT)),
+        _host(host.get_value_or(SOCKET_NAME)),
+        _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
+        _config_file(config_file.get_value_or(DEFAULT_REDIS_CONFIG)),
+        _config_command(COMMAND_CONFIG)
 {
-    config = new Config(config_file);
+    config = new Config(_config_file);
     _find_config_command();
     _commands = new Commands(config->get_require_pass(),
                              _config_command);

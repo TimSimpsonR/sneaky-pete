@@ -199,51 +199,47 @@ void MySqlApp::reset_configuration(const string & config_contents) {
     write_mycnf(config_contents, boost::none, boost::none);
 }
 
-void MySqlApp::prepare(const string & config_contents,
+void MySqlApp::prepare(const optional<string> & root_password,
+                       const string & config_contents,
                        const optional<string> & overrides,
                        optional<BackupRestoreInfo> restore) {
-    try {
-
-        NOVA_LOG_INFO("Starting MySQL to ensure it is running...");
-        start_mysql();
-
-        NOVA_LOG_INFO("Waiting until we can connect to MySQL...");
-        wait_for_initial_connection();
-
-        NOVA_LOG_INFO("Stopping MySQL to perform additional steps...");
-        wait_for_mysql_initial_stop();
-
-        if (restore) {
-            NOVA_LOG_INFO("A restore was requested. Running now...");
-            backup_restore_manager->run(restore.get());
-            NOVA_LOG_INFO("Finished with restore job, proceeding with prepare.");
-        }
-
-        NOVA_LOG_INFO("Writing fresh init file...");
-        string admin_password = mysql::generate_password();
-        write_fresh_init_file(admin_password, !restore);
-
-        NOVA_LOG_INFO("Writing my.cnf...");
-        write_mycnf(config_contents, overrides, admin_password);
-
-        NOVA_LOG_INFO("Starting MySQL with init file...");
-        run_mysqld_with_init();
-
-        NOVA_LOG_INFO("Erasing init file...");
-        if (0 != remove(FRESH_INIT_FILE_PATH)) {
-            // Probably not a huge problem in our case.
-            NOVA_LOG_ERROR("Can't destroy init file!");
-        }
-
-        start_mysql();
-
-        status->end_install_or_restart();
-        NOVA_LOG_INFO("Dbaas preparation complete.");
-    } catch(const std::exception & e) {
-        NOVA_LOG_ERROR("Error installing MySQL!: %s", e.what());
-        status->end_failed_install();
-        throw;
+    if (root_password) {
+        NOVA_LOG_ERROR("Passed \"root\" password- ignoring.");
     }
+    NOVA_LOG_INFO("Starting MySQL to ensure it is running...");
+    start_mysql();
+
+    NOVA_LOG_INFO("Waiting until we can connect to MySQL...");
+    wait_for_initial_connection();
+
+    NOVA_LOG_INFO("Stopping MySQL to perform additional steps...");
+    wait_for_mysql_initial_stop();
+
+    if (restore) {
+        NOVA_LOG_INFO("A restore was requested. Running now...");
+        backup_restore_manager->run(restore.get());
+        NOVA_LOG_INFO("Finished with restore job, proceeding with prepare.");
+    }
+
+    NOVA_LOG_INFO("Writing fresh init file...");
+    string admin_password = mysql::generate_password();
+    write_fresh_init_file(admin_password, !restore);
+
+    NOVA_LOG_INFO("Writing my.cnf...");
+    write_mycnf(config_contents, overrides, admin_password);
+
+    NOVA_LOG_INFO("Starting MySQL with init file...");
+    run_mysqld_with_init();
+
+    NOVA_LOG_INFO("Erasing init file...");
+    if (0 != remove(FRESH_INIT_FILE_PATH)) {
+        // Probably not a huge problem in our case.
+        NOVA_LOG_ERROR("Can't destroy init file!");
+    }
+
+    start_mysql();
+
+    NOVA_LOG_INFO("Dbaas preparation complete.");
 }
 
 boost::optional<std::string> fetch_debian_sys_maint_password() {

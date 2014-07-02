@@ -90,41 +90,38 @@ PrepareHandler::PrepareHandler(DatastoreAppPtr app,
     volume_manager(volume_manager) {
 }
 
-JsonDataPtr PrepareHandler::handle_message(const GuestInput & input) {
-    if (input.method_name == "prepare") {
-        if (!skip_install_for_prepare) {
-            if (status->is_installed()) {
-                NOVA_LOG_ERROR("Datastore is already installed! Can't prepare.");
-                throw GuestException(GuestException::MALFORMED_INPUT);
-            }
-            NOVA_LOG_INFO("Updating status to BUILDING...");
-            status->begin_install();
-        } else {
-            NOVA_LOG_INFO("Skipping install check.");
-        }
-        prepare(input);
-        return JsonData::from_null();
-    }
-    return JsonDataPtr();
-}
-
 void PrepareHandler::prepare(const GuestInput & input) {
-    auto restore = get_restore_info(input);
-    const auto config_contents = input.args->get_string("config_contents");
-    const auto overrides = input.args->get_optional_string("overrides");
+    if (status->is_installed()) {
+        NOVA_LOG_ERROR("Datastore is already installed! Can't prepare.");
+        throw GuestException(GuestException::MALFORMED_INPUT);
+    }
+    NOVA_LOG_INFO("Updating status to BUILDING...");
+    status->begin_install();
+    try {
+        const auto root_password =
+            input.args->get_optional_string("root_password");
 
-    mount_volume(volume_manager, input.args);
+        auto restore = get_restore_info(input);
+        const auto config_contents = input.args->get_string("config_contents");
+        const auto overrides = input.args->get_optional_string("overrides");
 
-    apt->write_repo_files(input.args->get_optional_string("preferences_file"),
-                          input.args->get_optional_string("sources_file"));
+        mount_volume(volume_manager, input.args);
 
-    const auto packages = get_packages_argument(input.args);
-    install_packages(*apt, packages);
+        apt->write_repo_files(input.args->get_optional_string("preferences_file"),
+                              input.args->get_optional_string("sources_file"));
 
-    app->prepare(config_contents, overrides, restore);
+        const auto packages = get_packages_argument(input.args);
+        install_packages(*apt, packages);
+
+        app->prepare(root_password, config_contents, overrides, restore);
+
+        status->end_install_or_restart();
+        NOVA_LOG_INFO("Preparation of datastore finished successfully.");
+    } catch(const std::exception & e) {
+        NOVA_LOG_ERROR("Error installing datastore!: %s", e.what());
+        status->end_failed_install();
+        throw;
+    }
 }
-
-
-
 
 } } }

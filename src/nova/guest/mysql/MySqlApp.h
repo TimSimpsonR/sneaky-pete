@@ -26,13 +26,6 @@ class MySqlApp : public nova::datastores::DatastoreApp {
 
         virtual ~MySqlApp();
 
-        /** Installs MySql, secures it, and possibly runs a backup. */
-        virtual void prepare(
-            const std::string & config_contents,
-            const boost::optional<std::string> & overrides,
-            boost::optional<nova::guest::backup::BackupRestoreInfo> restore
-        );
-
         // Removes the overrides file.
         void remove_overrides();
 
@@ -49,6 +42,15 @@ class MySqlApp : public nova::datastores::DatastoreApp {
         /** Writes an optional overrides file which lives near the normal
          *  my.cnf. */
         void write_config_overrides(const std::string & overrides_content);
+
+    protected:
+        /** Installs MySql, secures it, and possibly runs a backup. */
+        virtual void prepare(
+            const boost::optional<std::string> & root_password,
+            const std::string & config_contents,
+            const boost::optional<std::string> & overrides,
+            boost::optional<nova::guest::backup::BackupRestoreInfo> restore
+        );
 
     private:
 

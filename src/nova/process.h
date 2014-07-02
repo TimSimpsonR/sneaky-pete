@@ -48,9 +48,8 @@ namespace nova { namespace process {
 /** Simple list of commands. */
 typedef std::list<std::string> CommandList;
 
-/** Executes the given command, waiting until its finished. Returns
- *  true if the command runs successfully with a good exit code, false
- *  otherwise. */
+/** Executes the given command, waiting until its finished. Throws an
+ *  error if the exit code is not zero. */
 void execute(const CommandList & cmds, boost::optional<double> time_out=30);
 
 /** Like the corresponding "execute" command but pipes stdout / stderr to
@@ -79,6 +78,9 @@ pid_t execute_and_abandon(const CommandList & cmds);
 /** Returns true if the given pid is alive. */
 bool is_pid_alive(pid_t pid);
 
+/** Uses the system call. Throws exception if exit code is not equal to 0. */
+void shell(const char * const cmds);
+
 
 class ProcessException : public std::exception {
 
@@ -89,6 +91,7 @@ class ProcessException : public std::exception {
             KILL_SIGNAL_ERROR,
             NO_PROGRAM_GIVEN,
             PROGRAM_FINISHED,
+            SHELL_EXIT_CODE_NOT_ZERO,
             SPAWN_FAILURE
         };
 

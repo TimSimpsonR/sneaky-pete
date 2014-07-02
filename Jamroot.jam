@@ -605,9 +605,22 @@ unit u_redis_status
     :   u_nova_datastores_DatastoreStatus
     ;
 
+unit u_nova_redis_RedisException
+    :   src/nova/redis/RedisException.cc
+    ;
+
+
+unit u_nova_redis_RedisApp
+    :   src/nova/redis/RedisApp.cc
+    :   u_nova_guest_common_PrepareHandler
+        u_nova_redis_RedisException
+        u_redis_client
+    ;
+
 unit u_nova_guest_redis_message_handler
     :   src/nova/guest/redis/message_handler.cc
-    :   u_nova_guest_apt_apt
+    :   u_nova_redis_RedisApp
+        u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_guest_apt_AptMessageHandler
         u_nova_json
@@ -1034,6 +1047,7 @@ install tools
 install deploy-debug
     :   nova-guest
         sneaky-pete-mysql
+        sneaky-pete-redis
     :   <link>static <variant>debug
     ;
 

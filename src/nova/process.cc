@@ -281,6 +281,15 @@ bool is_pid_alive(pid_t pid) {
     return result == 0;
 }
 
+void shell(const char * const cmds) {
+    NOVA_LOG_INFO("shell: %s", cmds);
+    const auto code = system(cmds);
+    if (0 != code) {
+        NOVA_LOG_ERROR("Bad exit code (%d) for shell commands: %s", code, cmds);
+        throw ProcessException(ProcessException::SHELL_EXIT_CODE_NOT_ZERO);
+    }
+}
+
 
 /**---------------------------------------------------------------------------
  *- ProcessException
@@ -301,11 +310,14 @@ const char * ProcessException::what() const throw() {
             return "No program to launch was given (first element was null).";
         case PROGRAM_FINISHED:
             return "Program is already finished.";
+        case SHELL_EXIT_CODE_NOT_ZERO:
+            return "Shell has non-zero exit code.";
+        case SPAWN_FAILURE:
+            return "Failed to spawn.";
         default:
             return "An error occurred.";
     }
 }
-
 
 /**---------------------------------------------------------------------------
  *- ProcessStatusWatcher

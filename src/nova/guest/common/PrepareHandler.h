@@ -19,8 +19,6 @@ public:
                    nova::datastores::DatastoreStatusPtr status,
                    VolumeManagerPtr volumeManager);
 
-    virtual JsonDataPtr handle_message(const GuestInput & input);
-
     void prepare(const GuestInput & input);
 
 private:

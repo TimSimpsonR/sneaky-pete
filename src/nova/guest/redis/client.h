@@ -1,6 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include <boost/optional.hpp>
 #include <string>
 
 #include "response.h"
@@ -66,8 +67,10 @@ class Client
 
         Config* config;
 
-        Client(std::string host, std::string port, std::string client_name,
-               std::string config_file);
+        Client(const boost::optional<std::string> & host=boost::none,
+               const boost::optional<std::string> & port=boost::none,
+               const boost::optional<std::string> & client_name=boost::none,
+               const boost::optional<std::string> & config_file=boost::none);
 
         ~Client();
 

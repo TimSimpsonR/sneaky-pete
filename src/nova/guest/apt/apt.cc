@@ -164,94 +164,16 @@ optional<ProcessResult> match_output(
     return boost::none;
 }
 
-/**
- *  Attempts to install a package.
- *  Returns OK if the package installs fine or a result code if a
- *  recoverable-error occurred.
- *  Raises an exception if a non-recoverable error or time out occurs.
- */
-OperationResult _install(bool with_sudo, const string & package_name,
-                         double time_out) {
-    proc::CommandList cmds;
-    if (with_sudo) {
-        cmds += "/usr/bin/sudo", "-E";
-    }
-    setenv("DEBIAN_FRONTEND", "noninteractive", 1);
-    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated", "install",
-            package_name.c_str();
-    StreamingProcType process(cmds);  // Should be ok to make wait.
-
-    vector<string> patterns;
-    // 0 = permissions issue
-    patterns.push_back(".*password*");
-    // 1 - 2 = could not find package
-    patterns.push_back(str(format("E: Unable to locate package %s")
-                           % package_name));
-    patterns.push_back(str(format("Couldn't find package %s")
-                           % package_name));
-    // 3 = need to fix
-    patterns.push_back("dpkg was interrupted, you must manually run "
-                       "'sudo dpkg --configure -a'");
-    // 4 = lock error
-    patterns.push_back("Unable to lock the administration directory");
-    // 5 - 6 = Success, but only if followed up by EOF.
-    const auto index = package_name.find("=");
-    if (string::npos != index) {
-        string name = package_name.substr(0, index);
-        string value = package_name.substr(index + 1, string::npos);
-        NOVA_LOG_TRACE("Found versioned pkg %s (%s)", name, value)
-        patterns.push_back(str(format("Setting up %s (%s)") % name % value));
-    } else {
-      patterns.push_back(str(format("Setting up %s") % package_name));
-    }
-    // 6
-    patterns.push_back("is already the newest version");
-
-    optional<ProcessResult> result;
-    try  {
-        result = match_output(process, patterns, time_out);
-    } catch(const TimeOutException & toe) {
-        throw AptException(AptException::PROCESS_TIME_OUT);
-    }
-    if (!!result) { // eof
-        const int index = result.get().index;
-        if (index == 0) {
-            throw AptException(AptException::PERMISSION_ERROR);
-        } else if (index == 1 || index == 2) {
-            NOVA_LOG_ERROR("Could not find package %s.", package_name);
-            throw AptException(AptException::PACKAGE_NOT_FOUND);
-        } else if (index == 3) {
-            return RUN_DPKG_FIRST;
-        } else if (index == 4) {
-            throw AptException(AptException::ADMIN_LOCK_ERROR);
-        } else {
-            try {
-                process.wait_for_exit(time_out);
-            } catch(const TimeOutException & toe) {
-                throw AptException(AptException::PROCESS_TIME_OUT);
-            }
-            return OK;
-        }
-    }
-    if (process.successful()) {
-        return OK;
-    }
-    NOVA_LOG_ERROR("Got EOF calling apt-get install and process failed!");
-    throw AptException(AptException::GENERAL);
-}
-
 void AptGuest::install(const char * package_name, const double time_out) {
     update(time_out);
-    OperationResult result = _install(with_sudo, package_name, time_out);
-    if (result != OK) {
-        if (result == RUN_DPKG_FIRST) {
-            fix(time_out);
-        }
-        result = _install(with_sudo, package_name, time_out);
-        if (result != OK) {
-            NOVA_LOG_ERROR("Package %s is in a bad state.", package_name);
-            throw AptException(AptException::PACKAGE_STATE_ERROR);
-        }
+    string cmd = "/usr/bin/sudo -E /usr/bin/apt-get -y --allow-unauthenticated install ";
+    cmd += package_name;
+    setenv("DEBIAN_FRONTEND", "noninteractive", 1);
+    try {
+        proc::shell(cmd.c_str());
+    } catch(const proc::ProcessException & err) {
+        fix(time_out);
+        proc::shell(cmd.c_str());
     }
 }
 
@@ -290,95 +212,22 @@ void AptGuest::install_self_update() {
 }
 
 
-OperationResult _call_remove(bool with_sudo, const char * package_name,
-                             double time_out) {
-    proc::CommandList cmds;
-    if (with_sudo) {
-        cmds += "/usr/bin/sudo", "-E";
-    }
-    cmds += "/usr/bin/apt-get", "-y", "--allow-unauthenticated";
-    cmds += "remove";
-    cmds += package_name;
-    proc::Process<proc::StdErrAndStdOut> process(cmds);
+void _call_remove(const char * package_name, double time_out) {
 
-    vector<string> patterns;
-    // 0 = permissions issue
-    patterns.push_back(".*password*");
-    // 1 -2 = Package not found
-    patterns.push_back(str(format("E: Unable to locate package %s")
-                           % package_name));
-    patterns.push_back("Couldn't find package");
-    // 3 - 4 = Reinstall first
-    patterns.push_back("Package is in a very bad inconsistent state");
-    patterns.push_back("Sub-process /usr/bin/dpkg returned an error code");
-    // 5 = need to fix
-    patterns.push_back("dpkg was interrupted, you must manually run "
-                       "'sudo dpkg --configure -a'");
-    // 6 = lock error
-    patterns.push_back("Unable to lock the administration directory");
-    // 7 - 9 = Success, but the captured string must be our package followed by EOF.
-    patterns.push_back("Removing (" PACKAGE_NAME_REGEX ")");
-    patterns.push_back("Package ('" PACKAGE_NAME_REGEX "') is not installed, "
-                       "so not removed");  // Wheezy! Curse your single quotes.
-    patterns.push_back("Package (" PACKAGE_NAME_REGEX ") is not installed, "
-                       "so not removed");
+    string cmd = "/usr/bin/sudo -E /usr/bin/apt-get -y --allow-unauthenticated remove ";
+    cmd += package_name;
+    setenv("DEBIAN_FRONTEND", "noninteractive", 1);
+    proc::shell(cmd.c_str());
 
-    optional<ProcessResult> result;
-    try  {
-        result = match_output(process, patterns, time_out);
-    } catch(const TimeOutException & toe) {
-        throw AptException(AptException::PROCESS_TIME_OUT);
-    }
-    if (!!result) { // eof
-        const int index = result.get().index;
-        if (index == 0) {
-            throw AptException(AptException::PERMISSION_ERROR);
-        } else if (index == 1 || index == 2) {
-            NOVA_LOG_ERROR("Could not find package %s.", package_name);
-            throw AptException(AptException::PACKAGE_NOT_FOUND);
-        } else if (index == 3 || index == 4) {
-            return REINSTALL_FIRST;
-        } else if (index == 5) {
-            return RUN_DPKG_FIRST;
-        } else if (index == 6) {
-            throw AptException(AptException::ADMIN_LOCK_ERROR);
-        } else {
-            if (index == 7 || index == 8 || index == 9) {
-                string output_package_name = result.get().matches->get(1);
-                if (output_package_name != package_name &&
-                    (strip_quotes(output_package_name) != package_name)) {
-                    NOVA_LOG_ERROR("Wait, saw 'Setting up' but it wasn't our "
-                                    "package! \"%s\" != \"%s\"", package_name,
-                                    output_package_name.c_str());
-                    throw AptException(AptException::GENERAL);
-                }
-            }
-            try {
-                process.wait_for_exit(time_out);
-            } catch(const TimeOutException & toe) {
-                throw AptException(AptException::PROCESS_TIME_OUT);
-            }
-            return OK;
-        }
-    }
-    NOVA_LOG_ERROR("Got EOF calling apt-get remove!");
-    throw AptException(AptException::GENERAL);
 }
 
 void AptGuest::resilient_remove(const char * package_name,
                                 const double time_out) {
-    OperationResult result = _call_remove(with_sudo, package_name,
-                                                   time_out);
-    if (result != OK) {
-        if (result == REINSTALL_FIRST) {
-            _install(with_sudo, package_name, time_out);
-        } else if (result == RUN_DPKG_FIRST) {
-            fix(time_out);
-        }
-        result = _call_remove(with_sudo, package_name, time_out);
-        if (result != OK) {
-            throw AptException(AptException::PACKAGE_STATE_ERROR);
-        }
+    try {
+        _call_remove(package_name, time_out);
+    } catch(const proc::ProcessException & err) {
+        install(package_name, time_out);
+        _call_remove(package_name, time_out);
     }
 }
 
@@ -388,13 +237,10 @@ void AptGuest::remove(const char * package_name, const double time_out) {
 
 void AptGuest::update(const optional<double> time_out) {
     NOVA_LOG_INFO("Calling apt-get update...");
-    proc::CommandList cmds;
-    if (with_sudo) {
-        cmds += "/usr/bin/sudo", "-E";
-    }
-    cmds += "/usr/bin/apt-get", "update";
     try {
-        proc::execute_with_stdout_and_stderr(cmds, time_out);
+        string cmd = "/usr/bin/sudo -E /usr/bin/apt-get update";
+        setenv("DEBIAN_FRONTEND", "noninteractive", 1);
+        proc::shell(cmd.c_str());
     } catch(const TimeOutException & toe) {
         throw AptException(AptException::PROCESS_TIME_OUT);
     } catch(const proc::ProcessException & pe) {

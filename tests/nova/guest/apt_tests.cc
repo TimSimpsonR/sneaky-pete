@@ -4,6 +4,7 @@
 
 
 #include "nova/guest/apt.h"
+#include "nova/process.h"
 #include "nova/Log.h"
 #include "nova/LogFlags.h"
 #include "nova/utils/regex.h"
@@ -16,8 +17,10 @@ using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
 using namespace nova::guest::apt;
+using namespace nova::process;
 using nova::utils::Regex;
 using nova::utils::RegexMatchesPtr;
+using nova::process::ProcessException;
 using std::string;
 
 
@@ -31,6 +34,13 @@ const bool USE_SUDO = true;
         BOOST_FAIL("Should have thrown."); \
     } catch(const AptException & ae) { \
         BOOST_REQUIRE_EQUAL(ae.code, AptException::ex_code); \
+    }
+
+#define CHECK_PROCESS_EXCEPTION(statement, ex_code) try { \
+        statement; \
+        BOOST_FAIL("Should have thrown."); \
+    } catch(const ProcessException & pe) { \
+        BOOST_REQUIRE_EQUAL(pe.code, ProcessException::ex_code); \
     }
 
 FlagMapPtr get_flags() {
@@ -105,16 +115,16 @@ BOOST_AUTO_TEST_CASE(empty_package_name_dont_crash_no_thing)
 BOOST_AUTO_TEST_CASE(install_should_throw_exceptions_with_invalid_packages) {
     LogApiScope log(log_options_from_flags(get_flags()));
     apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
-    CHECK_APT_EXCEPTION(guest.install(INVALID_PACKAGE_NAME, 60),
-                        PACKAGE_NOT_FOUND);
+    CHECK_PROCESS_EXCEPTION(guest.install(INVALID_PACKAGE_NAME, 60),
+                        SHELL_EXIT_CODE_NOT_ZERO);
 }
 
 
 BOOST_AUTO_TEST_CASE(remove_should_throw_exceptions_with_invalid_packages) {
     LogApiScope log(log_options_from_flags(get_flags()));
     apt::AptGuest guest(USE_SUDO, "sneaky-pete", 1 * 60);
-    CHECK_APT_EXCEPTION(guest.remove(INVALID_PACKAGE_NAME, 60),
-                        PACKAGE_NOT_FOUND);
+    CHECK_PROCESS_EXCEPTION(guest.remove(INVALID_PACKAGE_NAME, 60),
+                        SHELL_EXIT_CODE_NOT_ZERO);
 }
 
 /** This is taken from the original Python tests.

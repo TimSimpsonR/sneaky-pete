@@ -450,7 +450,7 @@ unit u_nova_guest_mysql_MySqlApp
         u_nova_guest_apt_AptException
         u_nova_configfile
         u_nova_guest_mysql_MySqlAppStatus
-        u_nova_guest_backup_BackupRestore
+        u_nova_guest_backup_MySqlBackupRestoreManager
     ;
 
 unit u_nova_guest_diagnostics_Interrogator
@@ -496,6 +496,14 @@ unit u_nova_guest_backup_BackupManager
     :   src/nova/guest/backup/BackupManager.cc
     :   u_nova_Log
         u_nova_guest_backup_BackupException
+        u_nova_utils_regex
+    ;
+
+unit u_nova_guest_backup_MySqlBackupManager
+    :   src/nova/guest/backup/MySqlBackupManager.cc
+    :   u_nova_Log
+        u_nova_guest_backup_BackupException
+        u_nova_guest_backup_BackupManager
         u_nova_utils_io
         u_nova_utils_regex
         u_nova_utils_zlib
@@ -506,10 +514,17 @@ unit u_nova_guest_backup_BackupRestore
     :   u_nova_Log
         u_nova_guest_backup_BackupException
         u_nova_process
+    ;
+
+unit u_nova_guest_backup_MySqlBackupRestoreManager
+    :   src/nova/guest/backup/MySqlBackupRestoreManager.cc
+    :   u_nova_guest_backup_BackupRestore
+        u_nova_process
         u_nova_utils_regex
         u_nova_utils_swift
         u_nova_utils_zlib
     ;
+
 
 unit u_nova_guest_backup_BackupMessageHandler
     :   src/nova/guest/backup/BackupMessageHandler.cc
@@ -661,7 +676,7 @@ alias mysql_agent_lib
         u_nova_guest_diagnostics_Interrogator
         u_nova_guest_diagnostics_InterrogatorException
         u_nova_guest_diagnostics_InterrogatorMessageHandler
-        u_nova_guest_backup_BackupManager
+        u_nova_guest_backup_MySqlBackupManager
         u_nova_guest_backup_BackupException
         u_nova_guest_backup_BackupMessageHandler
         u_nova_utils_swift

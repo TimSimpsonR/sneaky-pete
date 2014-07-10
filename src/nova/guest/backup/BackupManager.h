@@ -24,30 +24,47 @@ namespace nova { namespace guest { namespace backup {
         const std::string location;
     };
 
-
-    class BackupManager {
+    /**
+     * A common subclass for all the backup handlers which also serves as a
+     * collection of config values and other things. Safe to copy which is
+     * necessary to implement the subclasses without duplicating a ton of code.
+     */
+    class BackupManagerInfo {
         public:
-            BackupManager(
+            BackupManagerInfo(
                    nova::rpc::ResilientSenderPtr sender,
                    nova::utils::JobRunner & runner,
                    const nova::guest::diagnostics::Interrogator interrogator,
-                   const nova::process::CommandList commands,
                    const int segment_max_size,
                    const int checksum_wait_time,
                    const std::string swift_container,
                    const double time_out,
                    const int zlib_buffer_size);
 
-            ~BackupManager();
+            BackupManagerInfo(const BackupManagerInfo & info);
 
-            void run_backup(const std::string & tenant,
-                            const std::string & token,
-                            const BackupInfo & backup_info);
+            template<typename Flags>
+            static BackupManagerInfo create(
+                const Flags & flags,
+                nova::rpc::ResilientSenderPtr sender,
+                nova::utils::JobRunner & runner,
+                const nova::guest::diagnostics::Interrogator interrogator) {
+                BackupManagerInfo backup(
+                      sender,
+                      runner,
+                      interrogator,
+                      flags.backup_segment_max_size(),
+                      flags.checksum_wait_time(),
+                      flags.backup_swift_container(),
+                      flags.backup_timeout(),
+                      flags.backup_zlib_buffer_size());
+                return backup;
+            }
 
+            virtual ~BackupManagerInfo();
 
-        private:
+        protected:
             nova::rpc::ResilientSenderPtr sender;
-            const nova::process::CommandList commands;
             nova::utils::JobRunner & runner;
             const nova::guest::diagnostics::Interrogator interrogator;
             const int segment_max_size;
@@ -57,6 +74,20 @@ namespace nova { namespace guest { namespace backup {
             const double time_out;
             const int zlib_buffer_size;
     };
+
+    /**
+     *  The root of the backup hierarchy which can be used with the
+     *  message handler.
+     */
+    class BackupManager : public BackupManagerInfo {
+        public:
+            BackupManager(const BackupManagerInfo & info);
+            virtual void run_backup(const std::string & tenant,
+                                    const std::string & token,
+                                    const BackupInfo & backup_info) = 0;
+    };
+
+    typedef boost::shared_ptr<BackupManager> BackupManagerPtr;
 
 } } }  // end namespace
 

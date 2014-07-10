@@ -33,27 +33,14 @@ namespace nova { namespace guest { namespace backup {
             std::string backup_checksum;
     };
 
-
     class BackupRestoreManager {
         public:
-            BackupRestoreManager(const nova::process::CommandList command_list,
-                                 const std::string & delete_file_pattern,
-                                 const std::string & restore_directory,
-                                 const std::string & save_file_pattern,
-                                 const size_t zlib_buffer_size);
+            BackupRestoreManager();
 
-            void run(const BackupRestoreInfo & restore);
+            virtual ~BackupRestoreManager();
 
-        private:
-            class BackupRestoreJob;
-
-            const nova::process::CommandList commands;
-            const nova::utils::Regex delete_file_pattern;
-            const std::string restore_directory;
-            const nova::utils::Regex save_file_pattern;
-            const size_t zlib_buffer_size;
+            virtual void run(const BackupRestoreInfo & restore) = 0;
     };
-
 
     typedef boost::shared_ptr<BackupRestoreManager> BackupRestoreManagerPtr;
 

@@ -12,7 +12,7 @@ namespace nova { namespace guest { namespace backup {
     class BackupMessageHandler : public nova::guest::MessageHandler {
 
         public:
-          BackupMessageHandler(BackupManager & backup_manager);
+          BackupMessageHandler(BackupManagerPtr backup_manager);
 
           virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
@@ -20,7 +20,7 @@ namespace nova { namespace guest { namespace backup {
           BackupMessageHandler(const BackupMessageHandler &);
           BackupMessageHandler & operator = (const BackupMessageHandler &);
 
-          BackupManager backup_manager;
+          BackupManagerPtr backup_manager;
     };
 
 } } }  // end namespace

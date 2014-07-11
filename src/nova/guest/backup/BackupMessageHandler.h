@@ -2,17 +2,17 @@
 #define __NOVA_GUEST_BACKUP_BACKUPMESSAGEHANDLER_H
 
 #include "nova/guest/guest.h"
-#include "nova/guest/backup/BackupManager.h"
+#include "nova/backup/BackupManager.h"
 
 
 namespace nova { namespace guest { namespace backup {
 
-    BackupInfo from_json(const nova::JsonObjectPtr data);
+    nova::backup::BackupInfo from_json(const nova::JsonObjectPtr data);
 
     class BackupMessageHandler : public nova::guest::MessageHandler {
 
         public:
-          BackupMessageHandler(BackupManagerPtr backup_manager);
+          BackupMessageHandler(nova::backup::BackupManagerPtr backup_manager);
 
           virtual nova::JsonDataPtr handle_message(const GuestInput & input);
 
@@ -20,7 +20,7 @@ namespace nova { namespace guest { namespace backup {
           BackupMessageHandler(const BackupMessageHandler &);
           BackupMessageHandler & operator = (const BackupMessageHandler &);
 
-          BackupManagerPtr backup_manager;
+          nova::backup::BackupManagerPtr backup_manager;
     };
 
 } } }  // end namespace

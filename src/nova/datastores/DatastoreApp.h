@@ -4,7 +4,7 @@
 #include <list>
 #include "nova/db/mysql.h"
 #include "nova/rpc/sender.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
@@ -27,7 +27,7 @@ namespace nova { namespace datastores {
                 const boost::optional<std::string> & root_password,
                 const std::string & config_contents,
                 const boost::optional<std::string> & overrides,
-                boost::optional<nova::guest::backup::BackupRestoreInfo> restore
+                boost::optional<nova::backup::BackupRestoreInfo> restore
             ) = 0;
     };
 

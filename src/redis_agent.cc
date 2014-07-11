@@ -9,9 +9,9 @@
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
-#include "nova/guest/backup/BackupManager.h"
+#include "nova/backup/BackupManager.h"
 #include "nova/guest/backup/BackupMessageHandler.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include "nova/guest/monitoring/monitoring.h"
 #include "nova/db/mysql.h"
 #include <boost/foreach.hpp>
@@ -45,10 +45,10 @@ using nova::guest::apt::AptMessageHandler;
 using nova::redis::RedisAppStatusPtr;
 using nova::redis::RedisAppStatus;
 using std::auto_ptr;
-using nova::guest::backup::BackupManager;
+using nova::backup::BackupManager;
 using nova::guest::backup::BackupMessageHandler;
-using nova::guest::backup::BackupRestoreManager;
-using nova::guest::backup::BackupRestoreManagerPtr;
+using nova::backup::BackupRestoreManager;
+using nova::backup::BackupRestoreManagerPtr;
 using nova::process::CommandList;
 using nova::utils::CurlScope;
 using boost::format;

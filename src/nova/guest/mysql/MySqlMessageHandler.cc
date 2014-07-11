@@ -1,6 +1,6 @@
 #include "pch.hpp"
 #include "nova/guest/apt.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
@@ -23,7 +23,7 @@
 using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
-using nova::guest::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreInfo;
 using boost::format;
 using nova::guest::GuestException;
 using boost::lexical_cast;

@@ -2,7 +2,7 @@
 #include "message_handler.h"
 
 #include "nova/guest/apt.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
 #include "nova/process.h"
@@ -27,7 +27,7 @@
 using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
-using nova::guest::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreInfo;
 using nova::guest::GuestException;
 using nova::Log;
 using nova::JsonData;

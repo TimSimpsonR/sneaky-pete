@@ -7,7 +7,7 @@
 #include <string>
 
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace backup {
 
     class BackupRestoreInfo {
         public:
@@ -50,6 +50,6 @@ namespace nova { namespace guest { namespace backup {
             virtual const char * what() const throw();
     };
 
-} } }  // end namespace
+} } // end namespace
 
 #endif //__NOVA_GUEST_BACKUP_BACKUPRESTORERUNNER_H

@@ -4,7 +4,7 @@
 #include "nova/datastores/DatastoreApp.h"
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include <boost/optional.hpp>
 #include <vector>
 
@@ -19,7 +19,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
     public:
 
         MySqlApp(MySqlAppStatusPtr status,
-                 nova::guest::backup::BackupRestoreManagerPtr
+                 nova::backup::BackupRestoreManagerPtr
                     backup_restore_manager,
                  int state_change_wait_time,
                  bool skip_install_for_prepare);
@@ -49,7 +49,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
             const boost::optional<std::string> & root_password,
             const std::string & config_contents,
             const boost::optional<std::string> & overrides,
-            boost::optional<nova::guest::backup::BackupRestoreInfo> restore
+            boost::optional<nova::backup::BackupRestoreInfo> restore
         );
 
     private:
@@ -58,7 +58,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
         MySqlApp(const MySqlApp &);
         MySqlApp & operator = (const MySqlApp &);
 
-        nova::guest::backup::BackupRestoreManagerPtr backup_restore_manager;
+        nova::backup::BackupRestoreManagerPtr backup_restore_manager;
 
         /** Install the set of mysql my.cnf templates from dbaas-mycnf package.
          *  The package generates a template suited for the current

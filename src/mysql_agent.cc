@@ -9,8 +9,8 @@
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
-#include "nova/guest/backup/MySqlBackupManager.h"
-#include "nova/guest/backup/MySqlBackupRestoreManager.h"
+#include "nova/guest/mysql/MySqlBackupManager.h"
+#include "nova/guest/mysql/MySqlBackupRestoreManager.h"
 #include "nova/guest/backup/BackupMessageHandler.h"
 #include "nova/guest/monitoring/monitoring.h"
 #include "nova/db/mysql.h"
@@ -41,11 +41,11 @@ using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptGuestPtr;
 using nova::guest::apt::AptMessageHandler;
 using std::auto_ptr;
-using nova::guest::backup::BackupManagerPtr;
-using nova::guest::backup::MySqlBackupManager;
+using nova::backup::BackupManagerPtr;
+using nova::guest::mysql::MySqlBackupManager;
 using nova::guest::backup::BackupMessageHandler;
-using nova::guest::backup::BackupRestoreManagerPtr;
-using nova::guest::backup::MySqlBackupRestoreManager;
+using nova::backup::BackupRestoreManagerPtr;
+using nova::guest::mysql::MySqlBackupRestoreManager;
 using nova::process::CommandList;
 using nova::utils::CurlScope;
 using boost::format;
@@ -125,7 +125,7 @@ struct Func {
         vector<MessageHandlerPtr> handlers;
 
         /* Create Apt Guest */
-        AptGuestPtr apt_worker(new AptGuest(AptGuest::create(flags)));
+        AptGuestPtr apt_worker(new AptGuest(AptGuest::from_flags(flags)));
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
 
@@ -140,13 +140,13 @@ struct Func {
         handlers.push_back(handler_mysql);
 
         MonitoringManagerPtr monitoring_manager(new MonitoringManager(
-            MonitoringManager::create(flags)));
+            MonitoringManager::from_flags(flags)));
         MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
             apt_worker, monitoring_manager));
         handlers.push_back(handler_monitoring_app);
 
         BackupRestoreManagerPtr backup_restore_manager(
-            MySqlBackupRestoreManager::create(flags));
+            MySqlBackupRestoreManager::from_flags(flags));
         MySqlAppPtr mysqlApp(new MySqlApp(mysql_status_updater,
                                           backup_restore_manager,
                                           flags.mysql_state_change_wait_time(),
@@ -192,7 +192,7 @@ struct Func {
         handlers.push_back(handler_interrogator);
 
         /* Backup task */
-        BackupManagerPtr backup = MySqlBackupManager::create(
+        BackupManagerPtr backup = MySqlBackupManager::from_flags(
             flags, sender, job_runner, interrogator);
         MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
         handlers.push_back(handler_backup);

@@ -19,9 +19,9 @@
 
 using nova::guest::apt::AptGuest;
 using namespace boost::assign; // brings CommandList += into our code.
-using nova::guest::backup::BackupRestoreInfo;
-using nova::guest::backup::BackupRestoreManager;
-using nova::guest::backup::BackupRestoreManagerPtr;
+using nova::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreManager;
+using nova::backup::BackupRestoreManagerPtr;
 using nova::utils::io::is_file;
 using boost::format;
 using namespace nova::guest;

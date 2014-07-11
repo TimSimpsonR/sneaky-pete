@@ -13,6 +13,8 @@
 #include "nova/utils/zlib.h"
 
 using namespace boost::assign;
+using nova::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreException;
 using boost::format;
 using namespace nova::process;
 using std::string;
@@ -21,7 +23,7 @@ using nova::utils::swift::SwiftDownloader;
 using std::vector;
 namespace zlib = nova::utils::zlib;
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace guest { namespace mysql {
 
 namespace {
 

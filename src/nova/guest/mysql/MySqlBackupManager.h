@@ -1,22 +1,27 @@
 #ifndef __NOVA_GUEST_BACKUP_MYSQLBACKUPMANAGER_H
 #define __NOVA_GUEST_BACKUP_MYSQLBACKUPMANAGER_H
 
-#include "BackupManager.h"
+#include "nova/backup/BackupManager.h"
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace guest { namespace mysql {
 
     /**
      * Handles MySql backups.
      */
-    class MySqlBackupManager : public BackupManager {
+    class MySqlBackupManager : public nova::backup::BackupManager {
         public:
-            MySqlBackupManager(const BackupManagerInfo & info,
+            MySqlBackupManager(const nova::backup::BackupManagerInfo & info,
                                const nova::process::CommandList commands);
 
             template<typename Flags, typename... Args>
-            static BackupManagerPtr create(const Flags & flags, Args & ... args) {
-                BackupManagerInfo info
-                    = BackupManagerInfo::create(flags, args...);
+            static nova::backup::BackupManagerPtr from_flags(
+                const Flags & flags, Args & ... args)
+            {
+                using nova::backup::BackupManagerInfo;
+                using nova::backup::BackupManagerPtr;
+
+                BackupManagerInfo info =
+                    BackupManagerInfo::from_flags(flags, args...);
                 BackupManagerPtr result;
                 result.reset(new MySqlBackupManager(
                   info, flags.backup_process_commands()));
@@ -27,7 +32,7 @@ namespace nova { namespace guest { namespace backup {
 
             virtual void run_backup(const std::string & tenant,
                                     const std::string & token,
-                                    const BackupInfo & backup_info);
+                                    const nova::backup::BackupInfo & backup_info);
 
         private:
             const nova::process::CommandList commands;

@@ -11,7 +11,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-using nova::guest::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreInfo;
 using boost::format;
 using nova::utils::io::is_file;
 using std::ofstream;

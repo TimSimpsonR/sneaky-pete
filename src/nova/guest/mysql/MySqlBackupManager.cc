@@ -1,6 +1,6 @@
 #include "pch.hpp"
-#include "nova/guest/backup/BackupException.h"
-#include "nova/guest/backup/MySqlBackupManager.h"
+#include "MySqlBackupManager.h"
+#include "nova/backup/BackupException.h"
 #include <boost/format.hpp>
 #include <fstream>
 #include <iostream>
@@ -20,6 +20,8 @@
 #include "nova/utils/subsecond.h"
 
 using namespace boost::assign;
+using nova::backup::BackupInfo;
+using nova::backup::BackupManagerInfo;
 using nova::process::CommandList;
 using nova::process::IndependentStdErrAndStdOut;
 using nova::process::Process;
@@ -41,7 +43,7 @@ using nova::utils::subsecond::now;
 
 namespace zlib = nova::utils::zlib;
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace guest { namespace mysql {
 
 namespace {  // Begin anonymous namespace
 

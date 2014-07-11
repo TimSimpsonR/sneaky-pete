@@ -15,7 +15,7 @@
 #include "nova/rpc/sender.h"
 #include "nova/utils/subsecond.h"
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace backup {
 
     struct BackupInfo {
         const std::string backup_type;
@@ -44,7 +44,7 @@ namespace nova { namespace guest { namespace backup {
             BackupManagerInfo(const BackupManagerInfo & info);
 
             template<typename Flags>
-            static BackupManagerInfo create(
+            static BackupManagerInfo from_flags(
                 const Flags & flags,
                 nova::rpc::ResilientSenderPtr sender,
                 nova::utils::JobRunner & runner,
@@ -89,6 +89,6 @@ namespace nova { namespace guest { namespace backup {
 
     typedef boost::shared_ptr<BackupManager> BackupManagerPtr;
 
-} } }  // end namespace
+} }  // end namespace
 
 #endif //__NOVA_GUEST_BACKUP_BACKUPMANAGER_H

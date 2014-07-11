@@ -1,7 +1,6 @@
 #include "pch.hpp"
-#include "nova/guest/backup/BackupException.h"
-#include "nova/guest/backup/BackupManager.h"
-#include "nova/guest/backup/BackupMessageHandler.h"
+#include "nova/backup/BackupException.h"
+#include "nova/backup/BackupManager.h"
 #include <boost/format.hpp>
 #include <fstream>
 #include <iostream>
@@ -41,7 +40,7 @@ using nova::rpc::ResilientSenderPtr;
 
 namespace zlib = nova::utils::zlib;
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace backup {
 
 
 
@@ -95,4 +94,4 @@ BackupManager::BackupManager(const BackupManagerInfo & info)
 }
 
 
-} } } // end namespace nova::guest::backup
+} } // end namespace nova::backup

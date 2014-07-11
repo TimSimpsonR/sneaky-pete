@@ -5,7 +5,7 @@
 using std::string;
 
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace backup {
 
 
 /**---------------------------------------------------------------------------
@@ -39,4 +39,4 @@ const char * BackupRestoreException::what() const throw() {
 }
 
 
-} } } // end namespace nova::guest::backup
+} } // end namespace nova::guest::backup

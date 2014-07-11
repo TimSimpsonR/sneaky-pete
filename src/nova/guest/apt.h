@@ -23,7 +23,7 @@ namespace nova { namespace guest { namespace apt {
                      int self_update_time_out);
 
             template<typename Flags>
-            static AptGuest create(const Flags & flags) {
+            static AptGuest from_flags(const Flags & flags) {
                 AptGuest apt(flags.apt_use_sudo(),
                              flags.apt_self_package_name(),
                              flags.apt_self_update_time_out());

@@ -21,7 +21,7 @@ namespace nova { namespace guest { namespace monitoring {
                               const double agent_install_timeout);
 
             template<typename Flags>
-            static MonitoringManager create(const Flags & flags) {
+            static MonitoringManager from_flags(const Flags & flags) {
                 MonitoringManager manager(
                     flags.guest_id(),
                     flags.monitoring_agent_package_name(),

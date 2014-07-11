@@ -3,7 +3,7 @@
 
 #include <exception>
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace backup {
 
     class BackupException : public std::exception {
 
@@ -21,6 +21,6 @@ namespace nova { namespace guest { namespace backup {
             const Code code;
     };
 
-} } }  // end namespace
+} }  // end namespace
 
 #endif //__NOVA_GUEST_BACKUP_BACKUPEXCEPTION_H

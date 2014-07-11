@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 
+using nova::backup::BackupInfo;
+using nova::backup::BackupManagerPtr;
 using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::Log;

@@ -11,14 +11,19 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+using namespace boost::assign;
 using nova::backup::BackupRestoreInfo;
+using nova::process::execute;
+using nova::process::force_kill;
 using boost::format;
 using nova::utils::io::is_file;
 using std::ofstream;
 using boost::optional;
+using nova::process::ProcessException;
 using nova::redis::RedisAppStatusPtr;
 using nova::process::shell;
 using std::string;
+using std::stringstream;
 
 
 // Macros are bad, but better than duplicating these two lines everywhere.
@@ -34,6 +39,14 @@ using std::string;
 namespace nova { namespace redis {
 
 namespace {
+
+    void get_process_status()
+    {
+        stringstream out;
+        execute(out, list_of("/usr/bin/sudo")("/bin/ps")("-C")
+                                 ("mysqld")("h"));
+    }
+
     std::string get_uuid()
     {
         std::stringstream ss;
@@ -87,8 +100,12 @@ namespace {
     }
 }
 
-RedisApp::RedisApp(RedisAppStatusPtr app_status)
-:   app_status(app_status) {
+RedisApp::RedisApp(RedisAppStatusPtr app_status,
+                   const int state_change_wait_time)
+:   DatastoreApp("redis-server"),
+    app_status(app_status),
+    state_change_wait_time(state_change_wait_time)
+{
 }
 
 RedisApp::~RedisApp() {
@@ -120,6 +137,32 @@ void RedisApp::change_password(const string & password) {
     client.config_set("requirepass", password);
 }
 
+void RedisApp::internal_start(bool update_trove) {
+    NOVA_LOG_INFO("Starting Redis...");
+    execute(list_of("/usr/bin/sudo")("/etc/init.d/redis-server")("start"),
+            state_change_wait_time);
+    wait_for_internal_start(update_trove);
+}
+
+void RedisApp::internal_stop(const bool update_trove) {
+    NOVA_LOG_INFO("Stopping redis instance.");
+    try {
+        execute(list_of("/usr/bin/sudo")("/etc/init.d/redis-server")("stop"));
+        //TODO(tim.simpson): Make sure we need to kill it. Must it truly pay
+        //                   the ultimate price?
+    } catch(const ProcessException & pe) {
+        NOVA_LOG_ERROR("Couldn't stop redis-server the nice way. Now it "
+                       "must die.");
+        auto pid = app_status->get_pid();
+        if (!pid) {
+            NOVA_LOG_ERROR("No pid for Redis found!");
+            force_kill(pid.get());
+        }
+    }
+    //TODO(tim.simpson): Make sure Redis doesn't restart on reboot.
+    wait_for_internal_stop(update_trove);
+    NOVA_LOG_INFO("Redis instance stopped.");
+}
 
 void RedisApp::prepare(const optional<string> & json_root_password,
                        const string & config_contents,
@@ -186,34 +229,28 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     NOVA_LOG_INFO("Connecting to redis instance.");
     nova::redis::Client client = nova::redis::Client();
     NOVA_LOG_INFO("Stopping redis instance.");
-    if (client.control->stop() != 0)
-    {
-        NOVA_LOG_INFO("Unable to stop redis instance.");
-        //TODO(tim.simpson): If we can't stop, is this just ok?
-    }
+    internal_stop(false);
     NOVA_LOG_INFO("Starting redis instance.");
-    if (client.control->start() != 0)
-    {
-        THROW_PREPARE_ERROR("Unable to start redis instance!");
-    }
+    internal_start(false);
 }
 
-
 void RedisApp::restart() {
-    NOVA_LOG_INFO("Entering restart call.");
-    Client client;
-    NOVA_LOG_INFO("Stopping redis instance.");
-    if (client.control->stop() != 0)
-    {
-        NOVA_LOG_ERROR("Unable to stop redis instance!");
-        throw RedisException(RedisException::COULD_NOT_STOP);
-    }
-    NOVA_LOG_INFO("Starting redis instance.");
-    if (client.control->start() != 0)
-    {
-        NOVA_LOG_ERROR("Unable to start redis instance!");
-        throw RedisException(RedisException::COULD_NOT_START);
-    }
+    NOVA_LOG_INFO("Beginning restart.");
+    struct Restarter {
+        RedisAppStatusPtr & app_status;
+
+        Restarter(RedisAppStatusPtr & app_status)
+        :   app_status(app_status) {
+            app_status->begin_restart();
+        }
+
+        ~Restarter() {
+            // Make sure we end this, even if the result is a failure.
+            app_status->end_install_or_restart();
+        }
+    } restarter(app_status);
+    internal_stop(false);
+    internal_start(false);
     NOVA_LOG_INFO("Redis instance restarted successfully.");
 }
 
@@ -226,25 +263,31 @@ void RedisApp::start_with_conf_changes(const std::string & config_contents) {
         NOVA_LOG_ERROR("Unable to write new config.");
         throw RedisException(RedisException::UNABLE_TO_WRITE_CONFIG);
     }
-    if (client.control->start() != 0)
-    {
-        NOVA_LOG_ERROR("Unable to start redis instance!");
-        throw RedisException(RedisException::COULD_NOT_START);
-    }
+    internal_start(true);
     NOVA_LOG_INFO("Redis instance started.");
 }
 
 
 void RedisApp::stop() {
-    NOVA_LOG_INFO("Entering stop_db call.");
-    nova::redis::Client client;
-    NOVA_LOG_INFO("Stopping redis instance.");
-    if (client.control->stop() != 0)
-    {
-        NOVA_LOG_ERROR("Unable to stop redis instance!");
+    internal_stop(true);
+}
+
+void RedisApp::wait_for_internal_start(const bool update_trove) {
+    if (!app_status->wait_for_real_state_to_change_to(
+        RedisAppStatus::RUNNING, this->state_change_wait_time, update_trove)) {
+        NOVA_LOG_ERROR("Start up of Redis failed!");
+        app_status->end_install_or_restart();
+        throw RedisException(RedisException::COULD_NOT_START);
+    }
+}
+
+void RedisApp::wait_for_internal_stop(const bool update_trove) {
+    if (!app_status->wait_for_real_state_to_change_to(
+        RedisAppStatus::SHUTDOWN, this->state_change_wait_time, update_trove)) {
+        NOVA_LOG_ERROR("Could not stop Redis!");
+        app_status->end_install_or_restart();
         throw RedisException(RedisException::COULD_NOT_STOP);
     }
-    NOVA_LOG_INFO("Redis instance stopped.");
 }
 
 } }  // end namespace

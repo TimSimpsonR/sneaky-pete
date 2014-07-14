@@ -268,6 +268,16 @@ pid_t execute_and_abandon(const CommandList & cmds) {
     return pid;
 }
 
+void force_kill(pid_t pid) {
+    NOVA_LOG_INFO("Killing pid %d.", pid);
+    try {
+        kill_with_throw(pid, SIGTERM, true);
+    } catch(const ProcessException & pe) {
+        NOVA_LOG_ERROR("SIGTE")
+        kill_with_throw(pid, SIGKILL, true);
+    }
+}
+
 bool is_pid_alive(pid_t pid) {
     // Send the "null signal," so kill only performs error checking but does not
     // actually send a signal.

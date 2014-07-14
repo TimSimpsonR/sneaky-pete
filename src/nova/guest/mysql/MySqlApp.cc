@@ -55,44 +55,6 @@ namespace {
     const char * const MYCNF_OVERRIDES = "/etc/mysql/conf.d/overrides.cnf";
     const char * const MYCNF_OVERRIDES_TMP = "/tmp/overrides.cnf.tmp";
 
-    void call_update_rc(bool enabled, bool throw_on_bad_exit_code)
-    {
-        // update-rc.d is typically fast and will return exit code 0 normally,
-        // even if it is enabling or disabling mysql twice in a row.
-        // UPDATE: Nope, turns out this is only on my box. Sometimes it
-        //         returns something else.
-        stringstream output;
-        process::CommandList cmds = list_of("/usr/bin/sudo")
-            ("update-rc.d")("mysql")(enabled ? "enable" : "disable");
-        try {
-            process::execute(output, cmds);
-        } catch(const process::ProcessException & pe) {
-            NOVA_LOG_ERROR("Exception running process!");
-            NOVA_LOG_ERROR(pe.what());
-            if (throw_on_bad_exit_code) {
-                NOVA_LOG_ERROR(output.str().c_str());
-                throw;
-            }
-        }
-        NOVA_LOG_INFO(output.str().c_str());
-    }
-
-    void enable_starting_mysql_on_boot() {
-        // Enable MySQL on boot, don't throw if something goes wrong.
-        call_update_rc(true, false);
-    }
-
-    void guarantee_enable_starting_mysql_on_boot() {
-        // Enable MySQL on boot, throw if anything is awry.
-        call_update_rc(true, true);
-    }
-
-    void disable_starting_mysql_on_boot() {
-        // Always throw if the exit code is bad, since disabling this on
-        // start up might be needed in case of a reboot.
-        call_update_rc(false, true);
-    }
-
     /** Write a new file thats just like the original but with a different
      *  password. */
     void write_temp_mycnf_with_admin_account(const char * temp_file_path,
@@ -125,7 +87,8 @@ MySqlApp::MySqlApp(MySqlAppStatusPtr status,
                    BackupRestoreManagerPtr backup_restore_manager,
                    int state_change_wait_time,
                    bool skip_install_for_prepare)
-:   backup_restore_manager(backup_restore_manager),
+:   DatastoreApp("mysql"),
+    backup_restore_manager(backup_restore_manager),
     skip_install_for_prepare(skip_install_for_prepare),
     state_change_wait_time(state_change_wait_time),
     status(status)
@@ -351,7 +314,7 @@ void MySqlApp::restart() {
         }
     } restarter(status);
     internal_stop_mysql();
-    enable_starting_mysql_on_boot();
+    start_on_boot.enable_maybe();
     start_mysql();
 }
 
@@ -359,7 +322,7 @@ void MySqlApp::restart_mysql_and_wipe_ib_logfiles() {
     NOVA_LOG_INFO("Restarting mysql...");
     internal_stop_mysql();
     wipe_ib_logfiles();
-    enable_starting_mysql_on_boot();
+    start_on_boot.enable_maybe();
     start_mysql();
 }
 
@@ -430,12 +393,12 @@ void MySqlApp::start_db_with_conf_changes(const string & config_contents) {
     NOVA_LOG_INFO("Initiating config.");
     write_mycnf(config_contents, boost::none, boost::none);
     start_mysql(true);
-    guarantee_enable_starting_mysql_on_boot();
+    start_on_boot.enable_or_throw();
 }
 
 void MySqlApp::stop_db(bool do_not_start_on_reboot) {
     if (do_not_start_on_reboot) {
-        disable_starting_mysql_on_boot();
+        start_on_boot.disable_or_throw();
     }
     internal_stop_mysql(true);
 }

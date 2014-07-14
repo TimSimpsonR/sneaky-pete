@@ -341,6 +341,12 @@ unit u_nova_datastores_DatastoreStatus
     :   tests/nova/datastores/DatastoreStatus_tests.cc
     ;
 
+unit u_nova_datastores_DatastoreApp
+    :   src/nova/datastores/DatastoreApp.cc
+    :   u_nova_datastores_DatastoreStatus
+        u_nova_process
+    ;
+
 unit u_nova_guest_apt_AptException
     :   src/nova/guest/apt/AptException.cc
     ;
@@ -449,6 +455,7 @@ unit u_nova_guest_mysql_MySqlApp
         u_nova_guest_apt_apt
         u_nova_guest_apt_AptException
         u_nova_configfile
+        u_nova_datastores_DatastoreApp
         u_nova_guest_mysql_MySqlAppStatus
         u_nova_guest_mysql_MySqlBackupRestoreManager
     ;
@@ -607,16 +614,12 @@ unit u_redis_connection
     :   src/nova/guest/redis/connection.cc
     ;
 
-unit u_redis_control
-    :   src/nova/guest/redis/control.cc
-    ;
-
 unit u_redis_response
     :   src/nova/guest/redis/response.cc
     ;
 
-unit u_redis_status
-    :   src/nova/guest/redis/status.cc
+unit u_nova_redis_RedisAppStatus
+    :   src/nova/redis/RedisAppStatus.cc
     :   u_nova_datastores_DatastoreStatus
     ;
 
@@ -625,12 +628,28 @@ unit u_nova_redis_RedisException
     ;
 
 
-unit u_nova_redis_RedisApp
-    :   src/nova/redis/RedisApp.cc
+unit u_nova_redis_RedisBackup
+    :   src/nova/redis/RedisBackup.cc
     :   u_nova_guest_common_PrepareHandler
         u_nova_redis_RedisException
         u_redis_client
+        u_nova_backup_BackupException
+        u_nova_backup_BackupManager
+        u_nova_backup_BackupRestore
     ;
+
+
+unit u_nova_redis_RedisApp
+    :   src/nova/redis/RedisApp.cc
+    :   u_nova_guest_common_PrepareHandler
+        u_nova_datastores_DatastoreApp
+        u_nova_redis_RedisBackup
+        u_nova_redis_RedisException
+        u_redis_client
+    ;
+
+
+
 
 unit u_nova_guest_redis_message_handler
     :   src/nova/guest/redis/message_handler.cc
@@ -648,9 +667,8 @@ unit u_nova_guest_redis_message_handler
         u_redis_commands
         u_redis_config
         u_redis_connection
-        u_redis_control
         u_redis_response
-        u_redis_status
+        u_nova_redis_RedisAppStatus
     ;
 
 alias empty_agent_lib

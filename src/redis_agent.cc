@@ -20,7 +20,7 @@
 #include <iostream>
 #include <memory>
 #include "nova/db/mysql.h"
-#include "nova/guest/redis/status.h"
+#include "nova/redis/RedisAppStatus.h"
 #include "nova/guest/redis/message_handler.h"
 #include <boost/optional.hpp>
 #include "nova/guest/common/PrepareHandler.h"
@@ -119,22 +119,20 @@ struct Func {
         /* Create JSON message handlers. */
         vector<MessageHandlerPtr> handlers;
         /* Create Apt Guest */
-        AptGuestPtr apt_worker(new AptGuest(
-            flags.apt_use_sudo(),
-            flags.apt_self_package_name(),
-            flags.apt_self_update_time_out()));
-            MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
+        AptGuestPtr apt_worker(new AptGuest(AptGuest::from_flags(flags)));
+        MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
+
         MonitoringManagerPtr monitoring_manager(new MonitoringManager(
-            flags.guest_id(),
-            flags.monitoring_agent_package_name(),
-            flags.monitoring_agent_config_file(),
-            flags.monitoring_agent_install_timeout()));
+            MonitoringManager::from_flags(flags)));
         MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
             apt_worker, monitoring_manager));
         handlers.push_back(handler_monitoring_app);
-        RedisAppStatusPtr app_status(new RedisAppStatus(sender, is_redis_installed()));
-        RedisAppPtr app(new RedisApp(app_status));
+
+        RedisAppStatusPtr app_status(new RedisAppStatus(sender,
+                                                        is_redis_installed()));
+        RedisAppPtr app(new RedisApp(app_status,
+                                     flags.redis_state_change_wait_time()));
         VolumeManagerPtr volume_manager;  // Intentionally leave this null.
         PrepareHandlerPtr prepare_ptr(new PrepareHandler(
             app, apt_worker, app_status, volume_manager));

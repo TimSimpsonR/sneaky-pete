@@ -195,7 +195,7 @@ class FlagValues {
 
         const char * conductor_queue() const;
 
-        std::list<std::string> python_guest_process_commands() const;
+        bool run_python_guest() const;
 
     private:
 

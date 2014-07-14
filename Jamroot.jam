@@ -1021,6 +1021,7 @@ exe nova-guest
         src/sneaky-pete.cc
         u_nova_Log
         u_nova_flags
+        u_nova_guest_apt_apt
     :
         <linkflags>$(EXE_LINK_FLAGS)
     ;

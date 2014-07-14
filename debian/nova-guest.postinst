@@ -10,7 +10,6 @@ if [ "$1" = "configure" ]; then
     chmod 0440 /etc/sudoers.d/guest_sudoers
     chmod 755 /var/lib/nova/backup
     chmod 755 /var/lib/nova/restore
-    chmod 755 /var/lib/nova/falco
     if [ -e /etc/nova/guest.conf ]; then
     	chown nova:root /etc/nova/guest.conf
     fi

@@ -3,7 +3,7 @@
 
 #include "nova/redis/RedisApp.h"
 #include "nova/guest/guest.h"
-#include "nova/guest/redis/status.h"
+#include "nova/redis/RedisAppStatus.h"
 #include "nova/guest/common/PrepareHandler.h"
 
 namespace nova { namespace guest {

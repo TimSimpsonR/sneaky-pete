@@ -7,7 +7,6 @@
 #include "constants.h"
 #include "response.h"
 #include "commands.h"
-#include "control.h"
 #include "config.h"
 #include "nova/Log.h"
 
@@ -284,7 +283,6 @@ Client::Client(
     _find_config_command();
     _commands = new Commands(config->get_require_pass(),
                              _config_command);
-    control = new Control();
     _authed = false;
     _name_set = false;
     _socket = -1;

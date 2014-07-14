@@ -416,6 +416,10 @@ const char * FlagValues::rabbit_userid() const {
     return map->get("rabbit_userid", "guest");
 }
 
+const int FlagValues::redis_state_change_wait_time() const {
+    return get_flag_value<int>(*map, "redis_state_change_wait_time", 3 * 60);
+}
+
 bool FlagValues::register_dangerous_functions() const {
     return get_flag_value<bool>(*map, "register_dangerous_functions", false);
 }

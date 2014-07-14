@@ -1,17 +1,26 @@
 #include "pch.hpp"
-#include "nova/guest/redis/status.h"
+#include "nova/redis/RedisAppStatus.h"
 
+#include <boost/assign/list_of.hpp>
 #include "nova/guest/redis/client.h"
 #include "nova/guest/redis/constants.h"
 #include "nova/Log.h"
 #include "nova/datastores/DatastoreStatus.h"
+#include <boost/optional.hpp>
+#include "nova/process.h"
 #include "nova/rpc/sender.h"
 #include <boost/thread.hpp>
 #include <string>
 
+using namespace boost::assign;
 using nova::datastores::DatastoreStatus;
+using nova::process::execute;
+using boost::optional;
 using nova::rpc::ResilientSenderPtr;
 using nova::Log;
+using nova::process::is_pid_alive;
+using std::string;
+using std::stringstream;
 
 namespace nova { namespace redis {
 
@@ -45,32 +54,41 @@ DatastoreStatus::Status RedisAppStatus::determine_actual_status() const
     // BLOCKED = We can't ping it, but we can see the process running.
     // CRASHED = The process is dead, but left evidence it once existed.
     // SHUTDOWN = The process is dead and never existed or cleaned itself up.
-    nova::redis::Client client(SOCKET_NAME,
-                               REDIS_PORT,
-                               REDIS_AGENT_NAME,
-                               DEFAULT_REDIS_CONFIG);
+    nova::redis::Client client;
     NOVA_LOG_INFO("Attempting to get redis-server status");
-    if(client.ping().status == STRING_RESPONSE)
-    {
+    if(client.ping().status == STRING_RESPONSE) {
         NOVA_LOG_INFO("Redis is Running");
         return RUNNING;
     }
-    else if(client.control->get_process_status() == 0)
+    auto pid = get_pid();
+    if (pid)
     {
-        NOVA_LOG_INFO("Redis is Blocked");
-        return BLOCKED;
-    }
-    else if(client.control->get_pid() != -1)
-    {
-        NOVA_LOG_INFO("Redis is Crashed");
-        return CRASHED;
-    }
-    else
-    {
+        if (is_pid_alive(pid.get())) {
+            NOVA_LOG_INFO("Redis is Blocked");
+            return BLOCKED;
+        } else {
+            NOVA_LOG_INFO("Redis is Crashed");
+            return CRASHED;
+        }
+    }  else {
         NOVA_LOG_INFO("Redis is shutdown");
         return SHUTDOWN;
     }
 }
 
+optional<int> RedisAppStatus::get_pid() const
+{
+    try
+    {
+        stringstream output_stream;
+        execute(output_stream, list_of("/bin/pidof")("redis-server")("r"));
+        string output = output_stream.str();
+        if (output.length() > 0) {
+            return boost::lexical_cast<int>(output);
+        }
+    } catch(const process::ProcessException & pe) {
+    }
+    return boost::none;
+}
 
 }} // end nova::redis

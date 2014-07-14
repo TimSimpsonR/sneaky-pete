@@ -6,7 +6,6 @@
 
 #include "response.h"
 #include "commands.h"
-#include "control.h"
 #include "config.h"
 
 
@@ -62,8 +61,6 @@ class Client
         void _find_config_command();
 
     public:
-
-        Control* control;
 
         Config* config;
 

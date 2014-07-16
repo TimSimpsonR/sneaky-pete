@@ -19,7 +19,7 @@ class RedisAppStatus : public nova::datastores::DatastoreStatus {
         virtual ~RedisAppStatus();
 
         /** Returns the pid if found, otherwise none. */
-        boost::optional<int> get_pid() const;
+        static boost::optional<int> get_pid();
 
     protected:
         virtual Status determine_actual_status() const;

@@ -341,9 +341,14 @@ unit u_nova_datastores_DatastoreStatus
     :   tests/nova/datastores/DatastoreStatus_tests.cc
     ;
 
+unit u_nova_datastores_DatastoreException
+    :   src/nova/datastores/DatastoreException.cc
+    ;
+
 unit u_nova_datastores_DatastoreApp
     :   src/nova/datastores/DatastoreApp.cc
-    :   u_nova_datastores_DatastoreStatus
+    :   u_nova_datastores_DatastoreException
+        u_nova_datastores_DatastoreStatus
         u_nova_process
     ;
 

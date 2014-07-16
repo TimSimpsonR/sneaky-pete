@@ -18,13 +18,7 @@ class RedisApp : public nova::datastores::DatastoreApp {
 
         void change_password(const std::string & password);
 
-        /** Restart Redis. */
-        void restart();
-
         void start_with_conf_changes(const std::string & config_contents);
-
-        /** Shutdown Redis. */
-        void stop();
 
     protected:
         virtual void prepare(
@@ -33,22 +27,10 @@ class RedisApp : public nova::datastores::DatastoreApp {
                 const boost::optional<std::string> & overrides,
                 boost::optional<nova::backup::BackupRestoreInfo> restore
             );
-    private:
-        RedisAppStatusPtr app_status;
 
-        /** Stop Redis. Only update Trove if the argument is true. */
-        void internal_stop(const bool update_trove=false);
+        virtual void specific_start_app_method();
 
-        /** Start Redis. Only update Trove if the argument is true. */
-        void internal_start(const bool update_trove=false);
-
-        const int state_change_wait_time;
-
-        /** Wait around until Redis is running. */
-        void wait_for_internal_start(const bool update_trove);
-
-        /** Wait around until the Redis app has been shut down. */
-        void wait_for_internal_stop(const bool update_trove);
+        virtual void specific_stop_app_method();
 };
 
 typedef boost::shared_ptr<RedisApp> RedisAppPtr;

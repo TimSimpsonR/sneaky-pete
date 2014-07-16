@@ -13,6 +13,8 @@
 
 using namespace boost::assign;
 using nova::backup::BackupRestoreInfo;
+using nova::datastores::DatastoreAppPtr;
+using nova::datastores::DatastoreStatusPtr;
 using nova::process::execute;
 using nova::process::force_kill;
 using boost::format;
@@ -100,18 +102,14 @@ namespace {
     }
 }
 
-RedisApp::RedisApp(RedisAppStatusPtr app_status,
+RedisApp::RedisApp(RedisAppStatusPtr status,
                    const int state_change_wait_time)
-:   DatastoreApp("redis-server"),
-    app_status(app_status),
-    state_change_wait_time(state_change_wait_time)
+:   DatastoreApp("redis-server", status, state_change_wait_time)
 {
 }
 
 RedisApp::~RedisApp() {
 }
-
-
 
 void RedisApp::change_password(const string & password) {
     NOVA_LOG_INFO("Starting change_passwords call");
@@ -137,15 +135,12 @@ void RedisApp::change_password(const string & password) {
     client.config_set("requirepass", password);
 }
 
-void RedisApp::internal_start(bool update_trove) {
-    NOVA_LOG_INFO("Starting Redis...");
+void RedisApp::specific_start_app_method() {
     execute(list_of("/usr/bin/sudo")("/etc/init.d/redis-server")("start"),
-            state_change_wait_time);
-    wait_for_internal_start(update_trove);
+             state_change_wait_time);
 }
 
-void RedisApp::internal_stop(const bool update_trove) {
-    NOVA_LOG_INFO("Stopping redis instance.");
+void RedisApp::specific_stop_app_method() {
     try {
         execute(list_of("/usr/bin/sudo")("/etc/init.d/redis-server")("stop"));
         //TODO(tim.simpson): Make sure we need to kill it. Must it truly pay
@@ -153,16 +148,14 @@ void RedisApp::internal_stop(const bool update_trove) {
     } catch(const ProcessException & pe) {
         NOVA_LOG_ERROR("Couldn't stop redis-server the nice way. Now it "
                        "must die.");
-        auto pid = app_status->get_pid();
+        auto pid = RedisAppStatus::get_pid();
         if (!pid) {
             NOVA_LOG_ERROR("No pid for Redis found!");
             force_kill(pid.get());
         }
     }
-    //TODO(tim.simpson): Make sure Redis doesn't restart on reboot.
-    wait_for_internal_stop(update_trove);
-    NOVA_LOG_INFO("Redis instance stopped.");
 }
+
 
 void RedisApp::prepare(const optional<string> & json_root_password,
                        const string & config_contents,
@@ -234,27 +227,6 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     internal_start(false);
 }
 
-void RedisApp::restart() {
-    NOVA_LOG_INFO("Beginning restart.");
-    struct Restarter {
-        RedisAppStatusPtr & app_status;
-
-        Restarter(RedisAppStatusPtr & app_status)
-        :   app_status(app_status) {
-            app_status->begin_restart();
-        }
-
-        ~Restarter() {
-            // Make sure we end this, even if the result is a failure.
-            app_status->end_install_or_restart();
-        }
-    } restarter(app_status);
-    internal_stop(false);
-    internal_start(false);
-    NOVA_LOG_INFO("Redis instance restarted successfully.");
-}
-
-
 void RedisApp::start_with_conf_changes(const std::string & config_contents) {
     NOVA_LOG_INFO("Entering start_db_with_conf_changes call.");
     nova::redis::Client client;
@@ -265,29 +237,6 @@ void RedisApp::start_with_conf_changes(const std::string & config_contents) {
     }
     internal_start(true);
     NOVA_LOG_INFO("Redis instance started.");
-}
-
-
-void RedisApp::stop() {
-    internal_stop(true);
-}
-
-void RedisApp::wait_for_internal_start(const bool update_trove) {
-    if (!app_status->wait_for_real_state_to_change_to(
-        RedisAppStatus::RUNNING, this->state_change_wait_time, update_trove)) {
-        NOVA_LOG_ERROR("Start up of Redis failed!");
-        app_status->end_install_or_restart();
-        throw RedisException(RedisException::COULD_NOT_START);
-    }
-}
-
-void RedisApp::wait_for_internal_stop(const bool update_trove) {
-    if (!app_status->wait_for_real_state_to_change_to(
-        RedisAppStatus::SHUTDOWN, this->state_change_wait_time, update_trove)) {
-        NOVA_LOG_ERROR("Could not stop Redis!");
-        app_status->end_install_or_restart();
-        throw RedisException(RedisException::COULD_NOT_STOP);
-    }
 }
 
 } }  // end namespace

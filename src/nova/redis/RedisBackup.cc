@@ -71,7 +71,7 @@ void RedisBackupManager::run_backup(const string & tenant,
 
 class RedisBackupRestoreManager::Job {
 public:
-     void execute() {
+    void execute() {
 
     }
 };

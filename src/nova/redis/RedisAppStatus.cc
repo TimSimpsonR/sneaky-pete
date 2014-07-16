@@ -76,7 +76,7 @@ DatastoreStatus::Status RedisAppStatus::determine_actual_status() const
     }
 }
 
-optional<int> RedisAppStatus::get_pid() const
+optional<int> RedisAppStatus::get_pid()
 {
     try
     {

@@ -527,7 +527,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             input.args->get_optional_bool("do_not_start_on_reboot")
             .get_value_or(false);
         MySqlAppPtr app = this->create_mysql_app();
-        app->stop_db(do_not_start_on_reboot);
+        app->stop(do_not_start_on_reboot);
         return JsonData::from_null();
     } else if (input.method_name == "update_overrides") {
         NOVA_LOG_INFO( "update_overrides method");

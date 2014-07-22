@@ -84,7 +84,12 @@ optional<int> RedisAppStatus::get_pid()
         execute(output_stream, list_of("/bin/pidof")("redis-server")("r"));
         string output = output_stream.str();
         if (output.length() > 0) {
-            return boost::lexical_cast<int>(output);
+            const auto pid = boost::lexical_cast<int>(output);
+            if (0 == pid) {
+                return boost::none;
+            } else {
+                return pid;
+            }
         }
     } catch(const process::ProcessException & pe) {
     }

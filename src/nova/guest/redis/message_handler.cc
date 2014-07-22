@@ -109,8 +109,13 @@ JsonDataPtr RedisMessageHandler::handle_message(const GuestInput & input) {
                                         ->get_string("password");
         app->change_password(password);
         return JsonData::from_null();
-    }
-    else if (input.method_name == "start_db_with_conf_changes")
+    } else if (input.method_name == "reset_configuration") {
+        NOVA_LOG_INFO("Resetting config file...");
+        auto config = input.args->get_object("configuration");
+        auto config_contents = config->get_string("config_contents");
+        app->reset_configuration(config_contents);
+        return JsonData::from_null();
+    } else if (input.method_name == "start_db_with_conf_changes")
     {
         const auto config_contents = input.args->get_string("config_contents");
         app->start_with_conf_changes(config_contents);

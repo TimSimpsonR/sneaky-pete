@@ -18,6 +18,8 @@ class RedisApp : public nova::datastores::DatastoreApp {
 
         void change_password(const std::string & password);
 
+        void reset_configuration(const std::string & config_contents);
+
         void start_with_conf_changes(const std::string & config_contents);
 
     protected:
@@ -31,6 +33,10 @@ class RedisApp : public nova::datastores::DatastoreApp {
         virtual void specific_start_app_method();
 
         virtual void specific_stop_app_method();
+
+    private:
+        void write_config(const std::string & config_contents,
+                          const std::string & root_password);
 };
 
 typedef boost::shared_ptr<RedisApp> RedisAppPtr;

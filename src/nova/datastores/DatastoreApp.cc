@@ -12,8 +12,9 @@ using namespace nova::process;
 namespace nova { namespace datastores {
 
 namespace {
-
-
+    const char * const DEFAULTS = "defaults";
+    const char * const DISABLE = "disable";
+    const char * const ENABLE = "enable";
 } // end anonymous namespace
 
 /**---------------------------------------------------------------------------
@@ -26,7 +27,7 @@ DatastoreApp::StartOnBoot::StartOnBoot(const char * const service_name)
 }
 
 void DatastoreApp::StartOnBoot::call_update_rc(
-    bool enabled, bool throw_on_bad_exit_code)
+    const char * const arg, bool throw_on_bad_exit_code)
 {
     // update-rc.d is typically fast and will return exit code 0 normally,
     // even if it is enabling or disabling mysql twice in a row.
@@ -34,7 +35,7 @@ void DatastoreApp::StartOnBoot::call_update_rc(
     //         returns something else.
     stringstream output;
     process::CommandList cmds = list_of("/usr/bin/sudo")
-        ("update-rc.d")(service_name)(enabled ? "enable" : "disable");
+        ("update-rc.d")(service_name)(arg);
     try {
         process::execute(output, cmds);
     } catch(const process::ProcessException & pe) {
@@ -48,15 +49,19 @@ void DatastoreApp::StartOnBoot::call_update_rc(
     NOVA_LOG_INFO(output.str().c_str());
 }
 void DatastoreApp::StartOnBoot::disable_or_throw() {
-    call_update_rc(false, true);
+    call_update_rc(DISABLE, true);
 }
 
 void DatastoreApp::StartOnBoot::enable_maybe() {
-    call_update_rc(true, false);
+    call_update_rc(ENABLE, false);
 }
 
 void DatastoreApp::StartOnBoot::enable_or_throw() {
-    call_update_rc(true, true);
+    call_update_rc(ENABLE, true);
+}
+
+void DatastoreApp::StartOnBoot::setup_defaults() {
+    call_update_rc(DEFAULTS, true);
 }
 
 DatastoreApp::DatastoreApp(const char * const service_name,

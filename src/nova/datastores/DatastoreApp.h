@@ -73,10 +73,11 @@ namespace nova { namespace datastores {
                     void disable_or_throw();
                     void enable_maybe();
                     void enable_or_throw();
+                    void setup_defaults();
                 private:
                     const char * const service_name;
 
-                    void call_update_rc(bool enabled,
+                    void call_update_rc(const char * const arg,
                                         bool throw_on_bad_exit_code);
             };
 

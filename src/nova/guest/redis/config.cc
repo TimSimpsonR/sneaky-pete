@@ -65,6 +65,10 @@ Config::Config(std::string config) : _redis_config(config)
     }
     while(std::getline(rconfig, line))
     {
+        if (line.length() <= 1)
+        {
+            continue;
+        }
         std::istringstream iss(line);
         iss >> value;
         if(value == INCLUDE_FILE)
@@ -126,139 +130,17 @@ Config::Config(std::string config) : _redis_config(config)
         {
             std::string option_value;
             iss >> option_value;
+            if (value == REQUIRE_PASS)
+            {
+                NOVA_LOG_INFO("Found pass");
+                NOVA_LOG_INFO(option_value.c_str());
+            }
             _options[value] = option_value;
         }
     }
     rconfig.close();
-    std::ifstream override("/etc/redis/conf.d/local.conf");
-    if (!override.is_open())
-    {
-        return;
-    }
-    while(std::getline(override, line))
-    {
-        std::istringstream iss(line);
-        iss >> value;
-        if(value == INCLUDE_FILE)
-        {
-            iss >> value;
-            _include.push_back(value);
-            _override_include.push_back(value);
-        }
-        else if(value == BIND_ADDR)
-        {
-            while(true)
-            {
-                if(iss.rdbuf()->in_avail() == 0)
-                {
-                    break;
-                }
-                iss >> value;
-                _bind_addrs.push_back(value);
-                _override_bind_addrs.push_back(value);
-            }
-        }
-        else if(value == SAVE)
-        {
-            std::map<std::string, std::string> save_map;
-            iss >> value;
-            save_map[SAVE_SECONDS] = value;
-            iss >> value;
-            save_map[SAVE_CHANGES] = value;
-            _save.push_back(save_map);
-            _override_save.push_back(save_map);
-        }
-        else if(value == SLAVE_OF)
-        {
-            iss >> value;
-            _slave_of[MASTER_IP] = value;
-            _override_slave_of[MASTER_IP] = value;
-            iss >> value;
-            _slave_of[MASTER_PORT] = value;
-            _override_slave_of[MASTER_PORT] =value;
-        }
-        else if(value == RENAME_COMMAND)
-        {
-            std::map<std::string, std::string> rename_command;
-            iss >> value;
-            rename_command[RENAMED_COMMAND] = value;
-            iss >> value;
-            rename_command[NEW_COMMAND_NAME] = value;
-            _renamed_commands.push_back(rename_command);
-            _override_renamed_commands.push_back(rename_command);
-        }
-        else if(value == CLIENT_OUTPUT_BUFFER_LIMIT)
-        {
-            std::map<std::string, std::string> buff_limit;
-            iss >> value;
-            buff_limit[CLIENT_BUFFER_LIMIT_CLASS] = value;
-            iss >> value;
-            buff_limit[CLIENT_BUFFER_LIMIT_HARD_LIMIT] = value;
-            iss >> value;                                                                                                                                                        
-            buff_limit[CLIENT_BUFFER_LIMIT_SOFT_LIMIT] = value;
-            iss >> value;
-            buff_limit[CLIENT_BUFFER_LIMIT_SOFT_SECONDS] = value;
-            _client_output_buffer_limit.push_back(buff_limit);
-            _override_client_output_buffer_limit.push_back(buff_limit);
-        }
-        else
-        {
-            std::string option_value;
-            iss >> option_value;
-            _options[value] = option_value;
-            _override_options[value] = option_value;
-        }
-    }
-    override.close();
 
 }
-
-bool Config::write_new_config(std::string config)
-{
-    NOVA_LOG_INFO("Removing redis config file");
-    if (system("sudo rm /etc/redis/redis.conf")  == -1)
-    {
-        NOVA_LOG_ERROR("Unable to remove config file");
-        return false;
-    }
-    NOVA_LOG_INFO("Creating redis config file");
-    if (system("sudo touch /etc/redis/redis.conf") == -1)
-    {
-        NOVA_LOG_ERROR("Unable to create new config file");
-        return false;
-    }
-    NOVA_LOG_INFO("Chmoding folders to open perms");
-    if (system("sudo chmod -R 777 /etc/redis") == -1)
-    {
-        NOVA_LOG_ERROR("Unable to change file perms");
-    }
-    std::ofstream fd;
-    fd.open("/etc/redis/redis.conf");
-    if (fd.is_open())
-    {
-        NOVA_LOG_INFO("Config file is open.");
-        fd << config;
-        NOVA_LOG_INFO("Closing config file.");
-        fd.close();
-    }
-    else
-    {
-        NOVA_LOG_ERROR("Config file is not open.");
-        return false;
-    }
-    NOVA_LOG_INFO("Locking down permissions.");
-    if (system("sudo chmod -R 755 /etc/redis") == -1)
-    {
-        NOVA_LOG_ERROR("Unable to revert file permissions.");
-    }
-    NOVA_LOG_INFO("changing ownership of config file to root.");
-    if (system("sudo chown root:root /etc/redis/redis.conf") == -1)
-    {
-        NOVA_LOG_ERROR("Unable to change ownership to root");
-    }
-    return true;
-}
-
 std::vector<std::string> Config::get_include_files()
 {
     return _include;
@@ -269,9 +151,9 @@ void Config::set_include_files(std::string value,
 {
     if (clear_existing_values)
     {
-        _override_include.clear();
+        _include.clear();
     }
-    _override_include.push_back(value);
+    _include.push_back(value);
 }
 
 bool Config::get_daemonize()
@@ -283,11 +165,11 @@ void Config::set_daemonize(bool value)
 {
     if(value)
     {
-        _override_options[DAEMONIZE] = "yes";
+        _options[DAEMONIZE] = "yes";
     }
     else
     {
-        _override_options[DAEMONIZE] = "no";
+        _options[DAEMONIZE] = "no";
     }
 }
 
@@ -298,7 +180,7 @@ std::string Config::get_pidfile()
 
 void Config::set_pidfile(std::string value)
 {
-    _override_options[PIDFILE] = value;
+    _options[PIDFILE] = value;
 }
 
 int Config::get_port()
@@ -308,8 +190,7 @@ int Config::get_port()
 
 void Config::set_port(int value)
 {
-    _override_options[PORT] =
-        boost::lexical_cast<std::string>(value);
+    _options[PORT] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_tcp_backlog()
@@ -319,23 +200,22 @@ int Config::get_tcp_backlog()
 
 void Config::set_tcp_backlog(int value)
 {
-    _override_options[TCP_BACKLOG] =
-        boost::lexical_cast<std::string>(value);
+    _options[TCP_BACKLOG] = boost::lexical_cast<std::string>(value);
 }
 
 std::vector<std::string> Config::get_bind_addrs()
 {
     return _bind_addrs;
-        }
+}
 
 void Config::set_bind_addrs(std::string value,
                             bool clear_existing_values)
 {
     if (clear_existing_values)
     {
-        _override_bind_addrs.clear();
+        _bind_addrs.clear();
     }
-    _override_bind_addrs.push_back(value);
+    _bind_addrs.push_back(value);
 }
 
 std::string Config::get_unix_socket()
@@ -345,7 +225,7 @@ std::string Config::get_unix_socket()
 
 void Config::set_unix_socket(std::string value)
 {
-    _override_options[UNIX_SOCKET] = value;
+    _options[UNIX_SOCKET] = value;
 }
 
 int Config::get_unix_socket_permission()
@@ -355,8 +235,7 @@ int Config::get_unix_socket_permission()
 
 void Config::set_unix_socket_permission(int value)
 {
-    _override_options[UNIX_SOCKET_PERMISSION] =
-        boost::lexical_cast<std::string>(value);
+    _options[UNIX_SOCKET_PERMISSION] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_tcp_keepalive()
@@ -366,8 +245,7 @@ int Config::get_tcp_keepalive()
 
 void Config::set_tcp_keepalive(int value)
 {
-    _override_options[TCP_KEEPALIVE] =
-        boost::lexical_cast<std::string>(value);
+    _options[TCP_KEEPALIVE] = boost::lexical_cast<std::string>(value);
 }
 
 std::string Config::get_log_level()
@@ -377,7 +255,7 @@ std::string Config::get_log_level()
 
 void Config::set_log_level(std::string value)
 {
-    _override_options[LOG_LEVEL] = value;
+    _options[LOG_LEVEL] = value;
 }
 
 std::string Config::get_log_file()
@@ -387,7 +265,7 @@ std::string Config::get_log_file()
 
 void Config::set_log_file(std::string value)
 {
-    _override_options[LOG_FILE] = value;
+    _options[LOG_FILE] = value;
 }
 
 bool Config::get_syslog_enabled()
@@ -399,11 +277,11 @@ void Config:: set_syslog_enabled(bool value)
 {
     if (value)
     {
-        _override_options[SYSLOG] = "yes";
+        _options[SYSLOG] = "yes";
     }
     else
     {
-        _override_options[SYSLOG] = "false";
+        _options[SYSLOG] = "no";
     }
 }
 
@@ -414,7 +292,7 @@ std::string Config::get_syslog_ident()
 
 void Config::set_syslog_ident(std::string value)
 {
-    _override_options[SYSLOG_IDENT] = value;
+    _options[SYSLOG_IDENT] = value;
 }
 
 std::string Config::get_syslog_facility()
@@ -424,7 +302,7 @@ std::string Config::get_syslog_facility()
 
 void Config::set_syslog_facility(std::string value)
 {
-    _override_options[SYSLOG_FACILITY];
+    _options[SYSLOG_FACILITY];
 }
 
 int Config::get_databases()
@@ -434,8 +312,7 @@ int Config::get_databases()
 
 void Config::set_databases(int value)
 {
-    _override_options[DATABASES] =
-        boost::lexical_cast<std::string>(value);
+    _options[DATABASES] = boost::lexical_cast<std::string>(value);
 }
 
 std::vector<std::map <std::string, std::string> > Config::get_save_intervals()
@@ -448,12 +325,12 @@ void Config::set_save_intervals(std::string changes, std::string seconds,
 {
     if (clear_existing_values)
     {
-        _override_save.clear();
+        _save.clear();
     }
     std::map <std::string, std::string> data;
     data[SAVE_SECONDS] = seconds;
     data[SAVE_CHANGES] = changes;
-    _override_save.push_back(data);
+    _save.push_back(data);
 }
 
 bool Config::get_stop_writes_on_bgsave_error()
@@ -465,11 +342,11 @@ void Config::set_stop_writes_on_bgsave_error(bool value)
 {
     if (value)
     {
-        _override_options[STOP_WRITES_ON_BGSAVE_ERROR] = "yes";
+        _options[STOP_WRITES_ON_BGSAVE_ERROR] = "yes";
     }
     else
     {
-        _override_options[STOP_WRITES_ON_BGSAVE_ERROR] = "no";
+        _options[STOP_WRITES_ON_BGSAVE_ERROR] = "no";
     }
 }
 
@@ -482,11 +359,11 @@ void Config::set_rdb_compression(bool value)
 {
     if (value)
     {
-        _override_options[RDB_COMPRESSION] = "yes";
+        _options[RDB_COMPRESSION] = "yes";
     }
     else
     {
-        _override_options[RDB_COMPRESSION] = "no";
+        _options[RDB_COMPRESSION] = "no";
     }
 }
 
@@ -499,11 +376,11 @@ void Config::set_rdb_checksum(bool value)
 {
     if (value)
     {
-        _override_options[RDB_CHECKSUM] = "yes";
+        _options[RDB_CHECKSUM] = "yes";
     }
     else
     {
-        _override_options[RDB_CHECKSUM] = "no";
+        _options[RDB_CHECKSUM] = "no";
     }
 }
 
@@ -514,7 +391,7 @@ std::string Config::get_db_filename()
 
 void Config::set_db_filename(std::string value)
 {
-    _override_options[DB_FILENAME] = value;
+    _options[DB_FILENAME] = value;
 }
 
 std::string Config::get_db_dir()
@@ -524,7 +401,7 @@ std::string Config::get_db_dir()
 
 void Config::set_db_dir(std::string value)
 {
-    _override_options[DB_DIR] = value;
+    _options[DB_DIR] = value;
 }
 
 std::map<std::string, std::string> Config::get_slave_of()
@@ -535,8 +412,8 @@ std::map<std::string, std::string> Config::get_slave_of()
 void Config::set_slave_of(std::string master_ip,
                           std::string master_port)
 {
-    _override_slave_of[MASTER_IP] = master_ip;
-    _override_slave_of[MASTER_PORT] = master_port;
+    _slave_of[MASTER_IP] = master_ip;
+    _slave_of[MASTER_PORT] = master_port;
 }
 
 std::string Config::get_master_auth()
@@ -546,7 +423,7 @@ std::string Config::get_master_auth()
 
 void Config::set_master_auth(std::string value)
 {
-    _override_options[MASTER_AUTH];
+    _options[MASTER_AUTH];
 }
 
 bool Config::get_slave_serve_stale_data()
@@ -558,11 +435,11 @@ void Config::set_slave_serve_stale_data(bool value)
 {
     if (value)
     {
-        _override_options[SLAVE_SERVE_STALE_DATA] = "yes";
+        _options[SLAVE_SERVE_STALE_DATA] = "yes";
     }
     else
     {
-        _override_options[SLAVE_SERVE_STALE_DATA] = "no";
+        _options[SLAVE_SERVE_STALE_DATA] = "no";
     }
 }
 
@@ -575,11 +452,11 @@ void Config::set_slave_read_only(bool value)
 {
     if (value)
     {
-        _override_options[SLAVE_READ_ONLY] = "yes";
+        _options[SLAVE_READ_ONLY] = "yes";
     }
     else
     {
-        _override_options[SLAVE_READ_ONLY] = "no";
+        _options[SLAVE_READ_ONLY] = "no";
     }
 }
 
@@ -590,8 +467,7 @@ int Config::get_repl_ping_slave_period()
 
 void Config::set_repl_ping_slave_period(int value)
 {
-    _override_options[REPL_PING_SLAVE_PERIOD] =
-        boost::lexical_cast<std::string>(value);
+    _options[REPL_PING_SLAVE_PERIOD] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_repl_timeout()
@@ -601,8 +477,7 @@ int Config::get_repl_timeout()
 
 void Config::set_repl_timeout(int value)
 {
-    _override_options[REPL_TIMEOUT] =
-        boost::lexical_cast<std::string>(value);
+    _options[REPL_TIMEOUT] = boost::lexical_cast<std::string>(value);
 }
 
 bool Config::get_repl_disable_tcp_nodelay()
@@ -614,11 +489,11 @@ void Config::set_repl_disable_tcp_nodelay(bool value)
 {
     if (value)
     {
-        _override_options[REPL_DISABLE_TCP_NODELAY] = "yes";
+        _options[REPL_DISABLE_TCP_NODELAY] = "yes";
     }
     else
     {
-        _override_options[REPL_DISABLE_TCP_NODELAY] = "no";
+        _options[REPL_DISABLE_TCP_NODELAY] = "no";
     }
 }
 
@@ -629,7 +504,7 @@ std::string Config::get_repl_backlog_size()
 
 void Config::set_repl_backlog_size(std::string value)
 {
-    _override_options[REPL_BACKLOG_SIZE] = value;
+    _options[REPL_BACKLOG_SIZE] = value;
 }
 
 int Config::get_repl_backlog_ttl()
@@ -639,8 +514,7 @@ int Config::get_repl_backlog_ttl()
 
 void Config::set_repl_backlog_ttl(int value)
 {
-    _override_options[REPL_BACKLOG_TTL] =
-        boost::lexical_cast<std::string>(value);
+    _options[REPL_BACKLOG_TTL] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_slave_priority()
@@ -650,8 +524,7 @@ int Config::get_slave_priority()
 
 void Config::set_slave_priority(int value)
 {
-    _override_options[SLAVE_PRIORITY] =
-        boost::lexical_cast<std::string>(value);
+    _options[SLAVE_PRIORITY] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_min_slaves_to_write()
@@ -661,8 +534,7 @@ int Config::get_min_slaves_to_write()
 
 void Config::set_min_slaves_to_write(int value)
 {
-    _override_options[MIN_SLAVES_TO_WRITE] =
-        boost::lexical_cast<std::string>(value);
+    _options[MIN_SLAVES_TO_WRITE] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_min_slaves_max_lag()
@@ -672,8 +544,7 @@ int Config::get_min_slaves_max_lag()
 
 void Config::set_min_slaves_max_lag(int value)
 {
-    _override_options[MIN_SLAVES_MAX_LAG] =
-        boost::lexical_cast<std::string>(value);
+    _options[MIN_SLAVES_MAX_LAG] = boost::lexical_cast<std::string>(value);
 }
 
 std::string Config::get_require_pass()
@@ -683,7 +554,7 @@ std::string Config::get_require_pass()
 
 void Config::set_require_pass(std::string value)
 {
-    _override_options[REQUIRE_PASS] = value;
+    _options[REQUIRE_PASS] = value;
 }
 
 std::vector<std::map <std::string, std::string> >
@@ -698,12 +569,12 @@ void Config::set_renamed_commands(std::string command,
 {
     if (clear_existing_values)
     {
-        _override_renamed_commands.clear();
+        _renamed_commands.clear();
     }
     std::map <std::string, std::string> command_map;
     command_map[NEW_COMMAND_NAME] = renamed_command;
     command_map[RENAMED_COMMAND] = command;
-    _override_renamed_commands.push_back(command_map);
+    _renamed_commands.push_back(command_map);
 }
 
 int Config::get_max_clients()
@@ -713,17 +584,17 @@ int Config::get_max_clients()
 
 void Config::set_max_clients(int value)
 {
-    _override_options[MAX_CLIENTS] = boost::lexical_cast<std::string>(value);
+    _options[MAX_CLIENTS] = boost::lexical_cast<std::string>(value);
 }
 
-int Config::get_max_memory()
+std::string Config::get_max_memory()
 {
-    return _get_int_value(MAX_MEMORY);
+    return _get_string_value(MAX_MEMORY);
 }
 
-void Config::set_max_memory(int value)
+void Config::set_max_memory(std::string value)
 {
-    _override_options[MAX_MEMORY] = boost::lexical_cast<std::string>(value);
+    _options[MAX_MEMORY] = value;
 }
 
 std::string Config::get_max_memory_policy()
@@ -733,7 +604,7 @@ std::string Config::get_max_memory_policy()
 
 void Config::set_max_memory_policy(std::string value)
 {
-    _override_options[MAX_MEMORY_POLICY] = value;
+    _options[MAX_MEMORY_POLICY] = value;
 }
 
 int Config::get_max_memory_samples()
@@ -743,8 +614,7 @@ int Config::get_max_memory_samples()
 
 void Config::set_max_memory_samples(int value)
 {
-    _override_options[MAX_MEMORY_SAMPLES] =
-        boost::lexical_cast<std::string>(value);
+    _options[MAX_MEMORY_SAMPLES] = boost::lexical_cast<std::string>(value);
 }
 
 bool Config::get_append_only()
@@ -756,11 +626,11 @@ void Config::set_append_only(bool value)
 {
     if (value)
     {
-        _override_options[APPEND_ONLY] = "yes";
+        _options[APPEND_ONLY] = "yes";
     }
     else
     {
-        _override_options[APPEND_ONLY] = "no";
+        _options[APPEND_ONLY] = "no";
     }
 }
 
@@ -771,7 +641,7 @@ std::string Config::get_append_filename()
 
 void Config::set_append_filename(std::string value)
 {
-    _override_options[APPEND_FILENAME] = value;
+    _options[APPEND_FILENAME] = value;
 }
 
 std::string Config::get_append_fsync()
@@ -781,7 +651,7 @@ std::string Config::get_append_fsync()
 
 void Config::set_append_fsync(std::string value)
 {
-    _override_options[APPEND_FSYNC] = value;
+    _options[APPEND_FSYNC] = value;
 }
 
 bool Config::get_no_append_fsync_on_rewrite()
@@ -793,11 +663,11 @@ void Config::set_no_append_fsync_on_rewrite(bool value)
 {
     if (value)
     {
-        _override_options[NO_APPEND_FSYNC_ON_REWRITE] = "yes";
+        _options[NO_APPEND_FSYNC_ON_REWRITE] = "yes";
     }
     else
     {
-        _override_options[NO_APPEND_FSYNC_ON_REWRITE] = "no";
+        _options[NO_APPEND_FSYNC_ON_REWRITE] = "no";
     }
 }
 
@@ -808,7 +678,7 @@ int Config::get_auto_aof_rewrite_percentage()
 
 void Config::set_auto_aof_rewrite_percentage(int value)
 {
-    _override_options[AUTO_AOF_REWRITE_PERCENTAGE] =
+    _options[AUTO_AOF_REWRITE_PERCENTAGE] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -819,7 +689,7 @@ std::string Config::get_auto_aof_rewrite_min_size()
 
 void Config::set_auto_aof_rewrite_min_size(std::string value)
 {
-    _override_options[AUTO_AOF_REWRITE_MIN_SIZE] = value;
+    _options[AUTO_AOF_REWRITE_MIN_SIZE] = value;
 }
 
 int Config::get_lua_time_limit()
@@ -829,8 +699,7 @@ int Config::get_lua_time_limit()
 
 void Config::set_lua_time_limit(int value)
 {
-    _override_options[LUA_TIME_LIMIT] =
-        boost::lexical_cast<std::string>(value);
+   _options[LUA_TIME_LIMIT] = boost::lexical_cast<std::string>(value);
 }
 
 int Config::get_slowlog_log_slower_than()
@@ -840,7 +709,7 @@ int Config::get_slowlog_log_slower_than()
 
 void Config::set_slowlog_log_slower_than(int value)
 {
-    _override_options[SLOWLOG_LOG_SLOWER_THAN] =
+    _options[SLOWLOG_LOG_SLOWER_THAN] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -851,8 +720,7 @@ int Config::get_slowlog_max_len()
 
 void Config::set_slowlog_max_len(int value)
 {
-    _override_options[SLOWLOG_MAX_LEN] =
-        boost::lexical_cast<std::string>(value);
+    _options[SLOWLOG_MAX_LEN] = boost::lexical_cast<std::string>(value);
 }
 
 std::string Config::get_notify_keyspace_events()
@@ -862,7 +730,7 @@ std::string Config::get_notify_keyspace_events()
 
 void Config::set_notify_keyspace_events(std::string value)
 {
-    _override_options[NOTIFY_KEYSPACE_EVENTS] = value;
+    _options[NOTIFY_KEYSPACE_EVENTS] = value;
 }
 
 int Config::get_hash_max_zip_list_entries()
@@ -872,7 +740,7 @@ int Config::get_hash_max_zip_list_entries()
 
 void Config::set_hash_max_zip_list_entries(int value)
 {
-    _override_options[HASH_MAX_ZIP_LIST_ENTRIES] =
+    _options[HASH_MAX_ZIP_LIST_ENTRIES] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -883,7 +751,7 @@ int Config::get_hash_max_zip_list_value()
 
 void Config::set_hash_max_zip_list_value(int value)
 {
-    _override_options[HASH_MAX_ZIP_LIST_VALUE] =
+    _options[HASH_MAX_ZIP_LIST_VALUE] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -894,7 +762,7 @@ int Config::get_list_max_zip_list_entries()
 
 void Config::set_list_max_zip_list_entries(int value)
 {
-    _override_options[LIST_MAX_ZIP_LIST_ENTRIES] =
+    _options[LIST_MAX_ZIP_LIST_ENTRIES] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -905,7 +773,7 @@ int Config::get_list_max_zip_list_value()
 
 void Config::set_list_max_zip_list_value(int value)
 {
-    _override_options[LIST_MAX_ZIP_LIST_ENTRIES] =
+    _options[LIST_MAX_ZIP_LIST_ENTRIES] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -916,7 +784,7 @@ int Config::get_set_max_intset_entries()
 
 void Config::set_set_max_intset_entries(int value)
 {
-    _override_options[SET_MAX_INTSET_ENTRIES] =
+    _options[SET_MAX_INTSET_ENTRIES] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -927,7 +795,7 @@ int Config::get_zset_max_zip_list_entries()
 
 void Config::set_zset_max_zip_list_entries(int value)
 {
-    _override_options[ZSET_MAX_ZIP_LIST_ENTRIES] =
+    _options[ZSET_MAX_ZIP_LIST_ENTRIES] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -938,7 +806,7 @@ int Config::get_zset_max_zip_list_value()
 
 void Config::set_zset_max_zip_list_value(int value)
 {
-    _override_options[ZSET_MAX_ZIP_LIST_VALUE] =
+    _options[ZSET_MAX_ZIP_LIST_VALUE] =
         boost::lexical_cast<std::string>(value);
 }
 
@@ -951,11 +819,11 @@ void Config::set_active_rehashing(bool value)
 {
     if (value)
     {
-        _override_options[ACTIVE_REHASHING] = "yes";
+        _options[ACTIVE_REHASHING] = "yes";
     }
     else
     {
-        _override_options[ACTIVE_REHASHING] = "no";
+        _options[ACTIVE_REHASHING] = "no";
     }
 }
 
@@ -980,7 +848,7 @@ void Config::set_client_output_buffer_limit(std::string buff_soft_seconds,
     buff_limit[CLIENT_BUFFER_LIMIT_HARD_LIMIT] = buff_hard_limit;
     buff_limit[CLIENT_BUFFER_LIMIT_SOFT_LIMIT] = buff_soft_limit;
     buff_limit[CLIENT_BUFFER_LIMIT_SOFT_SECONDS] = buff_soft_seconds;
-    _override_client_output_buffer_limit.push_back(buff_limit);
+    _client_output_buffer_limit.push_back(buff_limit);
 }
 
 int Config::get_hz()
@@ -990,7 +858,7 @@ int Config::get_hz()
 
 void Config::set_hz(int value)
 {
-    _override_options[HZ] = boost::lexical_cast<std::string>(value);
+    _options[HZ] = boost::lexical_cast<std::string>(value);
 }
 
 bool Config::get_aof_rewrite_incremental_fsync()
@@ -1002,11 +870,11 @@ void Config::set_aof_rewrite_incremental_fsync(bool value)
 {
     if (value)
     {
-        _override_options[AOF_REWRITE_INCREMENTAL_FSYNC] = "yes";
+        _options[AOF_REWRITE_INCREMENTAL_FSYNC] = "yes";
     }
     else
     {
-        _override_options[AOF_REWRITE_INCREMENTAL_FSYNC] = "no";
+        _options[AOF_REWRITE_INCREMENTAL_FSYNC] = "no";
     }
 }
 

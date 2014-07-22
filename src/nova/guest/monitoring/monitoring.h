@@ -20,6 +20,16 @@ namespace nova { namespace guest { namespace monitoring {
                               const std::string & agent_config_file,
                               const double agent_install_timeout);
 
+            template<typename Flags>
+            static MonitoringManager from_flags(const Flags & flags) {
+                MonitoringManager manager(
+                    flags.guest_id(),
+                    flags.monitoring_agent_package_name(),
+                    flags.monitoring_agent_config_file(),
+                    flags.monitoring_agent_install_timeout());
+                return manager;
+            }
+
             /* Makes sure the agent is running. */
             void ensure_running();
 

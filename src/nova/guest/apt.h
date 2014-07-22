@@ -4,14 +4,13 @@
 #include "guest.h"
 #include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/utility.hpp>
 
 
 namespace nova { namespace guest { namespace apt {
 
 
     /** Calls apt-get and other Debian package manager commands. */
-    class AptGuest : boost::noncopyable {
+    class AptGuest  {
 
         public:
             /* Creates a new instance.
@@ -22,6 +21,14 @@ namespace nova { namespace guest { namespace apt {
              * incorrectly. */
             AptGuest(bool with_sudo, const char * self_package_name,
                      int self_update_time_out);
+
+            template<typename Flags>
+            static AptGuest from_flags(const Flags & flags) {
+                AptGuest apt(flags.apt_use_sudo(),
+                             flags.apt_self_package_name(),
+                             flags.apt_self_update_time_out());
+                return apt;
+            }
 
             /** Attempts to fix apt. */
             void fix(double time_out);

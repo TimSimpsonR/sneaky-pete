@@ -1,5 +1,6 @@
 #include "pch.hpp"
-#include "BackupRestore.h"
+
+#include "MySqlBackupRestoreManager.h"
 #include <boost/foreach.hpp>
 #include "nova/utils/io.h"
 #include <boost/assign/list_of.hpp>
@@ -12,6 +13,8 @@
 #include "nova/utils/zlib.h"
 
 using namespace boost::assign;
+using nova::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreException;
 using boost::format;
 using namespace nova::process;
 using std::string;
@@ -20,7 +23,7 @@ using nova::utils::swift::SwiftDownloader;
 using std::vector;
 namespace zlib = nova::utils::zlib;
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace guest { namespace mysql {
 
 namespace {
 
@@ -36,26 +39,12 @@ namespace {
 
 
 /**---------------------------------------------------------------------------
- *- BackupRestoreInfo
- *---------------------------------------------------------------------------*/
-
-BackupRestoreInfo::BackupRestoreInfo(const string & token,
-                                     const string & backup_url,
-                                     const string & backup_checksum)
-:   token(token),
-    backup_url(backup_url),
-    backup_checksum(backup_checksum)
-{
-}
-
-
-/**---------------------------------------------------------------------------
  *- BackupRestoreJob
  *---------------------------------------------------------------------------*/
 
-class BackupRestoreManager::BackupRestoreJob {
+class MySqlBackupRestoreManager::BackupRestoreJob {
 public:
-    BackupRestoreJob(const BackupRestoreManager & manager,
+    BackupRestoreJob(const MySqlBackupRestoreManager & manager,
                      const BackupRestoreInfo & info)
     :   info(info),
         manager(manager)
@@ -74,7 +63,7 @@ public:
 
 private:
     const BackupRestoreInfo & info;
-    const BackupRestoreManager & manager;
+    const MySqlBackupRestoreManager & manager;
 
     void clean_existing_files() {
         const string & restore_dir = manager.restore_directory;
@@ -236,16 +225,17 @@ private:
 
 
 /**---------------------------------------------------------------------------
- *- BackupRestoreManager
+ *- MySqlBackupRestoreManager
  *---------------------------------------------------------------------------*/
 
-BackupRestoreManager::BackupRestoreManager(
+MySqlBackupRestoreManager::MySqlBackupRestoreManager(
     const CommandList command_list,
     const std::string & delete_file_pattern,
     const std::string & restore_directory,
     const std::string & save_file_pattern,
     const size_t zlib_buffer_size)
-:   commands(command_list),
+:   BackupRestoreManager(),
+    commands(command_list),
     delete_file_pattern(delete_file_pattern.c_str()),
     restore_directory(restore_directory),
     save_file_pattern(save_file_pattern.c_str()),
@@ -253,18 +243,9 @@ BackupRestoreManager::BackupRestoreManager(
 {
 }
 
-void BackupRestoreManager::run(const BackupRestoreInfo & restore) {
+void MySqlBackupRestoreManager::run(const BackupRestoreInfo & restore) {
     BackupRestoreJob job(*this, restore);
     job.execute();
-}
-
-
-/**----------------------------------------------   -----------------------------
- *- BackupRestoreException
- *---------------------------------------------------------------------------*/
-
-const char * BackupRestoreException::what() const throw() {
-    return "Error performing backup restore!";
 }
 
 

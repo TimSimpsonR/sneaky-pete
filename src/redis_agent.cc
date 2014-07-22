@@ -9,9 +9,9 @@
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/diagnostics.h"
-#include "nova/guest/backup/BackupManager.h"
+#include "nova/backup/BackupManager.h"
 #include "nova/guest/backup/BackupMessageHandler.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include "nova/guest/monitoring/monitoring.h"
 #include "nova/db/mysql.h"
 #include <boost/foreach.hpp>
@@ -20,7 +20,7 @@
 #include <iostream>
 #include <memory>
 #include "nova/db/mysql.h"
-#include "nova/guest/redis/status.h"
+#include "nova/redis/RedisAppStatus.h"
 #include "nova/guest/redis/message_handler.h"
 #include <boost/optional.hpp>
 #include "nova/guest/common/PrepareHandler.h"
@@ -45,10 +45,10 @@ using nova::guest::apt::AptMessageHandler;
 using nova::redis::RedisAppStatusPtr;
 using nova::redis::RedisAppStatus;
 using std::auto_ptr;
-using nova::guest::backup::BackupManager;
+using nova::backup::BackupManager;
 using nova::guest::backup::BackupMessageHandler;
-using nova::guest::backup::BackupRestoreManager;
-using nova::guest::backup::BackupRestoreManagerPtr;
+using nova::backup::BackupRestoreManager;
+using nova::backup::BackupRestoreManagerPtr;
 using nova::process::CommandList;
 using nova::utils::CurlScope;
 using boost::format;
@@ -119,22 +119,20 @@ struct Func {
         /* Create JSON message handlers. */
         vector<MessageHandlerPtr> handlers;
         /* Create Apt Guest */
-        AptGuestPtr apt_worker(new AptGuest(
-            flags.apt_use_sudo(),
-            flags.apt_self_package_name(),
-            flags.apt_self_update_time_out()));
-            MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
+        AptGuestPtr apt_worker(new AptGuest(AptGuest::from_flags(flags)));
+        MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
+
         MonitoringManagerPtr monitoring_manager(new MonitoringManager(
-            flags.guest_id(),
-            flags.monitoring_agent_package_name(),
-            flags.monitoring_agent_config_file(),
-            flags.monitoring_agent_install_timeout()));
+            MonitoringManager::from_flags(flags)));
         MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
             apt_worker, monitoring_manager));
         handlers.push_back(handler_monitoring_app);
-        RedisAppStatusPtr app_status(new RedisAppStatus(sender, is_redis_installed()));
-        RedisAppPtr app(new RedisApp(app_status));
+
+        RedisAppStatusPtr app_status(new RedisAppStatus(sender,
+                                                        is_redis_installed()));
+        RedisAppPtr app(new RedisApp(app_status,
+                                     flags.redis_state_change_wait_time()));
         VolumeManagerPtr volume_manager;  // Intentionally leave this null.
         PrepareHandlerPtr prepare_ptr(new PrepareHandler(
             app, apt_worker, app_status, volume_manager));

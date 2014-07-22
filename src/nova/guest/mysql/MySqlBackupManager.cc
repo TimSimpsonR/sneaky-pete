@@ -1,7 +1,6 @@
 #include "pch.hpp"
-#include "nova/guest/backup/BackupException.h"
-#include "nova/guest/backup/BackupManager.h"
-#include "nova/guest/backup/BackupMessageHandler.h"
+#include "MySqlBackupManager.h"
+#include "nova/backup/BackupException.h"
 #include <boost/format.hpp>
 #include <fstream>
 #include <iostream>
@@ -21,6 +20,8 @@
 #include "nova/utils/subsecond.h"
 
 using namespace boost::assign;
+using nova::backup::BackupInfo;
+using nova::backup::BackupManagerInfo;
 using nova::process::CommandList;
 using nova::process::IndependentStdErrAndStdOut;
 using nova::process::Process;
@@ -42,7 +43,7 @@ using nova::utils::subsecond::now;
 
 namespace zlib = nova::utils::zlib;
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace guest { namespace mysql {
 
 namespace {  // Begin anonymous namespace
 
@@ -366,34 +367,20 @@ private:
  *- BackupManager
  *---------------------------------------------------------------------------*/
 
-BackupManager::BackupManager(
-    ResilientSenderPtr sender,
-    JobRunner & runner,
-    const Interrogator interrogator,
-    const CommandList commands,
-    const int segment_max_size,
-    const int checksum_wait_time,
-    const string swift_container,
-    const double time_out,
-    const int zlib_buffer_size)
-:   sender(sender),
-    commands(commands),
-    runner(runner),
-    interrogator(interrogator),
-    segment_max_size(segment_max_size),
-    checksum_wait_time(checksum_wait_time),
-    swift_container(swift_container),
-    time_out(time_out),
-    zlib_buffer_size(zlib_buffer_size)
+MySqlBackupManager::MySqlBackupManager(
+    const BackupManagerInfo & info,
+    const CommandList commands)
+:   BackupManager(info),
+    commands(commands)
 {
 }
 
-BackupManager::~BackupManager() {
+MySqlBackupManager::~MySqlBackupManager() {
 }
 
-void BackupManager::run_backup(const string & tenant,
-                               const string & token,
-                               const BackupInfo & backup_info) {
+void MySqlBackupManager::run_backup(const string & tenant,
+                                    const string & token,
+                                    const BackupInfo & backup_info) {
     NOVA_LOG_INFO("Starting backup for tenant %s, backup_id=%d",
                    tenant.c_str(), backup_info.id.c_str());
     #ifdef _DEBUG

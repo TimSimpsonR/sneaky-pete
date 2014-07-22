@@ -169,6 +169,8 @@ class FlagValues {
 
         const char * rabbit_userid() const;
 
+        const int redis_state_change_wait_time() const;
+
         bool register_dangerous_functions() const;
 
         bool skip_install_for_prepare() const;

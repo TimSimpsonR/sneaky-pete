@@ -75,6 +75,9 @@ void execute(std::stringstream & out, const CommandList & cmds,
  *  class it does not open up the process's streams or wait for it. */
 pid_t execute_and_abandon(const CommandList & cmds);
 
+/* Terminates a program with maximum prejudice. */
+void force_kill(pid_t pid);
+
 /** Returns true if the given pid is alive. */
 bool is_pid_alive(pid_t pid);
 

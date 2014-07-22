@@ -1,6 +1,6 @@
 #include "pch.hpp"
 #include "nova/guest/apt.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include <boost/format.hpp>
 #include "nova/guest/guest.h"
 #include "nova/guest/GuestException.h"
@@ -23,7 +23,7 @@
 using namespace boost::assign;
 
 using nova::guest::apt::AptGuest;
-using nova::guest::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreInfo;
 using boost::format;
 using nova::guest::GuestException;
 using boost::lexical_cast;
@@ -527,7 +527,7 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
             input.args->get_optional_bool("do_not_start_on_reboot")
             .get_value_or(false);
         MySqlAppPtr app = this->create_mysql_app();
-        app->stop_db(do_not_start_on_reboot);
+        app->stop(do_not_start_on_reboot);
         return JsonData::from_null();
     } else if (input.method_name == "update_overrides") {
         NOVA_LOG_INFO( "update_overrides method");

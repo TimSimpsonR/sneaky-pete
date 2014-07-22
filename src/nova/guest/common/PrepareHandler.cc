@@ -7,7 +7,7 @@
 
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptGuestPtr;
-using nova::guest::backup::BackupRestoreInfo;
+using nova::backup::BackupRestoreInfo;
 using nova::datastores::DatastoreAppPtr;
 using nova::datastores::DatastoreStatusPtr;
 using nova::guest::GuestException;

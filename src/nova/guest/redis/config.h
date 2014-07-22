@@ -14,33 +14,18 @@ class Config
     private:
         std::map<std::string, std::string>_options;
 
-        std::map<std::string, std::string> _override_options;
-
         std::vector<std::string> _include;
-
-        std::vector<std::string> _override_include;
 
         std::vector<std::string> _bind_addrs;
 
-        std::vector<std::string> _override_bind_addrs;
-
         std::vector<std::map <std::string, std::string> > _save;
-
-        std::vector<std::map <std::string, std::string> > _override_save;
 
         std::map<std::string, std::string> _slave_of;
 
-        std::map<std::string, std::string> _override_slave_of;
-
         std::vector<std::map <std::string, std::string> > _renamed_commands;
-
-        std::vector<std::map <std::string, std::string> > _override_renamed_commands;
 
         std::vector<std::map <std::string, std::string> >
             _client_output_buffer_limit;
-
-        std::vector<std::map <std::string, std::string> >
-            _override_client_output_buffer_limit;
 
         std::string _redis_config;
 
@@ -207,9 +192,9 @@ class Config
 
         void set_max_clients(int value);
 
-        int get_max_memory();
+        std::string get_max_memory();
 
-        void set_max_memory(int value);
+        void set_max_memory(std::string value);
 
         std::string get_max_memory_policy();
 

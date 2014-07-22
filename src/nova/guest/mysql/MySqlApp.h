@@ -4,9 +4,10 @@
 #include "nova/datastores/DatastoreApp.h"
 #include "nova/guest/mysql/MySqlAdmin.h"
 #include "nova/guest/mysql/MySqlAppStatus.h"
-#include "nova/guest/backup/BackupRestore.h"
+#include "nova/backup/BackupRestore.h"
 #include <boost/optional.hpp>
 #include <vector>
+
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -19,7 +20,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
     public:
 
         MySqlApp(MySqlAppStatusPtr status,
-                 nova::guest::backup::BackupRestoreManagerPtr
+                 nova::backup::BackupRestoreManagerPtr
                     backup_restore_manager,
                  int state_change_wait_time,
                  bool skip_install_for_prepare);
@@ -29,15 +30,9 @@ class MySqlApp : public nova::datastores::DatastoreApp {
         // Removes the overrides file.
         void remove_overrides();
 
-        /** Restarts MySQL on this host. */
-        void restart();
-
         void start_db_with_conf_changes(const std::string & config_contents);
 
         void reset_configuration(const std::string & config_contents);
-
-        /** Stops MySQL on this host. */
-        void stop_db(bool do_not_start_on_reboot=false);
 
         /** Writes an optional overrides file which lives near the normal
          *  my.cnf. */
@@ -49,8 +44,12 @@ class MySqlApp : public nova::datastores::DatastoreApp {
             const boost::optional<std::string> & root_password,
             const std::string & config_contents,
             const boost::optional<std::string> & overrides,
-            boost::optional<nova::guest::backup::BackupRestoreInfo> restore
+            boost::optional<nova::backup::BackupRestoreInfo> restore
         );
+
+        virtual void specific_start_app_method();
+
+        virtual void specific_stop_app_method();
 
     private:
 
@@ -58,7 +57,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
         MySqlApp(const MySqlApp &);
         MySqlApp & operator = (const MySqlApp &);
 
-        nova::guest::backup::BackupRestoreManagerPtr backup_restore_manager;
+        nova::backup::BackupRestoreManagerPtr backup_restore_manager;
 
         /** Install the set of mysql my.cnf templates from dbaas-mycnf package.
          *  The package generates a template suited for the current
@@ -70,7 +69,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
                          const boost::optional<std::string> & admin_password_arg);
 
         /** Stop mysql. Only update the DB if update_db is true. */
-        void internal_stop_mysql(bool update_db=false);
+        //void internal_stop_mysql(bool update_db=false);
 
         /** Helps secure the MySQL install by removing the anonymous user. */
         void remove_anonymous_user(MySqlAdmin & sql);
@@ -87,21 +86,12 @@ class MySqlApp : public nova::datastores::DatastoreApp {
 
         const bool skip_install_for_prepare;
 
-        const int state_change_wait_time;
-
-        MySqlAppStatusPtr status;
-
-        /** Starts MySQL on this host. */
-        void start_mysql(bool update_db=false);
-
         /* Tests that a connection can be made using the my.cnf settings. */
         static bool test_ability_to_connect(bool throw_on_failure);
 
         void wait_for_initial_connection();
 
         void wait_for_mysql_initial_stop();
-
-        void wait_for_internal_stop(bool update_db);
 
         void wipe_ib_logfile(const int index);
 

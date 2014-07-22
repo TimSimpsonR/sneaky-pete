@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 
+using nova::backup::BackupInfo;
+using nova::backup::BackupManagerPtr;
 using nova::JsonData;
 using nova::JsonDataPtr;
 using nova::Log;
@@ -26,7 +28,7 @@ BackupInfo from_json(const nova::JsonObjectPtr data){
     return info;
 }
 
-BackupMessageHandler::BackupMessageHandler(BackupManager & backup_manager)
+BackupMessageHandler::BackupMessageHandler(BackupManagerPtr backup_manager)
 : backup_manager(backup_manager) {
 }
 
@@ -48,7 +50,7 @@ JsonDataPtr BackupMessageHandler::handle_message(const GuestInput & input) {
         }
         const auto tenant = input.tenant.get();
         const auto token = input.token.get();
-        backup_manager.run_backup(tenant, token, info);
+        backup_manager->run_backup(tenant, token, info);
         return JsonData::from_null();
     } else {
         return JsonDataPtr();

@@ -1,7 +1,7 @@
 #include "pch.hpp"
-#include "nova/guest/backup/BackupException.h"
+#include "nova/backup/BackupException.h"
 
-namespace nova { namespace guest { namespace backup {
+namespace nova { namespace backup {
 
 /**---------------------------------------------------------------------------
  *- BackupException
@@ -23,5 +23,5 @@ const char * BackupException::what() const throw() {
     }
 }
 
-} } }  // end namespace nova::guest::backup
+} }  // end namespace nova::guest::backup
 

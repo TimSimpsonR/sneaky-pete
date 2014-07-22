@@ -151,6 +151,9 @@ void RedisApp::specific_stop_app_method() {
         auto pid = RedisAppStatus::get_pid();
         if (!pid) {
             NOVA_LOG_ERROR("No pid for Redis found!");
+            throw RedisException(RedisException::COULD_NOT_STOP);
+        } else {
+            NOVA_LOG_ERROR("Discovered pid, killing...");
             force_kill(pid.get());
         }
     }
@@ -220,9 +223,10 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     }
     shell("sudo chown -R root:root /etc/redis");
     NOVA_LOG_INFO("Connecting to redis instance.");
-    nova::redis::Client client = nova::redis::Client();
-    NOVA_LOG_INFO("Stopping redis instance.");
-    internal_stop(false);
+    if (status->is_running()) {
+        NOVA_LOG_INFO("Stopping redis instance.");
+        internal_stop(false);
+    }
     NOVA_LOG_INFO("Starting redis instance.");
     internal_start(false);
 }

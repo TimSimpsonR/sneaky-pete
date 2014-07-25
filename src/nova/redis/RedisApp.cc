@@ -185,7 +185,7 @@ void RedisApp::write_config(const string & config_contents,
         {
             const string requirepass = str(format("requirepass %1%")
                 % root_password);
-            fd << requirepass << config_contents;
+            fd << requirepass << std::endl << config_contents;
             fd.close();
         }
         else

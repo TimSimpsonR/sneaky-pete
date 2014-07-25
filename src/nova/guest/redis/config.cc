@@ -130,11 +130,6 @@ Config::Config(std::string config) : _redis_config(config)
         {
             std::string option_value;
             iss >> option_value;
-            if (value == REQUIRE_PASS)
-            {
-                NOVA_LOG_INFO("Found pass");
-                NOVA_LOG_INFO(option_value.c_str());
-            }
             _options[value] = option_value;
         }
     }

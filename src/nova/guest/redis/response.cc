@@ -5,10 +5,8 @@
 namespace nova { namespace redis {
 
 
-Response::Response(std::string _status,
-                   std::string _data)
-:   status(_status),
-    data(_data)
+Response::Response(std::string _status)
+:   status(_status)
 {
 }
 

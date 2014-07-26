@@ -44,9 +44,9 @@ Response Client::_connect()
     }
     if (_socket >= 0)
     {
-        return Response(CCONNECTED_RESPONSE, "");
+        return Response(CCONNECTED_RESPONSE);
     }
-    return Response(CCONNECTION_ERR_RESPONSE, "");
+    return Response(CCONNECTION_ERR_RESPONSE);
 }
 
 Response Client::_send_redis_message(string message)
@@ -63,9 +63,9 @@ Response Client::_send_redis_message(string message)
     sres = send_message(_socket, message);
     if (sres == SOCK_ERROR)
     {
-        return Response(STIMEOUT_RESPONSE, "");
+        return Response(STIMEOUT_RESPONSE);
     }
-    return Response(CMESSAGE_SENT_RESPONSE, "");
+    return Response(CMESSAGE_SENT_RESPONSE);
 }
 
 Response Client::_get_redis_response()
@@ -88,13 +88,13 @@ Response Client::_get_redis_response()
     string res = "";
     if (_socket < 0)
     {
-        return Response(STIMEOUT_RESPONSE, "");
+        return Response(STIMEOUT_RESPONSE);
     }
     while (true)
     {
         if (retries == MAX_RETRIES)
         {
-            return Response(CTIMEOUT_RESPONSE, "");
+            return Response(CTIMEOUT_RESPONSE);
         }
         first_byte = get_response(_socket, FIRST_BYTE_READ);
         if (first_byte.length() > 0)
@@ -112,7 +112,7 @@ Response Client::_get_redis_response()
         {
             if (retries == MAX_RETRIES)
             {
-                return Response(CTIMEOUT_RESPONSE, "");
+                return Response(CTIMEOUT_RESPONSE);
             }
             res += get_response(_socket, READ_LEN);
             if (res.length() == 0)
@@ -128,11 +128,9 @@ Response Client::_get_redis_response()
         }
         if (res.substr(res.length() - CRLF.length()) != CRLF)
         {
-            return Response(SERROR_RESPONSE, "");
+            return Response(SERROR_RESPONSE);
         }
-        return Response(first_byte,
-                            res.substr(0,
-                                        res.length() - 2));
+        return Response(first_byte);
     }
     else if (first_byte == MULTIPART_RESPONSE)
     {
@@ -177,12 +175,11 @@ Response Client::_get_redis_response()
             }
             --multi_args;
         }
-        return Response(MULTIPART_RESPONSE,
-                                multi_data);
+        return Response(MULTIPART_RESPONSE);
     }
     else
     {
-        return Response(UNSUPPORTED_RESPONSE, "");
+        return Response(UNSUPPORTED_RESPONSE);
     }
 }
 
@@ -203,7 +200,7 @@ Response Client::_set_client()
         }
         return res;
     }
-    return Response(CNOTHING_TO_DO_RESPONSE, "");
+    return Response(CNOTHING_TO_DO_RESPONSE);
 }
 
 Response Client::_auth()
@@ -236,7 +233,7 @@ Response Client::_auth()
         return res;
     }
     _authed = true;
-    return Response(CNOTHING_TO_DO_RESPONSE, "");
+    return Response(CNOTHING_TO_DO_RESPONSE);
 }
 
 Response Client::_reconnect()
@@ -263,7 +260,7 @@ Response Client::_reconnect()
     {
         return res;
     }
-    return Response(CCONNECTED_RESPONSE, "");
+    return Response(CCONNECTED_RESPONSE);
 }
 
 Client::Client(

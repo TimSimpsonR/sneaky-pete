@@ -6,6 +6,7 @@
 
 #include "response.h"
 #include "commands.h"
+#include <memory>
 #include "config.h"
 
 
@@ -38,9 +39,7 @@ class Client
 
         std::string _config_file;
 
-        std::string _config_command;
-
-        Commands*_commands;
+        std::unique_ptr<Commands> _commands;
 
         /*
          * Connects to the redis server using nova::redis::get_socket.
@@ -58,11 +57,9 @@ class Client
 
         Response _reconnect();
 
-        void _find_config_command();
-
     public:
 
-        Config* config;
+        std::unique_ptr<Config> config;
 
         Client(const boost::optional<std::string> & host=boost::none,
                const boost::optional<std::string> & port=boost::none,

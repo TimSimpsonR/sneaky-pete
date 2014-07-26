@@ -11,10 +11,24 @@
 #include "nova/Log.h"
 
 using nova::Log;
+using std::string;
 
 
 namespace nova { namespace redis {
 
+
+namespace {
+
+    string find_config_command(Config & config) {
+        for (unsigned int i=0; i < config.get_renamed_commands().size(); ++ i){
+            if (config.get_renamed_commands()[i][RENAMED_COMMAND] ==
+                COMMAND_CONFIG) {
+                return config.get_renamed_commands()[i][NEW_COMMAND_NAME];
+            }
+        }
+        return COMMAND_CONFIG;
+    }
+}
 
 Response Client::_connect()
 {
@@ -35,7 +49,7 @@ Response Client::_connect()
     return Response(CCONNECTION_ERR_RESPONSE, "");
 }
 
-Response Client::_send_redis_message(std::string message)
+Response Client::_send_redis_message(string message)
 {
     int sres = 0;
     if (_socket < 0)
@@ -65,16 +79,16 @@ Response Client::_get_redis_response()
     */
     int multi_args = 0;
     int multi_len = 0;
-    std::string tmp_byte = "";
-    std::string tmp_multi = "";
-    std::string tmp_multi_len = "";
-    std::string multi_data = "";
+    string tmp_byte = "";
+    string tmp_multi = "";
+    string tmp_multi_len = "";
+    string multi_data = "";
     int retries = 0;
-    std::string first_byte;
-    std::string res = "";
+    string first_byte;
+    string res = "";
     if (_socket < 0)
     {
-        return Response(STIMEOUT_DESCRIPTION, "");
+        return Response(STIMEOUT_RESPONSE, "");
     }
     while (true)
     {
@@ -106,13 +120,13 @@ Response Client::_get_redis_response()
                 ++retries;
                 continue;
             }
-            if (res.substr(res.length() - CRLF_LEN) == CRLF)
+            if (res.substr(res.length() - CRLF.length()) == CRLF)
             {
                 break;
             }
             ++retries;
         }
-        if (res.substr(res.length() - CRLF_LEN) != CRLF)
+        if (res.substr(res.length() - CRLF.length()) != CRLF)
         {
             return Response(SERROR_RESPONSE, "");
         }
@@ -231,10 +245,9 @@ Response Client::_reconnect()
     _authed = false;
     _name_set = false;
     _socket = -1;
-    config = new Config(_config_file);
-    _find_config_command();
-    _commands = new Commands(config->get_require_pass(),
-                             _config_command);
+    config.reset(new Config(_config_file));
+    _commands.reset(new Commands(config->get_require_pass(),
+                                 find_config_command(*config)));
     Response res = _connect();
     if (res.status != CCONNECTED_RESPONSE)
     {
@@ -253,36 +266,19 @@ Response Client::_reconnect()
     return Response(CCONNECTED_RESPONSE, "");
 }
 
-void Client::_find_config_command()
-{
-    for (unsigned int i=0;
-            i < config->get_renamed_commands().size();
-            i++)
-    {
-        if (config->get_renamed_commands()[i][RENAMED_COMMAND] ==
-            COMMAND_CONFIG)
-        {
-            _config_command =
-                config->get_renamed_commands()[i][NEW_COMMAND_NAME];
-        }
-    }
-}
-
 Client::Client(
-    const boost::optional<std::string> & host,
-    const boost::optional<std::string> & port,
-    const boost::optional<std::string> & client_name,
-    const boost::optional<std::string> & config_file)
+    const boost::optional<string> & host,
+    const boost::optional<string> & port,
+    const boost::optional<string> & client_name,
+    const boost::optional<string> & config_file)
 :   _port(port.get_value_or(REDIS_PORT)),
-        _host(host.get_value_or(SOCKET_NAME)),
-        _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
-        _config_file(config_file.get_value_or(DEFAULT_REDIS_CONFIG)),
-        _config_command(COMMAND_CONFIG)
+    _host(host.get_value_or(SOCKET_NAME)),
+    _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
+    _config_file(config_file.get_value_or(DEFAULT_REDIS_CONFIG)),
+    config(new Config(_config_file))
 {
-    config = new Config(_config_file);
-    _find_config_command();
-    _commands = new Commands(config->get_require_pass(),
-                             _config_command);
+    _commands.reset(new Commands(config->get_require_pass(),
+                                 find_config_command(*config)));
     _authed = false;
     _name_set = false;
     _socket = -1;
@@ -341,7 +337,7 @@ Response Client::last_save()
     return _get_redis_response();
 }
 
-Response Client::config_get(std::string name)
+Response Client::config_get(string name)
 {
     Response res = _send_redis_message(
         _commands->config_get(name));
@@ -352,7 +348,7 @@ Response Client::config_get(std::string name)
     return _get_redis_response();
 }
 
-Response Client::config_set(std::string name, std::string value)
+Response Client::config_set(string name, string value)
 {
     Response res = _send_redis_message(
         _commands->config_set(name, value));

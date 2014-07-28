@@ -609,6 +609,8 @@ unit u_redis_client
 
 unit u_redis_commands
     :   src/nova/guest/redis/commands.cc
+    :
+    :   tests/nova/redis/CommandsTests.cc
     ;
 
 unit u_redis_config

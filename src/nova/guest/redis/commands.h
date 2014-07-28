@@ -1,6 +1,8 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
+#include <boost/lexical_cast.hpp>
+#include <boost/optional.hpp>
 #include <string>
 
 
@@ -9,40 +11,35 @@ namespace nova { namespace redis {
 
 class Commands
 {
-    private:
-        std::string _config_set;
-
-        std::string _config_get;
-
-        std::string _config_rewrite;
-
-        std::string _config_command;
-
-        void set_commands();
-
     public:
-        std::string password;
+        Commands(
+            const std::string & _password,
+            const boost::optional<std::string> & config_command = boost::none);
 
-        Commands(std::string _password, std::string config_command);
+        std::string auth() const;
 
-        std::string auth();
+        std::string ping() const;
 
-        std::string ping();
+        std::string config_set(std::string key, std::string value) const;
 
-        std::string config_set(std::string key, std::string value);
+        std::string config_get(std::string key) const;
 
-        std::string config_get(std::string key);
+        std::string config_rewrite() const;
 
-        std::string config_rewrite();
+        std::string bgsave() const;
 
-        std::string bgsave();
+        std::string save() const;
 
-        std::string save();
+        std::string last_save() const;
 
-        std::string last_save();
+        std::string client_set_name(std::string client_name) const;
 
-        std::string client_set_name(std::string client_name);
+        bool requires_auth() const;
 
+    private:
+        const std::string _config_command;
+
+        const std::string password;
 };
 
 

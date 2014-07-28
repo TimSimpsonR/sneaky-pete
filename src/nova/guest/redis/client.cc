@@ -194,7 +194,7 @@ Response Client::_set_client()
 
 Response Client::_auth()
 {
-    if (_commands->password.length() > 0 && !_authed)
+    if (_commands->requires_auth() && !_authed)
     {
         Response res = _send_redis_message(_commands->auth());
         if (res.status != CMESSAGE_SENT_RESPONSE)

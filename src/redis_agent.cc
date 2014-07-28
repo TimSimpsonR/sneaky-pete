@@ -12,7 +12,6 @@
 #include "nova/backup/BackupManager.h"
 #include "nova/guest/backup/BackupMessageHandler.h"
 #include "nova/backup/BackupRestore.h"
-#include "nova/guest/monitoring/monitoring.h"
 #include "nova/db/mysql.h"
 #include <boost/foreach.hpp>
 #include "nova/guest/GuestException.h"
@@ -57,7 +56,6 @@ using namespace nova;
 using namespace nova::flags;
 using namespace nova::guest;
 using namespace nova::guest::diagnostics;
-using namespace nova::guest::monitoring;
 using nova::guest::common::PrepareHandler;
 using nova::guest::common::PrepareHandlerPtr;
 using nova::redis::RedisApp;
@@ -122,12 +120,6 @@ struct Func {
         AptGuestPtr apt_worker(new AptGuest(AptGuest::from_flags(flags)));
         MessageHandlerPtr handler_apt(new AptMessageHandler(apt_worker));
         handlers.push_back(handler_apt);
-
-        MonitoringManagerPtr monitoring_manager(new MonitoringManager(
-            MonitoringManager::from_flags(flags)));
-        MessageHandlerPtr handler_monitoring_app(new MonitoringMessageHandler(
-            apt_worker, monitoring_manager));
-        handlers.push_back(handler_monitoring_app);
 
         RedisAppStatusPtr app_status(new RedisAppStatus(sender,
                                                         is_redis_installed()));

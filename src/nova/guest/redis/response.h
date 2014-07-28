@@ -17,11 +17,7 @@ struct Response
 {
     std::string status;
 
-    std::string description;
-
-    std::string data;
-
-    Response(std::string _status, std::string _data);
+    Response(std::string _status);
 
 };
 

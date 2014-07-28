@@ -13,106 +13,66 @@ namespace nova { namespace redis {
 //You will only see this response code when getting data from redis.
 static const std::string STRING_RESPONSE = "+";
 
-//This is the base description for the string response.
-//You will only see this description when getting data from redis.
-static const std::string STRING_DESCRIPTION = "String.";
-
 //This is the base error response code from redis.
 //You will only see this response code when getting data from redis
 //and there is an error
 static const std::string ERROR_RESPONSE = "-";
-
-//This is the base description for an error response.
-//You will only see this description when getting data from redis
-//and there is an error
-static const std::string ERROR_DESCRIPTION = "Error.";
 
 //This is the base response code for an integer response.
 //You will only see this response code when getting data from redis
 //and only an integer is returned.
 static const std::string INTEGER_RESPONSE = ":";
 
-//This is the base response description for an integer response.
-//You will only see this response description when getting data from redis
-//and only when an integer is returned.
-static const std::string INTEGER_DESCRIPTION = "Integer.";
-
 //This is the base response for a multipart redis response.
 //You will only see this response when getting data from redis
 //and only if there is a multipart response from redis.
 static const std::string MULTIPART_RESPONSE = "*";
 
-//This is the base response description for a multipart redis response.
-//You will only see this response description when getting data from redis
-//and only if there is a multipart response from redis.
-static const std::string MULTIPART_DESCRIPTION = "Multipart string response.";
-
 //This is the base client error response code.
 //This is returned when the client has an error.
 static const std::string CERROR_RESPONSE = "cerror";
-
-//This is the base client error description.
-//This is returned when the client has an error.
-static const std::string CERROR_DESCRIPTION = "Client error.";
 
 //This is returned when an unsupported response comes from a redis server.
 //I.E not string error int or multipart response
 static const std::string UNSUPPORTED_RESPONSE = "unsupported";
 
-//This is returned when an unsupported response type is returned from the redis server.
-static const std::string UNSUPPORTED_DESCRIPTION = "Unsupported response type.";
 
 //This is returned when a redis server has a an server error
 //that is unrelated to the redis protocol itself.
 static const std::string SERROR_RESPONSE = "serror";
 
-//This is the status description when the redis server returns a server error
-//that is unrelated to the redis protocol itself.
-static const std::string SERROR_DESCRIPTION = "Redis server error.";
+// //This is the status description when the redis server returns a server error
+// //that is unrelated to the redis protocol itself.
+// static const std::string SERROR_DESCRIPTION = "Redis server error.";
 
 //This status is returned when the redis server times out.
 static const std::string STIMEOUT_RESPONSE = "stimeout";
 
-//This status description is returned when a the redis server connection 
-//times out.
-static const std::string STIMEOUT_DESCRIPTION = "Redis server timeout.";
-
 //This status is returned when the client is timed out.
 static const std::string CTIMEOUT_RESPONSE = "ctimeout";
 
-//This status description is returned when a the redis client times out.
-static const std::string CTIMEOUT_DESCRIPTION = "Redis client timed out.";
+// //This status description is returned when a the redis client times out.
+// static const std::string CTIMEOUT_DESCRIPTION = "Redis client timed out.";
 
 //This status is returned when the client is connected.
 static const std::string CCONNECTED_RESPONSE = "cconnected";
 
-//This status description is returned when the client is connected.
-static const std::string CCONNECTED_DESCRIPTION = "Redis client connected.";
+// //This status description is returned when the client is connected.
+// static const std::string CCONNECTED_DESCRIPTION = "Redis client connected.";
 
 //This status is returned when the client has a connection error.
 static const std::string CCONNECTION_ERR_RESPONSE = "cconnection_err";
 
-//This status description is returned when a client is unable to
-//connect to the server.
-static const std::string CCONNECTION_ERR_DESCRIPTION = "Redis client unable "
-                                                        "to connect.";
-
 //This status is returned when a message has been sent to a redis server.
 static const std::string CMESSAGE_SENT_RESPONSE = "cmessage_sent";
 
-//This status description is returned when a message has been
-//sent to the redis server.
-static const std::string CMESSAGE_SENT_DESCRIPTION = "Redis client"
-                                                        "sent message.";
+// //This status description is returned when a message has been
+// //sent to the redis server.
+// static const std::string CMESSAGE_SENT_DESCRIPTION = "Redis client"
+//                                                         "sent message.";
 
 //This is returned when a command results in no response nothing to parse.
 static const std::string CNOTHING_TO_DO_RESPONSE  = "cnothing";
-
-//This status description is returned when the client has nothing to parse.
-static const std::string CNOTHING_TO_DO_DESCRIPTION = "No command sent "
-                                                        "nothing to do.";
-
-//Client options.
 
 //Default path to the redis config file
 static const std::string DEFAULT_REDIS_CONFIG = "/etc/redis/redis.conf";
@@ -125,9 +85,6 @@ static const std::string REDIS_AGENT_NAME = "trove-guestagent";
 
 //Default socket for the guest agent to connect to.
 static const std::string SOCKET_NAME = "localhost";
-
-//Length of a Carrage return line feed.
-static const int CRLF_LEN = 2;
 
 //Socket error status code.
 static const int SOCK_ERROR = -1;

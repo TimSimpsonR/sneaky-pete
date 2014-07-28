@@ -572,6 +572,17 @@ JsonDataPtr MySqlAppMessageHandler::handle_message(const GuestInput & input) {
         }
 
         return JsonData::from_null();
+
+    } else if (input.method_name == "enable_ssl") {
+        NOVA_LOG_INFO("Calling write_ssl_files.");
+        JsonObjectPtr ssl_info = input.args->get_object("ssl");
+        string private_key = ssl_info->get_string("private_key");
+        string public_key = ssl_info->get_string("public_key");
+        string ca_certificate = ssl_info->get_string("ca_certificate");
+        MySqlAppPtr app = this->create_mysql_app();
+        app->write_ssl_files(ca_certificate, private_key, public_key);
+
+        return JsonData::from_null();
     } else {
         return JsonDataPtr();
     }

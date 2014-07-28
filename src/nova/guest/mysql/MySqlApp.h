@@ -38,6 +38,12 @@ class MySqlApp : public nova::datastores::DatastoreApp {
          *  my.cnf. */
         void write_config_overrides(const std::string & overrides_content);
 
+        void write_ssl_files(
+            const std::string & ca_certificate,
+            const std::string & private_key,
+            const std::string & public_key
+        );
+
     protected:
         /** Installs MySql, secures it, and possibly runs a backup. */
         virtual void prepare(
@@ -45,6 +51,12 @@ class MySqlApp : public nova::datastores::DatastoreApp {
             const std::string & config_contents,
             const boost::optional<std::string> & overrides,
             boost::optional<nova::backup::BackupRestoreInfo> restore
+        );
+
+        virtual void enable_ssl(
+            const std::string & ca_certificate,
+            const std::string & private_key,
+            const std::string & public_key
         );
 
         virtual void specific_start_app_method();

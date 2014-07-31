@@ -114,6 +114,14 @@ void PrepareHandler::prepare(const GuestInput & input) {
         install_packages(*apt, packages);
 
         app->prepare(root_password, config_contents, overrides, restore);
+        JsonObjectPtr ssl_info = input.args->get_optional_object("ssl");
+        if (ssl_info) {
+            app->enable_ssl(
+                ssl_info->get_string("ca_certificate"),
+                ssl_info->get_string("private_key"),
+                ssl_info->get_string("public_key")
+            );
+        }
 
         status->end_install_or_restart();
         NOVA_LOG_INFO("Preparation of datastore finished successfully.");

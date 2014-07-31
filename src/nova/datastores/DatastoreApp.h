@@ -53,6 +53,12 @@ namespace nova { namespace datastores {
                 boost::optional<nova::backup::BackupRestoreInfo> restore
             ) = 0;
 
+            virtual void enable_ssl(
+                const std::string & ca_certificate,
+                const std::string & private_key,
+                const std::string & public_key
+            ) = 0;
+
             /** Implements datastore specific code to start the app. */
             virtual void specific_start_app_method() = 0;
 

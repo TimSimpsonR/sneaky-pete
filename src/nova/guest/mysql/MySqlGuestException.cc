@@ -45,6 +45,8 @@ const char *  MySqlGuestException::code_to_string(Code code) {
             return "Can't create user because no password was specified.";
         case USER_NOT_FOUND:
             return "User not found.";
+        case CANT_WRITE_TMP_FILE:
+            return "Can't write temporary file.";
         default:
             return "MySqlGuest failure.";
     }

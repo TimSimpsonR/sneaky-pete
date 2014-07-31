@@ -30,6 +30,12 @@ class RedisApp : public nova::datastores::DatastoreApp {
                 boost::optional<nova::backup::BackupRestoreInfo> restore
             );
 
+        virtual void enable_ssl(
+            const std::string & ca_certificate,
+            const std::string & private_key,
+            const std::string & public_key
+        );
+
         virtual void specific_start_app_method();
 
         virtual void specific_stop_app_method();

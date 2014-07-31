@@ -82,6 +82,31 @@ namespace {
         }
         tmp_file.close();
     }
+
+    /*
+        Write a string to a given file in a secure location via a tmp file and
+        some use of 'sudo mv'.
+    */
+    void write_file_to_secure_location(
+        const string & contents,
+        const string & tmp_location,
+        const string & location
+    ) {
+
+        ofstream tmp_file;
+        tmp_file.open(tmp_location);
+        if (!tmp_file.good()) {
+            NOVA_LOG_ERROR("Couldn't open temp file: %s.", tmp_location);
+            throw MySqlGuestException(MySqlGuestException::CANT_WRITE_TMP_FILE);
+        }
+        tmp_file << contents << std::endl;
+        tmp_file.close();
+
+        process::execute(
+            list_of("/usr/bin/sudo")("mv")(tmp_location.c_str())(location.c_str())
+        );
+
+    }
 }  // end anonymous namespace
 
 MySqlApp::MySqlApp(MySqlAppStatusPtr status,
@@ -407,6 +432,49 @@ void MySqlApp::wipe_ib_logfiles() {
     // separately.
     wipe_ib_logfile(0);
     wipe_ib_logfile(1);
+}
+
+void MySqlApp::write_ssl_files(const string & ca_certificate, const string & private_key, const string & public_key) {
+
+    NOVA_LOG_INFO("Writing files for SSL support.");
+
+    process::execute(
+        list_of("/usr/bin/sudo")("mkdir")("-p")("/etc/mysql/certs")
+    );
+    write_file_to_secure_location(
+        ca_certificate,
+        "/tmp/cert",
+        "/etc/mysql/certs/ca-cert.pem"
+    );
+    write_file_to_secure_location(
+        private_key,
+        "/tmp/privk",
+        "/etc/mysql/certs/server-key.pem"
+    );
+    write_file_to_secure_location(
+        public_key,
+        "/tmp/pubk",
+        "/etc/mysql/certs/server-cert.pem"
+    );
+
+    stringstream ssl_override;
+    ssl_override << "[mysqld]" << std::endl;
+    ssl_override << "ssl-ca=/etc/mysql/certs/ca-cert.pem" << std::endl;
+    ssl_override << "ssl-cert=/etc/mysql/certs/server-cert.pem" << std::endl;
+    ssl_override << "ssl-key=/etc/mysql/certs/server-key.pem" << std::endl;
+    write_file_to_secure_location(
+        ssl_override.str(),
+        "/tmp/ssl.cnf",
+        "/etc/mysql/conf.d/"
+    );
+
+}
+
+void MySqlApp::enable_ssl(const string & ca_certificate, const string & private_key, const string & public_key) {
+    NOVA_LOG_INFO("Enabling SSL.");
+    this->write_ssl_files(ca_certificate, private_key, public_key);
+    internal_stop();
+    internal_start();
 }
 
 } } }  // end nova::guest::mysql

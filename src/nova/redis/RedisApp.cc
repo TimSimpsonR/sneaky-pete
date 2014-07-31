@@ -197,4 +197,10 @@ void RedisApp::write_config(const string & config_contents,
     shell("sudo chmod 644 /etc/redis/redis.conf");
 }
 
+void RedisApp::enable_ssl(const string & ca_certificate, const string & private_key, const string & public_key) {
+
+    return;
+
+}
+
 } }  // end namespace

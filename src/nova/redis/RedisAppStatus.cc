@@ -4,6 +4,7 @@
 #include <boost/assign/list_of.hpp>
 #include "nova/guest/redis/client.h"
 #include "nova/guest/redis/constants.h"
+#include "nova/redis/RedisException.h"
 #include "nova/Log.h"
 #include "nova/datastores/DatastoreStatus.h"
 #include <boost/optional.hpp>
@@ -54,11 +55,15 @@ DatastoreStatus::Status RedisAppStatus::determine_actual_status() const
     // BLOCKED = We can't ping it, but we can see the process running.
     // CRASHED = The process is dead, but left evidence it once existed.
     // SHUTDOWN = The process is dead and never existed or cleaned itself up.
-    nova::redis::Client client;
-    NOVA_LOG_INFO("Attempting to get redis-server status");
-    if(client.ping().status == STRING_RESPONSE) {
-        NOVA_LOG_INFO("Redis is Running");
-        return RUNNING;
+    try {
+        nova::redis::Client client;
+        NOVA_LOG_INFO("Attempting to get redis-server status");
+        if(client.ping().status == STRING_RESPONSE) {
+            NOVA_LOG_INFO("Redis is Running");
+            return RUNNING;
+        }
+    } catch(const RedisException & re) {
+        NOVA_LOG_INFO("Error pinging Redis, getting pid instead.");
     }
     auto pid = get_pid();
     if (pid)

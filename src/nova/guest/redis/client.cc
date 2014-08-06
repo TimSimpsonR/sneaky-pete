@@ -35,7 +35,7 @@ namespace {
 }
 
 
-Response Client::_send_redis_message(string message) {
+Response Client::_send_redis_message(const string & message) {
     //TODO(tim.simpson): Maybe change it to look for the good return value
     //                   rather than avoid the one bad one.
     NOVA_LOG_TRACE("Sending redis message: %s", message);
@@ -158,21 +158,17 @@ Response Client::_get_redis_response()
 
 void Client::_set_client()
 {
-    if (!_name_set)
+    Response res = _send_redis_message(
+        _commands->client_set_name(_client_name));
+    if (res.status != STRING_RESPONSE)
     {
-        Response res = _send_redis_message(
-            _commands->client_set_name(_client_name));
-        if (res.status != STRING_RESPONSE)
-        {
-            NOVA_LOG_ERROR("Failure calling CLIENT SETNAME on Redis!");
-            throw RedisException(RedisException::CANT_SET_NAME);
-        }
-        _name_set = true;
+        NOVA_LOG_ERROR("Failure calling CLIENT SETNAME on Redis!");
+        throw RedisException(RedisException::CANT_SET_NAME);
     }
 }
 
 bool Client::_auth_required() {
-    return _commands->requires_auth() && !_authed;
+    return _commands->requires_auth();
 }
 
 void Client::_auth()
@@ -183,7 +179,6 @@ void Client::_auth()
         const Response res = _send_redis_message(_commands->auth());
         if (res.status == STRING_RESPONSE) {
             NOVA_LOG_TRACE("Authed!");
-            _authed = true;
         } else {
             NOVA_LOG_ERROR("Couldn't auth to Redis.");
             throw RedisException(RedisException::COULD_NOT_AUTH);
@@ -191,36 +186,20 @@ void Client::_auth()
     }
 }
 
-void Client::_reconnect()
-{
-    _authed = false;
-    _name_set = false;
-    config.reset(new Config(_config_file));
-    _commands.reset(new Commands(config->get_require_pass(),
-                                 find_config_command(*config)));
-    NOVA_LOG_ERROR("Reconnecting to Redis.");
-    _auth();
-    _set_client();
-}
-
 Client::Client(
     const boost::optional<string> & host,
     const boost::optional<int> & port,
     const boost::optional<string> & client_name,
     const boost::optional<string> & config_file)
-:   _authed(false),
-    _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
+:   _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
     _config_file(config_file.get_value_or(DEFAULT_REDIS_CONFIG)),
     config(new Config(_config_file)),
     _commands(),
-    _name_set(false),
     _socket(host.get_value_or("localhost"), port.get_value_or(6379),
             MAX_RETRIES)
 {
     _commands.reset(new Commands(config->get_require_pass(),
                                  find_config_command(*config)));
-    _authed = false;
-    _name_set = false;
     _auth();
     _set_client();
 }

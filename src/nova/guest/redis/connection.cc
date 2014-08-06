@@ -98,15 +98,7 @@ Socket::~Socket() {
 
 void Socket::connect() {
     close();
-    for (int retries = 0; sockfd < 0 && retries <= max_retries; ++retries) {
-        NOVA_LOG_TRACE("Creating socket for %s:%s (attempt %d).",
-                       host, port, retries);
-        sockfd = get_socket(host, port);
-        if (sockfd < 0) {
-            NOVA_LOG_TRACE("Couldn't connect (yet?). Napping.")
-            boost::this_thread::sleep(boost::posix_time::seconds(1));
-        }
-    }
+    sockfd = get_socket(host, port);
     if (sockfd < 0) {
         NOVA_LOG_ERROR("Couldn't create connection!");
         throw RedisException(RedisException::CONNECTION_ERROR);

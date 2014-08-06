@@ -72,15 +72,13 @@ class Client
          */
         void _connect();
 
-        Response _send_redis_message(std::string message);
+        Response _send_redis_message(const std::string & message);
 
         Response _get_redis_response();
 
         void _set_client();
 
         void _auth();
-
-        void _reconnect();
 };
 
 

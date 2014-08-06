@@ -12,9 +12,11 @@
 #include <stdio.h>
 #include "constants.h"
 #include "nova/Log.h"
+#include <boost/optional.hpp>
 
 using nova::Log;
-
+using boost::optional;
+using std::string;
 
 
 namespace nova { namespace redis {
@@ -54,7 +56,8 @@ bool Config::_get_bool_value(std::string key)
     return NULL;
 }
 
-Config::Config(std::string config) : _redis_config(config)
+Config::Config(const optional<string> & config)
+:   _redis_config(config.get_value_or(DEFAULT_REDIS_CONFIG))
 {
     std::string line;
     std::string value;

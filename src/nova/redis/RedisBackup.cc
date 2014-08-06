@@ -3,6 +3,8 @@
 
 #include "pch.hpp"
 #include "RedisBackup.h"
+#include "RedisBackUpJob.h"
+#include "nova/guest/redis/client.h"
 
 using nova::backup::BackupInfo;
 using nova::backup::BackupRestoreInfo;
@@ -17,18 +19,6 @@ namespace {
 
 
 }  // end anonymous namespace
-
-
-/**---------------------------------------------------------------------------
- *- RedisBackupManager::Job
- *---------------------------------------------------------------------------*/
-
-class RedisBackupManager::Job : public nova::utils::Job {
-public:
-    virtual void execute() {
-
-    }
-};
 
 
 /**---------------------------------------------------------------------------
@@ -66,18 +56,6 @@ void RedisBackupManager::run_backup(const string & tenant,
 
 
 /**---------------------------------------------------------------------------
- *- RedisBackupRestoreManager::Job
- *---------------------------------------------------------------------------*/
-
-class RedisBackupRestoreManager::Job {
-public:
-    void execute() {
-
-    }
-};
-
-
-/**---------------------------------------------------------------------------
  *- RedisBackupRestoreManager
  *---------------------------------------------------------------------------*/
 
@@ -91,8 +69,7 @@ RedisBackupRestoreManager::RedisBackupRestoreManager(
 }
 
 void RedisBackupRestoreManager::run(const BackupRestoreInfo & restore) {
-    Job job; //*this, restore);
-    job.execute();
+  //TODO(tim.simpson): Obvious
 }
 
 } } // end namespace redis

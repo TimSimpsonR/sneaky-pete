@@ -1,4 +1,5 @@
 #include "pch.hpp"
+#include "connection.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,6 +11,14 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string>
+#include <boost/lexical_cast.hpp>
+#include <boost/thread.hpp>
+#include "nova/redis/RedisException.h"
+#include "nova/Log.h"
+
+
+using boost::lexical_cast;
+using std::string;
 
 
 namespace nova { namespace redis {
@@ -27,72 +36,99 @@ namespace {
         return &(((struct sockaddr_in6*)sa)->sin6_addr);
     }
 
+    int get_socket(std::string host, int port)
+    {
+        int sockfd, rv;
+        struct addrinfo hints, *servinfo, *p;
+        char s[INET6_ADDRSTRLEN];
+        memset(&hints, 0, sizeof hints);
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        string service_name = lexical_cast<string>(port);
+        if ((rv = getaddrinfo(host.c_str(), service_name.c_str(),
+                &hints, &servinfo)) != 0)
+        {
+            perror("Can't find host information\n");
+            return -1;
+        }
+        for(p = servinfo; p != NULL; p = p->ai_next)
+        {
+            if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                    p->ai_protocol)) == -1)
+            {
+                perror("client: socket\n");
+                continue;
+            }
+            if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+            {
+                close(sockfd);
+                perror("client: connect\n");
+                continue;
+            }
+            break;
+        }
+        if (p == NULL)
+        {
+            perror("client: failed to connect\n");
+            return -1;
+        }
+        inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+                    s, sizeof s);
+        freeaddrinfo(servinfo);
+        return sockfd;
+    }
 
 }//end of anon namespace.
 
 
-int get_socket(std::string host, std::string port)
+
+
+Socket::Socket(const std::string & host, const int port,
+               const int max_retries)
+:   host(host),
+    max_retries(max_retries),
+    port(port),
+    sockfd(-1)
 {
-    int sockfd, rv;
-    struct addrinfo hints, *servinfo, *p;
-    char s[INET6_ADDRSTRLEN];
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    if ((rv = getaddrinfo(host.c_str(), port.c_str(),
-            &hints, &servinfo)) != 0)
-    {
-        perror("Can't find host information\n");
-        return -1;
-    }
-    for(p = servinfo; p != NULL; p = p->ai_next)
-    {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1)
-        {
-            perror("client: socket\n");
-            continue;
-        }
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1)
-        {
-            close(sockfd);
-            perror("client: connect\n");
-            continue;
-        }
-        break;
-    }
-    if (p == NULL)
-    {
-        perror("client: failed to connect\n");
-        return -1;
-    }
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-                s, sizeof s);
-    freeaddrinfo(servinfo);
-    return sockfd;
 }
 
-int send_message(int sockfd, std::string message)
-{
-    int numbytes;
-    int sentbytes = 0;
-    int message_length = message.length();
-    while (message_length != sentbytes)
-    {
-        if ((numbytes = send(sockfd, message.c_str(),
-                strlen(message.c_str()), 0)) == -1)
-        {
-            perror("send");
-            return -1;
-        }
-        message = message.substr(numbytes, message.length());
-        sentbytes += numbytes;
-    }
-    return sentbytes;
+Socket::~Socket() {
+    ::close(sockfd);
 }
 
-std::string get_response(int sockfd, int read_bytes)
-{
+void Socket::connect() {
+    close();
+    for (int retries = 0; sockfd < 0 && retries <= max_retries; ++retries) {
+        NOVA_LOG_TRACE("Creating socket for %s:%s (attempt %d).",
+                       host, port, retries);
+        sockfd = get_socket(host, port);
+        if (sockfd < 0) {
+            NOVA_LOG_TRACE("Couldn't connect (yet?). Napping.")
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
+        }
+    }
+    if (sockfd < 0) {
+        NOVA_LOG_ERROR("Couldn't create connection!");
+        throw RedisException(RedisException::CONNECTION_ERROR);
+    }
+}
+
+void Socket::close() {
+    if (sockfd >= 0) {
+        NOVA_LOG_TRACE("Closing socket...");
+        ::close(sockfd);
+        sockfd = -1;
+    }
+}
+
+void Socket::ensure_connected() {
+    if (sockfd < 0) {
+        connect();
+    }
+}
+
+std::string Socket::get_response(int read_bytes) {
+    ensure_connected();
     int numbytes;
     char buff[read_bytes+1];
     std::string empty_string = "";
@@ -110,5 +146,25 @@ std::string get_response(int sockfd, int read_bytes)
     return data;
 }
 
+int Socket::send_message(std::string message) {
+    ensure_connected();
+    int numbytes;
+    int sentbytes = 0;
+    int message_length = message.length();
+    while (message_length != sentbytes)
+    {
+        if ((numbytes = send(sockfd, message.c_str(),
+                strlen(message.c_str()), 0)) == -1)
+        {
+            perror("send");
+            return -1;
+        }
+        message = message.substr(numbytes, message.length());
+        sentbytes += numbytes;
+    }
+    return sentbytes;
+}
 
-}}//end of nova::redis
+
+
+} } //end of nova::redis

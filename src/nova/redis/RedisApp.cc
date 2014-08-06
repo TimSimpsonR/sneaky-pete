@@ -27,6 +27,11 @@ using nova::process::shell;
 using std::string;
 using std::stringstream;
 
+// Use a macro so we log the line number from this file.
+#define SHELL(cmd) { \
+        NOVA_LOG_INFO(cmd); \
+        shell(cmd, false); \
+    }
 
 // Macros are bad, but better than duplicating these two lines everywhere.
 #define THROW_PASSWORD_ERROR(msg) { \
@@ -95,22 +100,26 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     }
     const string root_password = json_root_password.get();
 
-    shell("sudo rm /etc/redis/redis.conf");
-    shell("sudo chmod -R 777 /etc/redis");
+    SHELL("sudo rm /etc/redis/redis.conf");
+    SHELL("sudo chmod -R 777 /etc/redis");
 
     write_config(config_contents, root_password);
 
-    shell("mkdir /etc/redis/conf.d");
+
+    NOVA_LOG_INFO("Starting to muck with Redis's config file.");
+    SHELL("mkdir -p /etc/redis/conf.d");
+    NOVA_LOG_INFO("Checking for Redis file.");
     if (is_file("/etc/redis/conf.d/local.conf")) {
-        shell("rm /etc/redis/conf.d/local.conf");
+        SHELL("rm /etc/redis/conf.d/local.conf");
     }
-    nova::redis::Client client;
+
     NOVA_LOG_INFO("Opening /etc/redis/conf.d/local.conf for writing");
     {
         ofstream fd;
         fd.open("/etc/redis/conf.d/local.conf");
         if (fd.is_open())
         {
+            Config config;
             const string local_conf = str(format(
                         "maxmemory %1%\n"
                         "dir %2%\n"
@@ -120,13 +129,13 @@ void RedisApp::prepare(const optional<string> & json_root_password,
                         "port %5%\n"
                         "logfile %6%\n"
                         "appendfilename %7%")
-                        % client.config->get_max_memory()
-                        % client.config->get_db_dir()
-                        % client.config->get_pidfile()
-                        % client.config->get_db_filename()
-                        % client.config->get_port()
-                        % client.config->get_log_file()
-                        % client.config->get_append_filename());
+                        % config.get_max_memory()
+                        % config.get_db_dir()
+                        % config.get_pidfile()
+                        % config.get_db_filename()
+                        % config.get_port()
+                        % config.get_log_file()
+                        % config.get_append_filename());
 
             fd << local_conf;
             fd.close();
@@ -137,13 +146,13 @@ void RedisApp::prepare(const optional<string> & json_root_password,
             THROW_PREPARE_ERROR("Unable to open /etc/redis/conf.d/local.conf");
         }
     }
-    shell("sudo chmod 644 /etc/redis/conf.d/local.conf");
-    shell("sudo chmod 755 /etc/redis");
+    SHELL("sudo chmod 644 /etc/redis/conf.d/local.conf");
+    SHELL("sudo chmod 755 /etc/redis");
     if (system("sudo chmod 755 /etc/redis/conf.d") == -1)
     {
         THROW_PREPARE_ERROR("Unable to chmod /etc/redis/conf.d to 755");
     }
-    shell("sudo chown -R redis:redis /etc/redis");
+    SHELL("sudo chown -R redis:redis /etc/redis");
     NOVA_LOG_INFO("Setting up Redis to start on boot.");
     start_on_boot.setup_defaults();
     start_on_boot.enable_or_throw();
@@ -154,11 +163,14 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     }
     NOVA_LOG_INFO("Starting redis instance.");
     internal_start(false);
+
+    NOVA_LOG_INFO("Making sure we can connect to Redis...");
+    nova::redis::Client client;
 }
 
 void RedisApp::reset_configuration(const std::string & config_contents) {
-    nova::redis::Client client;
-    const string root_password = client.config->get_require_pass();
+    Config config;
+    const string root_password = config.get_require_pass();
     write_config(config_contents, root_password);
 }
 
@@ -166,8 +178,8 @@ void RedisApp::start_with_conf_changes(const std::string & config_contents) {
     //TODO (cweid): I need to add in HA persistance to the upgrade calls.
     // Will add in the Am.
     NOVA_LOG_INFO("Entering start_db_with_conf_changes call.");
-    nova::redis::Client client;
-    const string root_password = client.config->get_require_pass();
+    Config config;
+    const string root_password = config.get_require_pass();
     reset_configuration(config_contents);
     internal_start(true);
     NOVA_LOG_INFO("Redis instance started.");
@@ -193,8 +205,8 @@ void RedisApp::write_config(const string & config_contents,
             THROW_PREPARE_ERROR("Couldn't open config file.");
         }
     }
-    shell("sudo cp /tmp/redis.conf /etc/redis/redis.conf");
-    shell("sudo chmod 644 /etc/redis/redis.conf");
+    SHELL("sudo cp /tmp/redis.conf /etc/redis/redis.conf");
+    SHELL("sudo chmod 644 /etc/redis/redis.conf");
 }
 
 } }  // end namespace

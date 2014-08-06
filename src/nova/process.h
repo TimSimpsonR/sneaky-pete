@@ -82,7 +82,7 @@ void force_kill(pid_t pid);
 bool is_pid_alive(pid_t pid);
 
 /** Uses the system call. Throws exception if exit code is not equal to 0. */
-void shell(const char * const cmds);
+void shell(const char * const cmds, bool log = true);
 
 
 class ProcessException : public std::exception {

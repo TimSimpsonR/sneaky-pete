@@ -45,24 +45,10 @@ static const std::string SERROR_RESPONSE = "serror";
 // //that is unrelated to the redis protocol itself.
 // static const std::string SERROR_DESCRIPTION = "Redis server error.";
 
-//This status is returned when the redis server times out.
-static const std::string STIMEOUT_RESPONSE = "stimeout";
-
-//This status is returned when the client is timed out.
-static const std::string CTIMEOUT_RESPONSE = "ctimeout";
-
-// //This status description is returned when a the redis client times out.
-// static const std::string CTIMEOUT_DESCRIPTION = "Redis client timed out.";
-
-//This status is returned when the client is connected.
-static const std::string CCONNECTED_RESPONSE = "cconnected";
-
-// //This status description is returned when the client is connected.
-// static const std::string CCONNECTED_DESCRIPTION = "Redis client connected.";
-
 //This status is returned when the client has a connection error.
 static const std::string CCONNECTION_ERR_RESPONSE = "cconnection_err";
 
+//TODO(tim.simpson): This looks like it may be useless.
 //This status is returned when a message has been sent to a redis server.
 static const std::string CMESSAGE_SENT_RESPONSE = "cmessage_sent";
 
@@ -77,20 +63,11 @@ static const std::string CNOTHING_TO_DO_RESPONSE  = "cnothing";
 //Default path to the redis config file
 static const std::string DEFAULT_REDIS_CONFIG = "/etc/redis/redis.conf";
 
-//Default redis port.
-static const std::string REDIS_PORT = "6379";
-
 //Default redis agent name for the guestagent.
 static const std::string REDIS_AGENT_NAME = "trove-guestagent";
 
-//Default socket for the guest agent to connect to.
-static const std::string SOCKET_NAME = "localhost";
-
 //Socket error status code.
 static const int SOCK_ERROR = -1;
-
-//Max number of retries.
-static const int MAX_RETRIES = 100;
 
 //The length of one byte.
 static const int FIRST_BYTE_READ = 1;

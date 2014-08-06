@@ -16,6 +16,8 @@ const char * RedisException::what() throw() {
     switch(code) {
         case CHANGE_PASSWORD_ERROR:
             return "Error changing passwords.";
+        case CONNECTION_ERROR:
+            return "Couldn't create connection to Redis!";
         case COULD_NOT_START:
             return "Could not stop Redis!";
         case COULD_NOT_STOP:
@@ -28,6 +30,8 @@ const char * RedisException::what() throw() {
             return "Missing root password argument in prepare call!";
         case PREPARE_ERROR:
             return "An error occured while preparing Redis.";
+        case RESPONSE_TIMEOUT:
+            return "Timeout receiving response from Redis.";
         case UNABLE_TO_WRITE_CONFIG:
             return "Unable to write new config.";
         default:

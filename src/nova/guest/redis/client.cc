@@ -9,6 +9,7 @@
 #include "commands.h"
 #include "config.h"
 #include "nova/Log.h"
+#include "nova/redis/RedisException.h"
 
 using nova::Log;
 using std::string;
@@ -18,6 +19,9 @@ namespace nova { namespace redis {
 
 
 namespace {
+
+    //Max number of retries.
+    static const int MAX_RETRIES = 100;
 
     string find_config_command(Config & config) {
         for (unsigned int i=0; i < config.get_renamed_commands().size(); ++ i){
@@ -30,42 +34,17 @@ namespace {
     }
 }
 
-Response Client::_connect()
-{
-    int retries = 0;
-    while (retries <= MAX_RETRIES)
-    {
-        _socket = get_socket(_host, _port);
-        if (_socket >= 0)
-        {
-            break;
-        }
-        ++retries;
-    }
-    if (_socket >= 0)
-    {
-        return Response(CCONNECTED_RESPONSE);
-    }
-    return Response(CCONNECTION_ERR_RESPONSE);
-}
 
-Response Client::_send_redis_message(string message)
-{
-    int sres = 0;
-    if (_socket < 0)
-    {
-        Response res = _connect();
-        if (res.status != CCONNECTED_RESPONSE)
-        {
-            return res;
-        }
+Response Client::_send_redis_message(const string & message) {
+    //TODO(tim.simpson): Maybe change it to look for the good return value
+    //                   rather than avoid the one bad one.
+    NOVA_LOG_TRACE("Sending redis message: %s", message);
+    if (SOCK_ERROR == _socket.send_message(message)) {
+        throw RedisException(RedisException::RESPONSE_TIMEOUT);
     }
-    sres = send_message(_socket, message);
-    if (sres == SOCK_ERROR)
-    {
-        return Response(STIMEOUT_RESPONSE);
-    }
-    return Response(CMESSAGE_SENT_RESPONSE);
+    auto res = _get_redis_response();
+    NOVA_LOG_TRACE("Redis response: %s", res.status);
+    return res;
 }
 
 Response Client::_get_redis_response()
@@ -86,17 +65,13 @@ Response Client::_get_redis_response()
     int retries = 0;
     string first_byte;
     string res = "";
-    if (_socket < 0)
-    {
-        return Response(STIMEOUT_RESPONSE);
-    }
     while (true)
     {
         if (retries == MAX_RETRIES)
         {
-            return Response(CTIMEOUT_RESPONSE);
+            throw RedisException(RedisException::RESPONSE_TIMEOUT);
         }
-        first_byte = get_response(_socket, FIRST_BYTE_READ);
+        first_byte = _socket.get_response(FIRST_BYTE_READ);
         if (first_byte.length() > 0)
         {
             break;
@@ -112,9 +87,9 @@ Response Client::_get_redis_response()
         {
             if (retries == MAX_RETRIES)
             {
-                return Response(CTIMEOUT_RESPONSE);
+                throw RedisException(RedisException::RESPONSE_TIMEOUT);
             }
-            res += get_response(_socket, READ_LEN);
+            res += _socket.get_response(READ_LEN);
             if (res.length() == 0)
             {
                 ++retries;
@@ -136,10 +111,10 @@ Response Client::_get_redis_response()
     {
         while (true)
         {
-            tmp_byte = get_response(_socket, 1);
+            tmp_byte = _socket.get_response(1);
             if (tmp_byte == "\r")
             {
-                get_response(_socket, 2);
+                _socket.get_response(2);
                 multi_args = boost::lexical_cast<int>(tmp_multi);
                 tmp_byte = "";
                 break;
@@ -153,25 +128,23 @@ Response Client::_get_redis_response()
             {
                 if (tmp_byte == "\r")
                 {
-                    get_response(_socket, 1);
+                    _socket.get_response(1);
                     tmp_byte = "";
                     multi_len = boost::lexical_cast<int>(tmp_multi_len);
                     break;
                 }
-                tmp_byte = get_response(_socket, 1);
+                tmp_byte = _socket.get_response(1);
                 tmp_multi_len += tmp_byte;
             }
-            multi_data += get_response(_socket,
-                                        multi_len);
+            multi_data += _socket.get_response(multi_len);
             if (multi_args != 1)
             {
                 multi_data += " ";
-                get_response(_socket,
-                                3);
+                _socket.get_response(3);
             }
             else
             {
-                get_response(_socket, 2);
+                _socket.get_response(2);
             }
             --multi_args;
         }
@@ -183,188 +156,95 @@ Response Client::_get_redis_response()
     }
 }
 
-Response Client::_set_client()
+void Client::_set_client()
 {
-    if (!_name_set)
-    {
-        Response res = _send_redis_message(
-            _commands->client_set_name(_client_name));
-        if (res.status != CMESSAGE_SENT_RESPONSE)
-        {
-            return res;
-        }
-        res = _get_redis_response();
-        if (res.status == STRING_RESPONSE)
-        {
-            _name_set = true;
-        }
-        return res;
-    }
-    return Response(CNOTHING_TO_DO_RESPONSE);
-}
-
-Response Client::_auth()
-{
-    if (_commands->requires_auth() && !_authed)
-    {
-        Response res = _send_redis_message(_commands->auth());
-        if (res.status != CMESSAGE_SENT_RESPONSE)
-        {
-            return res;
-        }
-        res = _get_redis_response();
-        if (res.status == ERROR_RESPONSE)
-        {
-            res = _send_redis_message(_commands->auth());
-            if (res.status != CMESSAGE_SENT_RESPONSE)
-            {
-                return res;
-            }
-            res = _get_redis_response();
-            if (res.status == STRING_RESPONSE)
-            {
-                _authed = true;
-            }
-        }
-        if (res.status == STRING_RESPONSE)
-        {
-            _authed = true;
-        }
-        return res;
-    }
-    _authed = true;
-    return Response(CNOTHING_TO_DO_RESPONSE);
-}
-
-Response Client::_reconnect()
-{
-    close(_socket);
-    _authed = false;
-    _name_set = false;
-    _socket = -1;
-    config.reset(new Config(_config_file));
-    _commands.reset(new Commands(config->get_require_pass(),
-                                 find_config_command(*config)));
-    Response res = _connect();
-    if (res.status != CCONNECTED_RESPONSE)
-    {
-        return res;
-    }
-    res = _auth();
+    Response res = _send_redis_message(
+        _commands->client_set_name(_client_name));
     if (res.status != STRING_RESPONSE)
     {
-        return res;
+        NOVA_LOG_ERROR("Failure calling CLIENT SETNAME on Redis!");
+        throw RedisException(RedisException::CANT_SET_NAME);
     }
-    res = _set_client();
-    if (res.status != STRING_RESPONSE)
+}
+
+bool Client::_auth_required() {
+    return _commands->requires_auth();
+}
+
+void Client::_auth()
+{
+    if (_auth_required())
     {
-        return res;
+        NOVA_LOG_TRACE("Redis auth required, sending auth.");
+        const Response res = _send_redis_message(_commands->auth());
+        if (res.status == STRING_RESPONSE) {
+            NOVA_LOG_TRACE("Authed!");
+        } else {
+            NOVA_LOG_ERROR("Couldn't auth to Redis.");
+            throw RedisException(RedisException::COULD_NOT_AUTH);
+        }
     }
-    return Response(CCONNECTED_RESPONSE);
 }
 
 Client::Client(
     const boost::optional<string> & host,
-    const boost::optional<string> & port,
+    const boost::optional<int> & port,
     const boost::optional<string> & client_name,
     const boost::optional<string> & config_file)
-:   _port(port.get_value_or(REDIS_PORT)),
-    _host(host.get_value_or(SOCKET_NAME)),
-    _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
+:   _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
     _config_file(config_file.get_value_or(DEFAULT_REDIS_CONFIG)),
-    config(new Config(_config_file))
+    config(new Config(_config_file)),
+    _commands(),
+    _socket(host.get_value_or("localhost"), port.get_value_or(6379),
+            MAX_RETRIES)
 {
     _commands.reset(new Commands(config->get_require_pass(),
                                  find_config_command(*config)));
-    _authed = false;
-    _name_set = false;
-    _socket = -1;
-    _connect();
     _auth();
     _set_client();
 }
 
 Client::~Client()
 {
-    close(_socket);
 }
 
 Response Client::ping()
 {
-    if (_socket == -1)
-    {
-        _reconnect();
-    }
-    Response res = _send_redis_message(_commands->ping());
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->ping());
+}
+
+Response Client::info() {
+    return _send_redis_message(_commands->info());
 }
 
 Response Client::bgsave()
 {
-    Response res = _send_redis_message(_commands->bgsave());
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->bgsave());
 }
 
 Response Client::save()
 {
-    Response res = _send_redis_message(_commands->save());
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->save());
 }
 
 Response Client::last_save()
 {
-    Response res = _send_redis_message(
-        _commands->last_save());
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->last_save());
 }
 
 Response Client::config_get(string name)
 {
-    Response res = _send_redis_message(
-        _commands->config_get(name));
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->config_get(name));
 }
 
 Response Client::config_set(string name, string value)
 {
-    Response res = _send_redis_message(
-        _commands->config_set(name, value));
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->config_set(name, value));
 }
 
 Response Client::config_rewrite()
 {
-    Response res = _send_redis_message(
-        _commands->config_rewrite());
-    if (res.status != CMESSAGE_SENT_RESPONSE)
-    {
-        return res;
-    }
-    return _get_redis_response();
+    return _send_redis_message(_commands->config_rewrite());
 }
 
 

@@ -291,8 +291,10 @@ bool is_pid_alive(pid_t pid) {
     return result == 0;
 }
 
-void shell(const char * const cmds) {
-    NOVA_LOG_INFO("shell: %s", cmds);
+void shell(const char * const cmds, bool log) {
+    if (log) {
+        NOVA_LOG_INFO("shell: %s", cmds);
+    }
     const auto code = system(cmds);
     if (0 != code) {
         NOVA_LOG_ERROR("Bad exit code (%d) for shell commands: %s", code, cmds);

@@ -26,6 +26,8 @@ class Commands
 
         std::string config_rewrite() const;
 
+        std::string info() const;
+
         std::string bgsave() const;
 
         std::string save() const;

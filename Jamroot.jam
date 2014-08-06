@@ -603,8 +603,8 @@ unit u_nova_guest_agent
     :   src/nova/guest/agent.cc
     ;
 
-unit u_redis_client
-    :   src/nova/guest/redis/client.cc
+unit u_redis_connection
+    :   src/nova/guest/redis/connection.cc
     ;
 
 unit u_redis_commands
@@ -613,12 +613,14 @@ unit u_redis_commands
     :   tests/nova/redis/CommandsTests.cc
     ;
 
-unit u_redis_config
-    :   src/nova/guest/redis/config.cc
+unit u_redis_client
+    :   src/nova/guest/redis/client.cc
+    :   u_redis_connection
+        u_redis_commands
     ;
 
-unit u_redis_connection
-    :   src/nova/guest/redis/connection.cc
+unit u_redis_config
+    :   src/nova/guest/redis/config.cc
     ;
 
 unit u_redis_response
@@ -643,6 +645,8 @@ unit u_nova_redis_RedisBackup
         u_nova_backup_BackupException
         u_nova_backup_BackupManager
         u_nova_backup_BackupRestore
+        u_redis_config
+        u_redis_response
     ;
 
 
@@ -653,9 +657,8 @@ unit u_nova_redis_RedisApp
         u_nova_redis_RedisBackup
         u_nova_redis_RedisException
         u_redis_client
+        u_redis_config
     ;
-
-
 
 
 unit u_nova_guest_redis_message_handler
@@ -673,7 +676,6 @@ unit u_nova_guest_redis_message_handler
         u_redis_client
         u_redis_commands
         u_redis_config
-        u_redis_connection
         u_redis_response
         u_nova_redis_RedisAppStatus
     ;
@@ -848,6 +850,21 @@ exe nova_process_fd_demo
         u_nova_process
         lib_boost_thread
         tests/nova/process_fd_demo.cc
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe redis_backup_demo
+    :   pch
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_utils_swift
+        u_nova_redis_RedisBackup
+        u_nova_guest_common_PrepareHandler
+        u_nova_redis_RedisException
+        u_redis_client
+        u_nova_backup_BackupException
+        u_nova_backup_BackupManager
+        u_nova_backup_BackupRestore
+        tests/redis_backup_demo.cc
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
@@ -1078,6 +1095,7 @@ install tools
         format_file
         greedy_pete
         mount_file
+        redis_backup_demo
         resizefs_file
         unmount_file
         upload_file

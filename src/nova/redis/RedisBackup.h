@@ -33,8 +33,6 @@ namespace nova { namespace redis {
                 return result;
             }
 
-            class Job;
-
             virtual void run_backup(const std::string & tenant,
                                     const std::string & token,
                                     const nova::backup::BackupInfo & backup_info);
@@ -63,8 +61,9 @@ namespace nova { namespace redis {
 
             virtual void run(const nova::backup::BackupRestoreInfo & restore);
 
-        private:
             class Job;
+
+        private:
 
             const nova::process::CommandList commands;
             const size_t zlib_buffer_size;

@@ -8,7 +8,7 @@
 #include "commands.h"
 #include <memory>
 #include "config.h"
-
+#include "connection.h"
 
 namespace nova { namespace redis {
 
@@ -23,52 +23,18 @@ class Client
      * of any open file descriptors or sockets on deconstruction.
      */
 {
-    private:
-
-        bool _authed;
-
-        bool _name_set;
-
-        int _socket;
-
-        std::string _port;
-
-        std::string _host;
-
-        std::string _client_name;
-
-        std::string _config_file;
-
-        std::unique_ptr<Commands> _commands;
-
-        /*
-         * Connects to the redis server using nova::redis::get_socket.
-         * found
-         */
-        Response _connect();
-
-        Response _send_redis_message(std::string message);
-
-        Response _get_redis_response();
-
-        Response _set_client();
-
-        Response _auth();
-
-        Response _reconnect();
-
     public:
 
-        std::unique_ptr<Config> config;
-
         Client(const boost::optional<std::string> & host=boost::none,
-               const boost::optional<std::string> & port=boost::none,
+               const boost::optional<int> & port=boost::none,
                const boost::optional<std::string> & client_name=boost::none,
                const boost::optional<std::string> & config_file=boost::none);
 
         ~Client();
 
         Response ping();
+
+        Response info();
 
         Response bgsave();
 
@@ -82,6 +48,37 @@ class Client
 
         Response config_rewrite();
 
+    private:
+
+        bool _authed;
+
+        bool _auth_required();
+
+        const std::string _client_name;
+
+        const std::string _config_file;
+
+        std::unique_ptr<Config> config;
+
+        std::unique_ptr<Commands> _commands;
+
+        bool _name_set;
+
+        Socket _socket;
+
+        /*
+         * Connects to the redis server using nova::redis::get_socket.
+         * found
+         */
+        void _connect();
+
+        Response _send_redis_message(const std::string & message);
+
+        Response _get_redis_response();
+
+        void _set_client();
+
+        void _auth();
 };
 
 

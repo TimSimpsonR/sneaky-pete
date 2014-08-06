@@ -36,7 +36,7 @@ class Config
         bool _get_bool_value(std::string key);
 
     public:
-        Config(std::string config);
+        Config(const boost::optional<std::string> & config=boost::none);
 
         bool write_new_config(std::string config);
 

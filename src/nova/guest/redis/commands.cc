@@ -82,6 +82,10 @@ string Commands::bgsave() const {
     return redis_array("BGSAVE");
 }
 
+string Commands::info() const {
+    return redis_array("INFO");
+}
+
 string Commands::save() const {
     return redis_array("SAVE");
 }

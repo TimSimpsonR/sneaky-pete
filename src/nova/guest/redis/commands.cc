@@ -42,10 +42,8 @@ namespace {
     }
 }
 
-Commands::Commands(const string & _password,
-    const boost::optional<string> & config_command)
-:   _config_command(config_command.get_value_or("CONFIG")),
-    password(_password)
+Commands::Commands(const string & _password)
+:   password(_password)
 {
 }
 
@@ -67,15 +65,15 @@ string Commands::ping() const {
 }
 
 string Commands::config_set(string key, string value) const {
-    return redis_array(_config_command, "SET", key, value);
+    return redis_array("CONFIG", "SET", key, value);
 }
 
 string Commands::config_get(string key) const {
-    return redis_array(_config_command, "GET", key);
+    return redis_array("CONFIG", "GET", key);
 }
 
 string Commands::config_rewrite() const {
-    return redis_array(_config_command, "REWRITE");
+    return redis_array("CONFIG", "REWRITE");
 }
 
 string Commands::bgsave() const {

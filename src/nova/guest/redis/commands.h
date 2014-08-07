@@ -12,9 +12,7 @@ namespace nova { namespace redis {
 class Commands
 {
     public:
-        Commands(
-            const std::string & _password,
-            const boost::optional<std::string> & config_command = boost::none);
+        Commands(const std::string & _password);
 
         std::string auth() const;
 
@@ -39,7 +37,6 @@ class Commands
         bool requires_auth() const;
 
     private:
-        const std::string _config_command;
 
         const std::string password;
 };

@@ -38,8 +38,6 @@ using nova::json_string;
 using boost::optional;
 using namespace std;
 using boost::tie;
-using nova::redis::REDIS_AGENT_NAME;
-using nova::redis::DEFAULT_REDIS_CONFIG;
 using nova::guest::common::PrepareHandlerPtr;
 using nova::redis::REQUIRE_PASS;
 using nova::redis::RedisApp;

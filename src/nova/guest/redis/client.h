@@ -25,10 +25,13 @@ class Client
 {
     public:
 
+        /* Creates a new client.
+         * If the host, port, and password aren't given the connection is
+         * made to the standard port on localhost and the Redis config
+         * file is read to determine the password. */
         Client(const boost::optional<std::string> & host=boost::none,
                const boost::optional<int> & port=boost::none,
-               const boost::optional<std::string> & client_name=boost::none,
-               const boost::optional<std::string> & config_file=boost::none);
+               const boost::optional<std::string> & password=boost::none);
 
         ~Client();
 
@@ -53,10 +56,6 @@ class Client
         bool _authed;
 
         bool _auth_required();
-
-        const std::string _client_name;
-
-        const std::string _config_file;
 
         std::unique_ptr<Config> config;
 

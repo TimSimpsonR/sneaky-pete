@@ -60,12 +60,6 @@ static const std::string CMESSAGE_SENT_RESPONSE = "cmessage_sent";
 //This is returned when a command results in no response nothing to parse.
 static const std::string CNOTHING_TO_DO_RESPONSE  = "cnothing";
 
-//Default path to the redis config file
-static const std::string DEFAULT_REDIS_CONFIG = "/etc/redis/redis.conf";
-
-//Default redis agent name for the guestagent.
-static const std::string REDIS_AGENT_NAME = "trove-guestagent";
-
 //Socket error status code.
 static const int SOCK_ERROR = -1;
 

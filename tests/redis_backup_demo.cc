@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     LogApiScope log(LogOptions::simple());
     CurlScope scope;
 
-    RedisBackUpJob<Client> job;
+    RedisBackupJob<Client> job;
 
     job();
 

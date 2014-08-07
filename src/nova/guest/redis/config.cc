@@ -57,7 +57,7 @@ bool Config::_get_bool_value(std::string key)
 }
 
 Config::Config(const optional<string> & config)
-:   _redis_config(config.get_value_or(DEFAULT_REDIS_CONFIG))
+:   _redis_config(config.get_value_or("/etc/redis/redis.conf"))
 {
     std::string line;
     std::string value;
@@ -139,6 +139,7 @@ Config::Config(const optional<string> & config)
     rconfig.close();
 
 }
+
 std::vector<std::string> Config::get_include_files()
 {
     return _include;

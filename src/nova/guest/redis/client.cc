@@ -22,16 +22,6 @@ namespace {
 
     //Max number of retries.
     static const int MAX_RETRIES = 100;
-
-    string find_config_command(Config & config) {
-        for (unsigned int i=0; i < config.get_renamed_commands().size(); ++ i){
-            if (config.get_renamed_commands()[i][RENAMED_COMMAND] ==
-                COMMAND_CONFIG) {
-                return config.get_renamed_commands()[i][NEW_COMMAND_NAME];
-            }
-        }
-        return COMMAND_CONFIG;
-    }
 }
 
 
@@ -159,7 +149,7 @@ Response Client::_get_redis_response()
 void Client::_set_client()
 {
     Response res = _send_redis_message(
-        _commands->client_set_name(_client_name));
+        _commands->client_set_name("trove-guestagent"));
     if (res.status != STRING_RESPONSE)
     {
         NOVA_LOG_ERROR("Failure calling CLIENT SETNAME on Redis!");
@@ -189,17 +179,19 @@ void Client::_auth()
 Client::Client(
     const boost::optional<string> & host,
     const boost::optional<int> & port,
-    const boost::optional<string> & client_name,
-    const boost::optional<string> & config_file)
-:   _client_name(client_name.get_value_or(REDIS_AGENT_NAME)),
-    _config_file(config_file.get_value_or(DEFAULT_REDIS_CONFIG)),
-    config(new Config(_config_file)),
-    _commands(),
+    const boost::optional<string> & password)
+:   _commands(),
     _socket(host.get_value_or("localhost"), port.get_value_or(6379),
             MAX_RETRIES)
 {
-    _commands.reset(new Commands(config->get_require_pass(),
-                                 find_config_command(*config)));
+    string pw;
+    if (password) {
+        pw = password.get();
+    } else {
+        Config config;
+        pw = config.get_require_pass();
+    }
+    _commands.reset(new Commands(pw));
     _auth();
     _set_client();
 }

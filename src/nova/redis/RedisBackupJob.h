@@ -6,20 +6,20 @@ namespace nova { namespace redis {
 //TODO(tim.simpson): Pretty obvious.
 
 template<typename ClientType>
-class RedisBackUpJob : public nova::utils::Job {
+class RedisBackupJob : public nova::utils::Job {
 public:
     ClientType client;
 
-    RedisBackUpJob()
+    RedisBackupJob()
     : client()
     {
     }
 
-    virtual ~RedisBackUpJob() {
+    virtual ~RedisBackupJob() {
     }
 
     virtual nova::utils::Job * clone() const {
-        return new RedisBackUpJob();
+        return new RedisBackupJob();
     }
 
     // bool bgsave_or_aof_rewrite_ocurring();

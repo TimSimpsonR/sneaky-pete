@@ -18,6 +18,7 @@
 
 
 using boost::lexical_cast;
+using boost::optional;
 using std::string;
 
 
@@ -138,7 +139,7 @@ std::string Socket::get_response(int read_bytes) {
     return data;
 }
 
-int Socket::send_message(std::string message) {
+optional<int> Socket::send_message(std::string message) {
     ensure_connected();
     int numbytes;
     int sentbytes = 0;
@@ -149,7 +150,7 @@ int Socket::send_message(std::string message) {
                 strlen(message.c_str()), 0)) == -1)
         {
             perror("send");
-            return -1;
+            return boost::none;
         }
         message = message.substr(numbytes, message.length());
         sentbytes += numbytes;

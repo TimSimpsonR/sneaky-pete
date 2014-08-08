@@ -1,6 +1,7 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
+#include <boost/optional.hpp>
 #include <string>
 
 namespace nova { namespace redis {
@@ -8,21 +9,20 @@ namespace nova { namespace redis {
 
 class Socket {
 public:
-    //TODO(tim.simpson): port should be an integer!
     Socket(const std::string & host, const int port,
            const int max_retries);
 
-    ~Socket();
+    virtual ~Socket();
 
     Socket(const Socket & other);
 
     Socket & operator = (const Socket & rhs);
 
-    void close();
+    virtual void close();
 
-    std::string get_response(int read_bytes);
+    virtual std::string get_response(int read_bytes);
 
-    int send_message(std::string message);
+    virtual boost::optional<int> send_message(std::string message);
 
 private:
 

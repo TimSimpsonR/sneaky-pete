@@ -12,7 +12,7 @@ RedisException::RedisException(RedisException::Code code) throw()
 RedisException::~RedisException() throw() {
 }
 
-const char * RedisException::what() throw() {
+const char * RedisException::what() const throw() {
     switch(code) {
         case CHANGE_PASSWORD_ERROR:
             return "Error changing passwords.";

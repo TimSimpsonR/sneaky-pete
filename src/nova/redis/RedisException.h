@@ -26,10 +26,9 @@ class RedisException : public std::exception {
 
         virtual ~RedisException() throw();
 
-        virtual const char * what() throw();
+        virtual const char * what() const throw();
 
-    private:
-        Code code;
+        const Code code;
 };
 
 } }

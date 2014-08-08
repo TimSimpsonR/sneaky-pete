@@ -8,7 +8,6 @@
 #include <boost/format.hpp>
 #include "nova/Log.h"
 #include <boost/assign/list_of.hpp>
-#include "nova/guest/redis/client.h"
 #include "nova/redis/RedisBackup.h"
 #include "nova/redis/RedisBackupJob.h"
 
@@ -32,9 +31,9 @@ int main(int argc, char **argv)
     LogApiScope log(LogOptions::simple());
     CurlScope scope;
 
-    RedisBackupJob<Client> job;
+    //RedisBackupJob<Client> job;
 
-    job();
+    //job();
 
     return 0;
 }

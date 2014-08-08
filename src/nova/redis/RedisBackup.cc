@@ -4,7 +4,6 @@
 #include "pch.hpp"
 #include "RedisBackup.h"
 #include "RedisBackupJob.h"
-#include "nova/guest/redis/client.h"
 
 using nova::backup::BackupInfo;
 using nova::backup::BackupRestoreInfo;

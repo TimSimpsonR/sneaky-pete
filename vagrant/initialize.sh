@@ -138,9 +138,6 @@ cd $BUILD_DIR/hiredis
 make
 sudo make install
 
-# On the Reddwarf VM this seems to be necessary.
-sudo cp /usr/local/lib/hiredis* /usr/lib/
-
 
 ###############################################################################
 #  Complex stuff for static linking (I think)

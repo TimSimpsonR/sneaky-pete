@@ -60,18 +60,6 @@ static const std::string CMESSAGE_SENT_RESPONSE = "cmessage_sent";
 //This is returned when a command results in no response nothing to parse.
 static const std::string CNOTHING_TO_DO_RESPONSE  = "cnothing";
 
-//Socket error status code.
-static const int SOCK_ERROR = -1;
-
-//The length of one byte.
-static const int FIRST_BYTE_READ = 1;
-
-//Max read length in bytes, for the client.
-static const int READ_LEN = 2048;
-
-//CRLF constant.
-static const std::string CRLF = "\r\n";
-
 //This is bad but it is a value that is never used by redis.
 //So it means the item does not exist in the vector.
 static const int INT_NULL = -42;

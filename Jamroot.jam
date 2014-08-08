@@ -617,6 +617,11 @@ unit u_redis_client
     :   src/nova/guest/redis/client.cc
     :   u_redis_connection
         u_redis_commands
+        u_nova_Log
+        u_nova_redis_RedisException
+        u_redis_response
+        u_redis_config
+    :   tests/nova/redis/ClientTests.cc
     ;
 
 unit u_redis_config

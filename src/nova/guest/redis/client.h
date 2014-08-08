@@ -51,6 +51,13 @@ class Client
 
         Response config_rewrite();
 
+    protected:
+        // The constructor below is only used by the unit tests.
+        friend class ClientTestFixture;
+
+        Client(Socket * socket,
+               const std::string & password);
+
     private:
 
         bool _authed;
@@ -63,7 +70,7 @@ class Client
 
         bool _name_set;
 
-        Socket _socket;
+        std::unique_ptr<Socket> _socket;
 
         /*
          * Connects to the redis server using nova::redis::get_socket.

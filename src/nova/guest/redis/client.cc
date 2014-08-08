@@ -22,6 +22,11 @@ namespace {
 
     //Max number of retries.
     static const int MAX_RETRIES = 100;
+
+    bool has_cr_lf(const string & s) {
+        const int index = s.length() - 2;
+        return index >= 0 && s.substr(index) == "\r\n";
+    }
 }
 
 
@@ -29,13 +34,14 @@ Response Client::_send_redis_message(const string & message) {
     //TODO(tim.simpson): Maybe change it to look for the good return value
     //                   rather than avoid the one bad one.
     NOVA_LOG_TRACE("Sending redis message: %s", message);
-    if (SOCK_ERROR == _socket.send_message(message)) {
+    if (!_socket->send_message(message)) {
         throw RedisException(RedisException::RESPONSE_TIMEOUT);
     }
     auto res = _get_redis_response();
     NOVA_LOG_TRACE("Redis response: %s", res.status);
     return res;
 }
+
 
 Response Client::_get_redis_response()
 {
@@ -61,7 +67,7 @@ Response Client::_get_redis_response()
         {
             throw RedisException(RedisException::RESPONSE_TIMEOUT);
         }
-        first_byte = _socket.get_response(FIRST_BYTE_READ);
+        first_byte = _socket->get_response(1);
         if (first_byte.length() > 0)
         {
             break;
@@ -79,19 +85,14 @@ Response Client::_get_redis_response()
             {
                 throw RedisException(RedisException::RESPONSE_TIMEOUT);
             }
-            res += _socket.get_response(READ_LEN);
-            if (res.length() == 0)
-            {
-                ++retries;
-                continue;
-            }
-            if (res.substr(res.length() - CRLF.length()) == CRLF)
-            {
+            res += _socket->get_response(2048);
+            if (has_cr_lf(res)) {
                 break;
             }
             ++retries;
         }
-        if (res.substr(res.length() - CRLF.length()) != CRLF)
+        //TODO(tim.simpson): This code looks impossible. Remove.
+        if (!has_cr_lf(res))
         {
             return Response(SERROR_RESPONSE);
         }
@@ -101,10 +102,10 @@ Response Client::_get_redis_response()
     {
         while (true)
         {
-            tmp_byte = _socket.get_response(1);
+            tmp_byte = _socket->get_response(1);
             if (tmp_byte == "\r")
             {
-                _socket.get_response(2);
+                _socket->get_response(2);
                 multi_args = boost::lexical_cast<int>(tmp_multi);
                 tmp_byte = "";
                 break;
@@ -118,23 +119,23 @@ Response Client::_get_redis_response()
             {
                 if (tmp_byte == "\r")
                 {
-                    _socket.get_response(1);
+                    _socket->get_response(1);
                     tmp_byte = "";
                     multi_len = boost::lexical_cast<int>(tmp_multi_len);
                     break;
                 }
-                tmp_byte = _socket.get_response(1);
+                tmp_byte = _socket->get_response(1);
                 tmp_multi_len += tmp_byte;
             }
-            multi_data += _socket.get_response(multi_len);
+            multi_data += _socket->get_response(multi_len);
             if (multi_args != 1)
             {
                 multi_data += " ";
-                _socket.get_response(3);
+                _socket->get_response(3);
             }
             else
             {
-                _socket.get_response(2);
+                _socket->get_response(2);
             }
             --multi_args;
         }
@@ -173,6 +174,7 @@ void Client::_auth()
             NOVA_LOG_ERROR("Couldn't auth to Redis.");
             throw RedisException(RedisException::COULD_NOT_AUTH);
         }
+
     }
 }
 
@@ -181,8 +183,8 @@ Client::Client(
     const boost::optional<int> & port,
     const boost::optional<string> & password)
 :   _commands(),
-    _socket(host.get_value_or("localhost"), port.get_value_or(6379),
-            MAX_RETRIES)
+    _socket(new Socket(host.get_value_or("localhost"), port.get_value_or(6379),
+                       MAX_RETRIES))
 {
     string pw;
     if (password) {
@@ -194,6 +196,14 @@ Client::Client(
     _commands.reset(new Commands(pw));
     _auth();
     _set_client();
+}
+
+Client::Client(
+    Socket * socket,
+    const string & password)
+:   _commands(new Commands(password)),
+    _socket(socket)
+{
 }
 
 Client::~Client()

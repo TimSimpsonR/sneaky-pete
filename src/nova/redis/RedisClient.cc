@@ -98,8 +98,7 @@ RedisClient::RedisClient()
         NOVA_LOG_ERROR("Redis connection error: %s\n", context->errstr);
         throw RedisException(RedisException::CONNECTION_ERROR);
     }
-    BOOST_ASSERT_MSG(((context.flags | REDIS_BLOCK) != REDIS_BLOCK),
-                     "Redis not set to blocking.");
+    BOOST_ASSERT((context->flags | REDIS_BLOCK) != REDIS_BLOCK);
     Config config;
     string password = config.get_require_pass();
     if (password.length() > 0) {

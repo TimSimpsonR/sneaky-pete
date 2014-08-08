@@ -10,14 +10,17 @@ class RedisException : public std::exception {
         enum Code {
             CANT_SET_NAME,
             CHANGE_PASSWORD_ERROR,
+            COMMAND_ERROR,
             CONNECTION_ERROR,
             COULD_NOT_AUTH,
             COULD_NOT_START,
             COULD_NOT_STOP,
+            UNEXPECTED_RESPONSE,
             LOCAL_CONF_READ_ERROR,
             LOCAL_CONF_WRITE_ERROR,
             MISSING_ROOT_PASSWORD,
             PREPARE_ERROR,
+            REPLY_ERROR,
             RESPONSE_TIMEOUT,
             UNABLE_TO_WRITE_CONFIG
         };

@@ -1,7 +1,8 @@
 #include "pch.hpp"
 #include "RedisApp.h"
 #include "RedisException.h"
-#include "nova/guest/redis/client.h"
+#include "nova/guest/redis/config.h"
+#include "nova/redis/RedisClient.h"
 #include "nova/utils/io.h"
 #include <iostream>
 #include <boost/assign/list_of.hpp>
@@ -56,7 +57,8 @@ RedisApp::~RedisApp() {
 
 void RedisApp::change_password(const string & password) {
     NOVA_LOG_INFO("Connecting to redis");
-    nova::redis::Client client;
+
+    RedisClient client;
     client.config_set("requirepass", password);
     client.config_rewrite();
 }
@@ -165,7 +167,8 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     internal_start(false);
 
     NOVA_LOG_INFO("Making sure we can connect to Redis...");
-    nova::redis::Client client;
+    RedisClient client;
+    client.ping();
 }
 
 void RedisApp::reset_configuration(const std::string & config_contents) {

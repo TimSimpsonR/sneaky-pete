@@ -2,7 +2,8 @@
 #include "nova/redis/RedisAppStatus.h"
 
 #include <boost/assign/list_of.hpp>
-#include "nova/guest/redis/client.h"
+#include <boost/algorithm/string.hpp>
+#include "nova/redis/RedisClient.h"
 #include "nova/guest/redis/constants.h"
 #include "nova/redis/RedisException.h"
 #include "nova/Log.h"
@@ -56,18 +57,15 @@ DatastoreStatus::Status RedisAppStatus::determine_actual_status() const
     // CRASHED = The process is dead, but left evidence it once existed.
     // SHUTDOWN = The process is dead and never existed or cleaned itself up.
     try {
-        nova::redis::Client client;
         NOVA_LOG_INFO("Attempting to get redis-server status");
-        if(client.ping().status == STRING_RESPONSE) {
-            NOVA_LOG_INFO("Redis is Running");
-            return RUNNING;
-        }
+        RedisClient client;
+        client.ping();
+        return RUNNING;
     } catch(const RedisException & re) {
         NOVA_LOG_INFO("Error pinging Redis, getting pid instead.");
     }
     auto pid = get_pid();
-    if (pid)
-    {
+    if (pid) {
         if (is_pid_alive(pid.get())) {
             NOVA_LOG_INFO("Redis is Blocked");
             return BLOCKED;
@@ -83,11 +81,11 @@ DatastoreStatus::Status RedisAppStatus::determine_actual_status() const
 
 optional<int> RedisAppStatus::get_pid()
 {
-    try
-    {
+    try {
         stringstream output_stream;
         execute(output_stream, list_of("/bin/pidof")("redis-server")("r"));
         string output = output_stream.str();
+        boost::trim(output);
         if (output.length() > 0) {
             const auto pid = boost::lexical_cast<int>(output);
             if (0 == pid) {
@@ -97,6 +95,8 @@ optional<int> RedisAppStatus::get_pid()
             }
         }
     } catch(const process::ProcessException & pe) {
+    } catch(const boost::bad_lexical_cast & blc) {
+        NOVA_LOG_ERROR("Couldn't parse pid file.");
     }
     return boost::none;
 }

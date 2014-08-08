@@ -60,7 +60,10 @@ fi
 
 mkdir -p $BUILD_DIR
 
-# Installing Rabbit
+###############################################################################
+#  Install Rabbit
+###############################################################################
+
 pkg_checkout https://github.com/rabbitmq/rabbitmq-codegen.git rabbitmq-codegen 80fdd87358
 pkg_checkout https://github.com/alanxz/rabbitmq-c.git rabbitmq-c 3ff795807f
 
@@ -76,7 +79,10 @@ sed -i.bac 's/FOOTER_SIZE, 0);/FOOTER_SIZE, MSG_NOSIGNAL);/g' $BUILD_DIR/rabbitm
 make
 sudo make install
 
-# Install json stuff
+###############################################################################
+#  Install lib json
+###############################################################################
+
 pkg_checkout https://github.com/jehiah/json-c.git json-c 276123efe0
 cd $BUILD_DIR/json-c
 sh autogen.sh
@@ -88,8 +94,10 @@ sudo make install
 sudo cp /usr/local/lib/libjson* /usr/lib/
 sudo cp /usr/local/lib/librabbit* /usr/lib/
 
+###############################################################################
+#  Install Curl
+###############################################################################
 
-# Install Curl
 set +e
 
 pkg_install \
@@ -120,6 +128,23 @@ LIBS="-ldl" ./configure \
 make LDFLAGS="-all-static -ldl"
 make install
 
+###############################################################################
+#  Install hiredis
+###############################################################################
+# Version 0.11.0
+pkg_checkout https://github.com/redis/hiredis.git hiredis 0fff0f182b96b4ffeee8379f29ed5129c3f72cf7
+
+cd $BUILD_DIR/hiredis
+make
+sudo make install
+
+# On the Reddwarf VM this seems to be necessary.
+sudo cp /usr/local/lib/hiredis* /usr/lib/
+
+
+###############################################################################
+#  Complex stuff for static linking (I think)
+###############################################################################
 
 # Needed for static compile magic.
 cd $BUILD_DIR

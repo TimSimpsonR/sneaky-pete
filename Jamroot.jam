@@ -140,6 +140,7 @@ lib lib_curl : : <file>"/opt/sp-deps/libcurl/lib/libcurl.a" ;
 # all of its buddies. Additionally, -ldl must be specified last on the linker
 # line, so making it a lib target in Boost Build doesn't work.
 
+lib lib_hiredis : : <name>hiredis ;
 
 lib lib_idn11 : : <name>idn ;
 
@@ -603,55 +604,36 @@ unit u_nova_guest_agent
     :   src/nova/guest/agent.cc
     ;
 
-unit u_redis_connection
-    :   src/nova/guest/redis/connection.cc
-    ;
-
-unit u_redis_commands
-    :   src/nova/guest/redis/commands.cc
-    :
-    :   tests/nova/redis/CommandsTests.cc
-    ;
-
-unit u_redis_client
-    :   src/nova/guest/redis/client.cc
-    :   u_redis_connection
-        u_redis_commands
-        u_nova_Log
-        u_nova_redis_RedisException
-        u_redis_response
-        u_redis_config
-    :   tests/nova/redis/ClientTests.cc
-    ;
-
 unit u_redis_config
     :   src/nova/guest/redis/config.cc
-    ;
-
-unit u_redis_response
-    :   src/nova/guest/redis/response.cc
-    ;
-
-unit u_nova_redis_RedisAppStatus
-    :   src/nova/redis/RedisAppStatus.cc
-    :   u_nova_datastores_DatastoreStatus
     ;
 
 unit u_nova_redis_RedisException
     :   src/nova/redis/RedisException.cc
     ;
 
+unit u_nova_redis_RedisClient
+    :   src/nova/redis/RedisClient.cc
+    :   lib_hiredis
+        u_redis_config
+        u_nova_redis_RedisException
+        u_nova_Log
+    ;
+
+unit u_nova_redis_RedisAppStatus
+    :   src/nova/redis/RedisAppStatus.cc
+    :   u_nova_datastores_DatastoreStatus
+        u_nova_redis_RedisClient
+    ;
 
 unit u_nova_redis_RedisBackup
     :   src/nova/redis/RedisBackup.cc
     :   u_nova_guest_common_PrepareHandler
         u_nova_redis_RedisException
-        u_redis_client
         u_nova_backup_BackupException
         u_nova_backup_BackupManager
         u_nova_backup_BackupRestore
         u_redis_config
-        u_redis_response
     ;
 
 
@@ -661,7 +643,6 @@ unit u_nova_redis_RedisApp
         u_nova_datastores_DatastoreApp
         u_nova_redis_RedisBackup
         u_nova_redis_RedisException
-        u_redis_client
         u_redis_config
     ;
 
@@ -678,10 +659,7 @@ unit u_nova_guest_redis_message_handler
         u_nova_guest_monitoring_MonitoringMessageHandler
         u_nova_backup_BackupRestore
         u_nova_volume
-        u_redis_client
-        u_redis_commands
         u_redis_config
-        u_redis_response
         u_nova_redis_RedisAppStatus
     ;
 
@@ -865,7 +843,6 @@ exe redis_backup_demo
         u_nova_redis_RedisBackup
         u_nova_guest_common_PrepareHandler
         u_nova_redis_RedisException
-        u_redis_client
         u_nova_backup_BackupException
         u_nova_backup_BackupManager
         u_nova_backup_BackupRestore
@@ -954,6 +931,13 @@ exe greedy_pete
     ;
 
 explicit leak_tester ;
+
+exe redis_client_demo
+    :   pch
+        tests/redis_client_demo.cc
+        u_nova_redis_RedisClient
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
 
 exe upload_file
     :   pch
@@ -1101,10 +1085,12 @@ install tools
         greedy_pete
         mount_file
         redis_backup_demo
+        redis_client_demo
         resizefs_file
         unmount_file
         upload_file
         send_forever_turbo
+
     :   <link>static <variant>release
     ;
 
@@ -1120,6 +1106,8 @@ install tools-debug
         format_file
         greedy_pete
         mount_file
+        redis_backup_demo
+        redis_client_demo
         resizefs_file
         unmount_file
         upload_file

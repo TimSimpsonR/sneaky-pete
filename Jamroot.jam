@@ -836,20 +836,6 @@ exe nova_process_fd_demo
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
-exe redis_backup_demo
-    :   pch
-        u_nova_guest_diagnostics_Interrogator
-        u_nova_utils_swift
-        u_nova_redis_RedisBackup
-        u_nova_guest_common_PrepareHandler
-        u_nova_redis_RedisException
-        u_nova_backup_BackupException
-        u_nova_backup_BackupManager
-        u_nova_backup_BackupRestore
-        tests/redis_backup_demo.cc
-    :   <linkflags>$(EXE_LINK_FLAGS)
-    ;
-
 exe apt_install
     :   pch
         u_nova_Log
@@ -1084,7 +1070,6 @@ install tools
         format_file
         greedy_pete
         mount_file
-        redis_backup_demo
         redis_client_demo
         resizefs_file
         unmount_file
@@ -1106,7 +1091,6 @@ install tools-debug
         format_file
         greedy_pete
         mount_file
-        redis_backup_demo
         redis_client_demo
         resizefs_file
         unmount_file

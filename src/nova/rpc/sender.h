@@ -54,10 +54,11 @@ namespace nova { namespace rpc {
             template<typename... Types>
             void send(const char * method, const Types... args) {
                 nova::JsonObjectBuilder args_object;
-                start_send(method, args_object);
                 args_object.add(args...);
-                finish_send(method, args_object);
+                send(method, args_object);
             }
+
+            void send(const char * method, nova::JsonObjectBuilder & args);
 
             /**
              * Sends a message. This is mainly used for tests and the like.
@@ -68,8 +69,6 @@ namespace nova { namespace rpc {
         private:
             ResilientSender(const ResilientSender &);
             ResilientSender & operator = (const ResilientSender &);
-
-            void finish_send(const char * method, nova::JsonObjectBuilder & args);
 
             void reset();
 
@@ -90,8 +89,6 @@ namespace nova { namespace rpc {
             int port;
 
             std::auto_ptr<Sender> sender;
-
-            void start_send(const char * method, nova::JsonObjectBuilder & args);
 
             std::string topic;
 

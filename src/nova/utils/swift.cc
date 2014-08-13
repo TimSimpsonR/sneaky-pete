@@ -394,6 +394,36 @@ string SwiftUploader::write(SwiftUploader::Input & input){
 }
 
 
+
+/**---------------------------------------------------------------------------
+ *- SwiftException
+ *---------------------------------------------------------------------------*/
+
+SwiftFileReader::SwiftFileReader(const char * file_name)
+:   _eof(false),
+    file(file_name, std::ifstream::binary)
+{
+}
+
+SwiftFileReader::~SwiftFileReader() {
+}
+
+bool SwiftFileReader::eof() const {
+    return _eof;
+}
+
+size_t SwiftFileReader::read(char * buffer, size_t bytes) {
+    if (file.eof()) {
+    _eof = true;
+        return 0;
+    }
+    file.read(buffer, bytes - 1);
+  buffer[bytes] = '\0';
+  return file.gcount();
+}
+
+
+
 /**---------------------------------------------------------------------------
  *- SwiftException
  *---------------------------------------------------------------------------*/

@@ -1,69 +1,75 @@
 #ifndef __NOVA_REDIS_REDISBACKUPJOB_H
 #define __NOVA_REDIS_REDISBACKUPJOB_H
 
+
+#include "nova/redis/RedisClient.h"
+#include "nova/backup/BackupManager.h"
+#include <boost/thread.hpp>
+#include "nova/utils/threads.h"
+
+
 namespace nova { namespace redis {
 
-//TODO(tim.simpson): Pretty obvious.
-
-template<typename ClientType>
-class RedisBackUpJob : public nova::utils::Job {
+/** Allows the RDB file to be refreshed. */
+class RdbPersistence {
 public:
-    ClientType client;
+    RdbPersistence(long long tolerance);
 
-    RedisBackUpJob()
-    : client()
-    {
-    }
+    void update();
 
-    virtual ~RedisBackUpJob() {
-    }
+private:
+    RedisClient client;
+    long long tolerance;
 
-    virtual nova::utils::Job * clone() const {
-        return new RedisBackUpJob();
-    }
+    bool bgsave_or_aof_rewrite_ocurring();
 
-    // bool bgsave_or_aof_rewrite_ocurring();
+    void save();
 
-    virtual void operator()() {
-        if (!i_am_a_slave()) {
-            NOVA_LOG_INFO("We're not a slave, so avoid the backup.");
-            return;  // Don't do this unless it's a slave!
-        }
-        NOVA_LOG_INFO("We're a slave. Performing backup.");
+    bool wait_for_save();
+};
 
-        // if (bgsave_or_aof_rewrite_ocurring()) {
-        //     wait_for_bgsave_or_aof_rewrite_to_finish();
-        // }
-        // save_again_ig
-        // upload_to_swift();
-    }
 
-    // /** True if the datastore is a slave. */
-    bool i_am_a_slave() {
- //       client
-        auto res = client.info();
-        NOVA_LOG_INFO("WHAT THE HECK? %s", res.status);
-        return true;
-    }
+void upload_file_to_swift();
 
-    // void save() {
-    //     // Check memory, go with BGSAVE if there's enough memory
-    //     // call save since we're a slave
-    //     client.bgsave();
-    // }
 
-    // /** Determines if we need to save the Redis data again. */
-    // void save_again_if_necessary() {
-    //     const auto save_time = get_last_save_time();
-    //     const auto now = get_now();
-    //     if (now - tolerance > save_time) {
-    //         save();
-    //     }
-    // }
+/** Safely runs a backup depending on if it's a slave by refreshing the rdb
+ *  dump file and uploading it to Swift. */
+class RedisBackupJob : public nova::backup::BackupJob {
+public:
+    //ResilientSenderPtr sender;
 
-    // void wait_for_bgsave_or_aof_rewrite_to_finish();
+    /* Tolerance is in seconds. */
+    // RedisBackupJob(nova::rpc::ResilientSenderPtr sender,
+    //                Interrogator interrogator,
+    //                const int segment_max_size, const int checksum_wait_time,
+    //                const string & swift_container, const double time_out,
+    //                const string & tenant, const string & token,
+    //                const BackupInfo & backup_info,
+    //                long long tolerance);
+    RedisBackupJob(nova::backup::BackupRunnerData data, long long tolerance,
+                   const nova::backup::BackupCreationArgs & args);
 
-    // void upload_to_swift();
+    RedisBackupJob(const RedisBackupJob & other);
+
+    virtual ~RedisBackupJob();
+
+    virtual nova::utils::Job * clone() const;
+
+    virtual void operator()();
+
+protected:
+    virtual const char * get_backup_type() const;
+
+private:
+    RedisClient client;
+
+    bool is_slave();
+
+    std::string run();
+
+    long long tolerance;
+
+    std::string upload();
 };
 
 

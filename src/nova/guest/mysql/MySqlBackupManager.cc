@@ -20,8 +20,11 @@
 #include "nova/utils/subsecond.h"
 
 using namespace boost::assign;
+using nova::backup::BackupCreationArgs;
+using nova::backup::BackupJob;
 using nova::backup::BackupInfo;
 using nova::backup::BackupManagerInfo;
+using nova::backup::BackupRunnerData;
 using nova::process::CommandList;
 using nova::process::IndependentStdErrAndStdOut;
 using nova::process::Process;
@@ -191,54 +194,31 @@ private:
 
 
 /**---------------------------------------------------------------------------
- *- BackupJob
+ *- XtraBackupJob
  *---------------------------------------------------------------------------*/
 
 /** Represents an instance of a in-flight backup. */
-class BackupJob : public nova::utils::Job {
+class XtraBackupJob : public BackupJob {
 public:
-    BackupJob(
-        ResilientSenderPtr sender,
+    XtraBackupJob(
+        const BackupRunnerData & data,
         const CommandList commands,
-        const Interrogator interrogator,
-        const int & segment_max_size,
-        const int checksum_wait_time,
-        const string & swift_container,
-        const double time_out,
-        const string & tenant,
-        const string & token,
         const size_t & zlib_buffer_size,
-        const BackupInfo & backup_info)
-    :   backup_info(backup_info),
-        checksum_wait_time(checksum_wait_time),
-        sender(sender),
+        const BackupCreationArgs & args)
+    :   BackupJob(data, args),
         commands(commands),
-        interrogator(interrogator),
-        segment_max_size(segment_max_size),
-        swift_container(swift_container),
-        tenant(tenant),
-        time_out(time_out),
-        token(token),
         zlib_buffer_size(zlib_buffer_size) {
     }
 
     // Copy constructor is designed mainly so we can pass instances
     // from one thread to another.
-    BackupJob(const BackupJob & other)
-    :   backup_info(other.backup_info),
-        checksum_wait_time(other.checksum_wait_time),
-        sender(other.sender),
+    XtraBackupJob(const XtraBackupJob & other)
+    :   BackupJob(other.data, other.args),
         commands(other.commands),
-        interrogator(other.interrogator),
-        segment_max_size(other.segment_max_size),
-        swift_container(other.swift_container),
-        tenant(other.tenant),
-        time_out(other.time_out),
-        token(other.token),
         zlib_buffer_size(other.zlib_buffer_size) {
     }
 
-    ~BackupJob() {
+    ~XtraBackupJob() {
     }
 
     virtual void operator()() {
@@ -251,65 +231,38 @@ public:
         } catch(const std::exception & ex) {
             NOVA_LOG_ERROR("Error running backup!");
             NOVA_LOG_ERROR("Exception: %s", ex.what());
-            update_db("FAILED");
+            update_trove_to_failed();
         } catch(...) {
             NOVA_LOG_ERROR("Error running backup!");
-            update_db("FAILED");
+            update_trove_to_failed();
         }
     }
 
     virtual Job * clone() const {
-        return new BackupJob(*this);
+        return new XtraBackupJob(*this);
+    }
+
+protected:
+    virtual const char * get_backup_type() const {
+        return "xtrabackup_v1";
     }
 
 private:
     // Don't allow this, despite the copy constructor above.
-    BackupJob & operator=(const BackupJob & rhs);
+    XtraBackupJob & operator=(const XtraBackupJob & rhs);
 
-    struct DbInfo {
-        const string checksum;
-        const string type;
-        const string location;
-        const float size;
-    };
-
-    const BackupInfo backup_info;
-    const int checksum_wait_time;
-    ResilientSenderPtr sender;
     const CommandList commands;
-    const Interrogator interrogator;
-    const int segment_max_size;
-    const string swift_container;
-    const string tenant;
-    const double time_out;
-    const string token;
     const int zlib_buffer_size;
 
     void dump() {
-        // Record the filesystem stats before the backup is run
-        FileSystemStatsPtr stats = interrogator.get_filesystem_stats("/var/lib/mysql");
-
-        NOVA_LOG_DEBUG("Volume used: %.2f", stats->used);
-
         CommandList cmds;
-        BackupProcessReader reader(commands, zlib_buffer_size, time_out);
+        BackupProcessReader reader(commands, zlib_buffer_size, data.time_out);
 
         // Setup SwiftClient
-        SwiftFileInfo file_info(backup_info.location, swift_container,
-                                backup_info.id);
-        SwiftUploader writer(token, segment_max_size, file_info,
-                             checksum_wait_time);
+        SwiftUploader writer(args.token, data.segment_max_size, file_info,
+                             data.checksum_wait_time);
 
-        // Save the backup information to the database in case of failure
-        // This allows delete calls to clean up after failures.
-        // https://bugs.launchpad.net/trove/+bug/1246003
-        DbInfo pre_info = {
-                "",
-                "xtrabackup_v1",
-                file_info.manifest_url(),
-                stats->used
-        };
-        update_db("BUILDING", pre_info);
+        update_trove_to_building();
 
         // Write the backup to swift.
         // The checksum returned is the swift checksum of the concatenated
@@ -318,45 +271,13 @@ private:
 
         // check the process was successful
         if (!reader.successful()) {
-            update_db("FAILED");
+            update_trove_to_failed();
             NOVA_LOG_ERROR("Reader was unsuccessful! Setting backup to FAILED!");
         } else {
-            // stats.used
-            DbInfo info = {
-                checksum,
-                "xtrabackup_v1",
-                file_info.manifest_url(),
-                stats->used
-            };
-            update_db("COMPLETED", info);
+            update_trove_to_completed(checksum);
         }
     }
 
-    void update_db(const string & state,
-                   const optional<const DbInfo> & extra_info = boost::none) {
-        IsoDateTime iso_now;
-
-        std::string sent = str(format("%8.8f") % now());
-
-        if(extra_info) {
-            sender->send("update_backup",
-                "backup_id", backup_info.id,
-                "backup_type", extra_info->type,
-                "checksum", extra_info->checksum,
-                "location", extra_info->location,
-                "size", extra_info->size,
-                "state", state,
-                "updated", iso_now.c_str());
-        } else {
-            sender->send("update_backup",
-                "backup_id", backup_info.id,
-                "state", state,
-                "updated", iso_now.c_str());
-        }
-
-        NOVA_LOG_INFO("Updating backup %s to state %s", backup_info.id.c_str(),
-                       state.c_str());
-    }
 };
 
 
@@ -369,27 +290,25 @@ private:
 
 MySqlBackupManager::MySqlBackupManager(
     const BackupManagerInfo & info,
-    const CommandList commands)
+    const CommandList commands,
+    const int zlib_buffer_size)
 :   BackupManager(info),
-    commands(commands)
+    commands(commands),
+    zlib_buffer_size(zlib_buffer_size)
 {
 }
 
 MySqlBackupManager::~MySqlBackupManager() {
 }
 
-void MySqlBackupManager::run_backup(const string & tenant,
-                                    const string & token,
-                                    const BackupInfo & backup_info) {
+void MySqlBackupManager::run_backup(const BackupCreationArgs & args) {
     NOVA_LOG_INFO("Starting backup for tenant %s, backup_id=%d",
-                   tenant.c_str(), backup_info.id.c_str());
+                   args.tenant.c_str(), args.id.c_str());
     #ifdef _DEBUG
-        NOVA_LOG_INFO("Token = %s", token.c_str());
+        NOVA_LOG_INFO("Token = %s", args.token.c_str());
     #endif
 
-    BackupJob job(sender, commands, interrogator, segment_max_size, checksum_wait_time,
-                  swift_container, time_out, tenant, token,
-                  zlib_buffer_size, backup_info);
+    XtraBackupJob job(data, commands, zlib_buffer_size, args);
     runner.run(job);
 }
 

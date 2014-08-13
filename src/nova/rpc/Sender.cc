@@ -102,20 +102,14 @@ void ResilientSender::reset() {
     open(true);
 }
 
-void ResilientSender::finish_send(const char * method,
-                                  JsonObjectBuilder & args) {
+void ResilientSender::send(const char * method, JsonObjectBuilder & args) {
+    args.add("instance_id", instance_id);
+    args.add_unescaped("sent", str(format("%8.8f") % now()));
     std::string msg = boost::lexical_cast<std::string>(json_obj(
         "method", method,
         "args", args
     ));
     send_plain_string(msg.c_str());
-}
-
-
-
-void ResilientSender::start_send(const char * method, JsonObjectBuilder & args) {
-    args.add("instance_id", instance_id);
-    args.add_unescaped("sent", str(format("%8.8f") % now()));
 }
 
 void ResilientSender::send_plain_string(const char * msg) {

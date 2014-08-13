@@ -510,6 +510,7 @@ unit u_nova_backup_BackupManager
     :   u_nova_Log
         u_nova_backup_BackupException
         u_nova_utils_regex
+        u_nova_utils_swift
     ;
 
 unit u_nova_guest_mysql_MySqlBackupManager
@@ -625,6 +626,13 @@ unit u_nova_redis_RedisAppStatus
     :   u_nova_datastores_DatastoreStatus
         u_nova_redis_RedisClient
     ;
+
+unit u_nova_redis_RedisBackupJob
+    :   src/nova/redis/RedisBackupJob.cc
+    :   u_nova_redis_RedisClient
+        u_nova_utils_regex
+    ;
+
 
 unit u_nova_redis_RedisBackup
     :   src/nova/redis/RedisBackup.cc
@@ -841,11 +849,14 @@ exe redis_backup_demo
         u_nova_guest_diagnostics_Interrogator
         u_nova_utils_swift
         u_nova_redis_RedisBackup
+        u_nova_redis_RedisClient
+        u_nova_redis_RedisBackupJob
         u_nova_guest_common_PrepareHandler
         u_nova_redis_RedisException
         u_nova_backup_BackupException
         u_nova_backup_BackupManager
         u_nova_backup_BackupRestore
+        u_nova_utils_regex
         tests/redis_backup_demo.cc
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;

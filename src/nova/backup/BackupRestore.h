@@ -12,11 +12,11 @@ namespace nova { namespace backup {
     class BackupRestoreInfo {
         public:
             BackupRestoreInfo(const std::string & token,
-                          const std::string & backup_url,
-                          const std::string & backup_checksum);
+                          const std::string & location,
+                          const std::string & checksum);
 
             const std::string & get_backup_url() const {
-                return backup_url;
+                return location;
             }
 
             const std::string & get_token() const {
@@ -24,13 +24,13 @@ namespace nova { namespace backup {
             }
 
             const std::string & get_backup_checksum() const {
-                return backup_checksum;
+                return checksum;
             }
 
         private:
             std::string token;
-            std::string backup_url;
-            std::string backup_checksum;
+            std::string location;
+            std::string checksum;
     };
 
     class BackupRestoreManager {

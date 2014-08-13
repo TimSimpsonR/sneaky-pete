@@ -37,11 +37,79 @@ using nova::utils::swift::SwiftFileInfo;
 using nova::utils::swift::SwiftUploader;
 using namespace nova::guest::diagnostics;
 using nova::rpc::ResilientSenderPtr;
+using nova::utils::subsecond::now;
 
 namespace zlib = nova::utils::zlib;
 
 namespace nova { namespace backup {
 
+
+/**---------------------------------------------------------------------------
+ *- BackupJob
+ *---------------------------------------------------------------------------*/
+
+namespace {
+    const char * const BUILDING = "BUILDING";
+    const char * const FAILED = "FAILED";
+}
+
+BackupJob::BackupJob(const BackupRunnerData & data,
+                     const BackupCreationArgs & args)
+:   args(args),
+    data(data),
+    file_info(args.location, data.swift_container, args.id) {
+}
+
+BackupJob::~BackupJob() {
+}
+
+const char * BackupJob::status_name(const BackupJob::Status status) {
+    switch(status) {
+        //! BEGIN GENERATED CODE
+        case BUILDING:
+            return "BUILDING";
+        case COMPLETED:
+            return "COMPLETED";
+        case FAILED:
+            return "FAILED";
+        //! END GENERATED CODE
+        default:
+            return "Invalid status code!";
+    }
+}
+
+void BackupJob::update_trove_to_building() {
+    update_trove(BUILDING, boost::none);
+}
+
+void BackupJob::update_trove_to_failed() {
+    update_trove(FAILED, boost::none);
+}
+
+void BackupJob::update_trove_to_completed(const string & checksum) {
+    update_trove(COMPLETED, checksum);
+}
+
+void BackupJob::update_trove(const BackupJob::Status status,
+                             const optional<string> & checksum) {
+    FileSystemStatsPtr stats = data.interrogator.get_mount_point_stats();
+    const IsoDateTime iso_now;
+    JsonObjectBuilder update_args;
+    update_args.add("backup_id", args.id,
+             "backup_type", this->get_backup_type(),
+             "checksum", checksum.get_value_or(""),
+             "location", this->file_info.manifest_url(),
+             "size", stats->used,
+             "state", status_name(status),
+             "updated", iso_now.c_str());
+    if (checksum) {
+        update_args.add("checksum", checksum.get());
+    }
+    data.sender->send("update_backup", update_args);
+    NOVA_LOG_INFO("Updating backup %s to state %s", args.id.c_str(),
+                   status_name(status));
+    NOVA_LOG_DEBUG("Time: %s, Volume used: %.2f", iso_now.c_str(), stats->used);
+}
 
 
 /**---------------------------------------------------------------------------
@@ -49,34 +117,16 @@ namespace nova { namespace backup {
  *---------------------------------------------------------------------------*/
 
 BackupManagerInfo::BackupManagerInfo(
-    ResilientSenderPtr sender,
-    JobRunner & runner,
-    const Interrogator interrogator,
-    const int segment_max_size,
-    const int checksum_wait_time,
-    const string swift_container,
-    const double time_out,
-    const int zlib_buffer_size)
-:   sender(sender),
-    runner(runner),
-    interrogator(interrogator),
-    segment_max_size(segment_max_size),
-    checksum_wait_time(checksum_wait_time),
-    swift_container(swift_container),
-    time_out(time_out),
-    zlib_buffer_size(zlib_buffer_size)
+    BackupRunnerData data,
+    JobRunner & runner)
+:   data(data),
+    runner(runner)
 {
 }
 
 BackupManagerInfo::BackupManagerInfo(const BackupManagerInfo & info)
-:   sender(info.sender),
-    runner(info.runner),
-    interrogator(info.interrogator),
-    segment_max_size(info.segment_max_size),
-    checksum_wait_time(info.checksum_wait_time),
-    swift_container(info.swift_container),
-    time_out(info.time_out),
-    zlib_buffer_size(info.zlib_buffer_size)
+:   data(info.data),
+    runner(info.runner)
 {
 }
 

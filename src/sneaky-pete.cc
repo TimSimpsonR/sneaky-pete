@@ -51,7 +51,6 @@ int main(int argc, char* argv[]) {
             flags.apt_self_package_name(),
             flags.apt_self_update_time_out());
         const double TIME_OUT = 90;
-        apt.install("trove", TIME_OUT);
         apt.install("trove-guestagent", TIME_OUT);
         NOVA_LOG_INFO("##############################################");
         NOVA_LOG_INFO("#     python agent install complete          #");

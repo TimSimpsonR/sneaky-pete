@@ -24,6 +24,8 @@ const char * RedisException::what() const throw() {
             return "Could not stop Redis!";
         case COULD_NOT_STOP:
             return "Could not stop Redis!";
+        case INVALID_BACKUP_TARGET:
+            return "Instance cannot be used for backup command.";
         case LOCAL_CONF_READ_ERROR:
             return "Error reading Redis local.conf.";
         case LOCAL_CONF_WRITE_ERROR:
@@ -38,6 +40,8 @@ const char * RedisException::what() const throw() {
             return "Timeout receiving response from Redis.";
         case UNABLE_TO_WRITE_CONFIG:
             return "Unable to write new config.";
+        case UNKNOWN_INFO_VALUE:
+            return "Unknown info key value.";
         default:
             return "An error occurred.";
     }

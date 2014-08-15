@@ -11,7 +11,8 @@ namespace nova { namespace guest { namespace mysql {
     class MySqlBackupManager : public nova::backup::BackupManager {
         public:
             MySqlBackupManager(const nova::backup::BackupManagerInfo & info,
-                               const nova::process::CommandList commands);
+                               const nova::process::CommandList commands,
+                               const int zlib_buffer_size);
 
             template<typename Flags, typename... Args>
             static nova::backup::BackupManagerPtr from_flags(
@@ -24,18 +25,20 @@ namespace nova { namespace guest { namespace mysql {
                     BackupManagerInfo::from_flags(flags, args...);
                 BackupManagerPtr result;
                 result.reset(new MySqlBackupManager(
-                  info, flags.backup_process_commands()));
+                  info,
+                  flags.backup_process_commands(),
+                  flags.backup_zlib_buffer_size()));
                 return result;
             }
 
             ~MySqlBackupManager();
 
-            virtual void run_backup(const std::string & tenant,
-                                    const std::string & token,
-                                    const nova::backup::BackupInfo & backup_info);
+            virtual void run_backup(
+                const nova::backup::BackupCreationArgs & args);
 
         private:
             const nova::process::CommandList commands;
+            const int zlib_buffer_size;
     };
 
 } } }  // end namespace

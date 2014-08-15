@@ -17,11 +17,94 @@
 
 namespace nova { namespace backup {
 
-    struct BackupInfo {
-        const std::string backup_type;
-        const std::string checksum;
-        const std::string id;
-        const std::string location;
+
+    // The arguments passed by Trove to the guest agent to perform a backup.
+    struct BackupCreationArgs {
+        const std::string tenant;
+        const std::string token;
+        const std::string id;           // Backup ID
+        const std::string location;     // Swift URL.
+    };
+
+    // Arguments passed back to Trove as the guest updates the backup.
+    struct BackupUpdateArgs {
+        const std::string backup_type;  // Type of backu
+        const std::string checksum;     // Checksum
+        const std::string id;           // Backup Id
+        const std::string location;     // This *should* be discovered via the
+                                        // guest agent. For now though Trove
+                                        // is passing it to the guest. :/
+                                        // However, it seems to be a base URL
+                                        // that could be used for multiple
+                                        // backups. ????!!
+        const float size;               // Size of the datastore on disk.
+        const std::string state;        // String state. Strrrrrinnnngggs....
+    };
+
+
+
+    /** Contains data which is pretty much global and used by most backup
+     *  job runners. */
+    struct BackupRunnerData {
+        nova::rpc::ResilientSenderPtr sender;
+        const nova::guest::diagnostics::Interrogator interrogator;
+        const int segment_max_size;
+        const int checksum_wait_time;
+        const std::string swift_container;
+        const double time_out;
+
+        template<typename Flags>
+        static BackupRunnerData from_flags(
+            const Flags & flags,
+            nova::rpc::ResilientSenderPtr sender,
+            const nova::guest::diagnostics::Interrogator interrogator) {
+            const BackupRunnerData info = {
+                sender,
+                interrogator,
+                flags.backup_segment_max_size(),
+                flags.checksum_wait_time(),
+                flags.backup_swift_container(),
+                flags.backup_timeout()
+            };
+            return info;
+        }
+    };
+
+    class BackupJob : public nova::utils::Job {
+        public:
+            BackupJob(const BackupRunnerData & data,
+                      const BackupCreationArgs & args);
+
+            ~BackupJob();
+
+        protected:
+            const BackupCreationArgs args;
+            const BackupRunnerData data;
+            const nova::utils::swift::SwiftFileInfo file_info;
+
+            /** The type of the backup, represented by this job. */
+            virtual const char * get_backup_type() const = 0;
+
+            void update_trove_to_building();
+
+            void update_trove_to_failed();
+
+            void update_trove_to_completed(const std::string & checksum);
+
+        private:
+            enum Status {
+                //! BEGIN GENERATED CODE
+                COMPLETED,
+                BUILDING,
+                FAILED
+                //! END GENERATED CODE
+            };
+
+            const char * status_name(Status status);
+
+            void update_trove(const Status status,
+                              const boost::optional<std::string> & checksum);
+
     };
 
     /**
@@ -32,14 +115,8 @@ namespace nova { namespace backup {
     class BackupManagerInfo {
         public:
             BackupManagerInfo(
-                   nova::rpc::ResilientSenderPtr sender,
-                   nova::utils::JobRunner & runner,
-                   const nova::guest::diagnostics::Interrogator interrogator,
-                   const int segment_max_size,
-                   const int checksum_wait_time,
-                   const std::string swift_container,
-                   const double time_out,
-                   const int zlib_buffer_size);
+                   BackupRunnerData data,
+                   nova::utils::JobRunner & runner);
 
             BackupManagerInfo(const BackupManagerInfo & info);
 
@@ -50,29 +127,16 @@ namespace nova { namespace backup {
                 nova::utils::JobRunner & runner,
                 const nova::guest::diagnostics::Interrogator interrogator) {
                 BackupManagerInfo backup(
-                      sender,
-                      runner,
-                      interrogator,
-                      flags.backup_segment_max_size(),
-                      flags.checksum_wait_time(),
-                      flags.backup_swift_container(),
-                      flags.backup_timeout(),
-                      flags.backup_zlib_buffer_size());
+                      BackupRunnerData::from_flags(flags, sender, interrogator),
+                      runner);
                 return backup;
             }
 
             virtual ~BackupManagerInfo();
 
         protected:
-            nova::rpc::ResilientSenderPtr sender;
+            BackupRunnerData data;
             nova::utils::JobRunner & runner;
-            const nova::guest::diagnostics::Interrogator interrogator;
-            const int segment_max_size;
-            const int checksum_wait_time;
-            const std::string swift_container;
-            const std::string swift_url;
-            const double time_out;
-            const int zlib_buffer_size;
     };
 
     /**
@@ -82,9 +146,7 @@ namespace nova { namespace backup {
     class BackupManager : public BackupManagerInfo {
         public:
             BackupManager(const BackupManagerInfo & info);
-            virtual void run_backup(const std::string & tenant,
-                                    const std::string & token,
-                                    const BackupInfo & backup_info) = 0;
+            virtual void run_backup(const BackupCreationArgs & args) = 0;
     };
 
     typedef boost::shared_ptr<BackupManager> BackupManagerPtr;

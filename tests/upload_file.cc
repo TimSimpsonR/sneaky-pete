@@ -24,37 +24,6 @@ using nova::utils::CurlScope;
 using namespace nova::utils::swift;
 
 
-class FileReader : public SwiftUploader::Input {
-public:
-
-  	FileReader(const char * file_name)
-  	:   _eof(false),
-        file(file_name, std::ifstream::binary)
-  	{
-  	}
-
-  	virtual ~FileReader() {
-  	}
-
-    virtual bool eof() const {
-        return _eof;
-    }
-
-  	virtual size_t read(char * buffer, size_t bytes) {
-  		if (file.eof()) {
-        _eof = true;
-  			return 0;
-  		}
-  		file.read(buffer, bytes - 1);
-      buffer[bytes] = '\0';
-      return file.gcount();
-  	}
-
-private:
-  bool _eof;
-  ifstream file;
-};
-
 
 int main(int argc, char **argv)
 {
@@ -74,7 +43,7 @@ int main(int argc, char **argv)
   file_info.container = argv[4];
   file_info.base_file_name = argv[5];
 
-  FileReader file(src_file);
+  LocalFileReader file(src_file);
 
   CurlScope scope;
 

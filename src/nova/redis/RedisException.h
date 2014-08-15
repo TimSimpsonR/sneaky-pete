@@ -15,6 +15,7 @@ class RedisException : public std::exception {
             COULD_NOT_AUTH,
             COULD_NOT_START,
             COULD_NOT_STOP,
+            INVALID_BACKUP_TARGET,
             UNEXPECTED_RESPONSE,
             LOCAL_CONF_READ_ERROR,
             LOCAL_CONF_WRITE_ERROR,
@@ -22,7 +23,8 @@ class RedisException : public std::exception {
             PREPARE_ERROR,
             REPLY_ERROR,
             RESPONSE_TIMEOUT,
-            UNABLE_TO_WRITE_CONFIG
+            UNABLE_TO_WRITE_CONFIG,
+            UNKNOWN_INFO_VALUE
         };
 
         RedisException(Code code) throw();

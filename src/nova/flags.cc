@@ -325,6 +325,11 @@ const char * FlagValues::db_backend() const {
     return map->get("db_backend", "sqlalchemy");
 }
 
+const long long FlagValues::redis_backup_rdb_max_age_in_seconds() const {
+    return get_flag_value<long long>(
+        *map, "redis_backup_rdb_max_age_in_seconds", 60);
+}
+
 const char * FlagValues::guest_id() const {
     return map->get("guest_id");
 }

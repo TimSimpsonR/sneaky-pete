@@ -18,6 +18,10 @@
 namespace nova { namespace utils { namespace swift {
 
 
+/* Used to determine strings necessary to store large files in Swift.
+   We might need to write multiple segments along with a manifest. Given
+   the root Swift URL, the container, and base_file, this class will determine
+   other useful things for us. */
 struct SwiftFileInfo {
 
     SwiftFileInfo();
@@ -31,15 +35,18 @@ struct SwiftFileInfo {
 
     std::string container;
 
+    /* base_url / container */
     std::string container_url() const;
 
-    /* File prefix. */
+    /* Returns a URL for a file. The argument is the index of the segment
+     * being uploaded. */
     std::string formatted_url(int file_number) const;
 
     /* The manfiest file. This is the file which gets created last and links
      * all the segments together. */
     std::string manifest_url() const;
 
+    /* Header necessary to write the manifest. */
     std::string prefix_header() const;
 
     /* Write the number of segments to the metadata */
@@ -159,6 +166,37 @@ private:
 
     /* Returns a MD5 checksum. */
     std::string write_segment(const std::string & url, Input & input);
+};
+
+
+class LocalFileReader : public SwiftUploader::Input {
+public:
+
+    LocalFileReader(const char * file_name);
+
+    virtual ~LocalFileReader();
+
+    virtual bool eof() const;
+
+    virtual size_t read(char * buffer, size_t bytes);
+
+private:
+    bool _eof;
+    std::ifstream file;
+};
+
+
+class LocalFileWriter : public SwiftDownloader::Output {
+public:
+
+    LocalFileWriter(const char * file_name);
+
+    virtual ~LocalFileWriter();
+
+    virtual void write(const char * buffer, size_t buffer_size);
+
+private:
+    std::ofstream file;
 };
 
 

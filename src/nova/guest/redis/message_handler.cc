@@ -22,7 +22,6 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include "client.h"
-#include "constants.h"
 
 using namespace boost::assign;
 
@@ -39,7 +38,6 @@ using boost::optional;
 using namespace std;
 using boost::tie;
 using nova::guest::common::PrepareHandlerPtr;
-using nova::redis::REQUIRE_PASS;
 using nova::redis::RedisApp;
 using nova::redis::RedisAppPtr;
 using nova::redis::RedisAppStatusPtr;

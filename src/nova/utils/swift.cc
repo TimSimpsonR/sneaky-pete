@@ -394,6 +394,53 @@ string SwiftUploader::write(SwiftUploader::Input & input){
 }
 
 
+
+/**---------------------------------------------------------------------------
+ *- LocalFileReader
+ *---------------------------------------------------------------------------*/
+
+LocalFileReader::LocalFileReader(const char * file_name)
+:   _eof(false),
+    file(file_name, std::ifstream::binary)
+{
+}
+
+LocalFileReader::~LocalFileReader() {
+}
+
+bool LocalFileReader::eof() const {
+    return _eof;
+}
+
+size_t LocalFileReader::read(char * buffer, size_t bytes) {
+    if (file.eof()) {
+    _eof = true;
+        return 0;
+    }
+    file.read(buffer, bytes - 1);
+  buffer[bytes] = '\0';
+  return file.gcount();
+}
+
+
+/**---------------------------------------------------------------------------
+ *- LocalFileWriter
+ *---------------------------------------------------------------------------*/
+
+LocalFileWriter::LocalFileWriter(const char * file_name)
+:   file(file_name, std::ofstream::binary) {
+}
+
+LocalFileWriter::~LocalFileWriter() {
+}
+
+void LocalFileWriter::write(const char * buffer, size_t buffer_size) {
+    file.write(buffer, buffer_size);
+}
+
+
+
+
 /**---------------------------------------------------------------------------
  *- SwiftException
  *---------------------------------------------------------------------------*/

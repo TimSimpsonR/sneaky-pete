@@ -510,6 +510,7 @@ unit u_nova_backup_BackupManager
     :   u_nova_Log
         u_nova_backup_BackupException
         u_nova_utils_regex
+        u_nova_utils_swift
     ;
 
 unit u_nova_guest_mysql_MySqlBackupManager
@@ -626,9 +627,11 @@ unit u_nova_redis_RedisAppStatus
         u_nova_redis_RedisClient
     ;
 
+
 unit u_nova_redis_RedisBackup
     :   src/nova/redis/RedisBackup.cc
     :   u_nova_guest_common_PrepareHandler
+        u_nova_redis_RedisClient
         u_nova_redis_RedisException
         u_nova_backup_BackupException
         u_nova_backup_BackupManager
@@ -833,6 +836,22 @@ exe nova_process_fd_demo
         u_nova_process
         lib_boost_thread
         tests/nova/process_fd_demo.cc
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
+exe redis_backup_demo
+    :   pch
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_utils_swift
+        u_nova_redis_RedisBackup
+        u_nova_redis_RedisClient
+        u_nova_guest_common_PrepareHandler
+        u_nova_redis_RedisException
+        u_nova_backup_BackupException
+        u_nova_backup_BackupManager
+        u_nova_backup_BackupRestore
+        u_nova_utils_regex
+        tests/redis_backup_demo.cc
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
@@ -1070,12 +1089,12 @@ install tools
         format_file
         greedy_pete
         mount_file
+        redis_backup_demo
         redis_client_demo
         resizefs_file
         unmount_file
         upload_file
         send_forever_turbo
-
     :   <link>static <variant>release
     ;
 

@@ -47,8 +47,10 @@ using std::stringstream;
 namespace nova { namespace redis {
 
 RedisApp::RedisApp(RedisAppStatusPtr status,
+                   nova::backup::BackupRestoreManagerPtr backup_restore_manager,
                    const int state_change_wait_time)
-:   DatastoreApp("redis-server", status, state_change_wait_time)
+:   DatastoreApp("redis-server", status, state_change_wait_time),
+    backup_restore_manager(backup_restore_manager)
 {
 }
 
@@ -162,6 +164,11 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     if (status->is_running()) {
         NOVA_LOG_INFO("Stopping redis instance.");
         internal_stop(false);
+    }
+    if (restore) {
+        NOVA_LOG_INFO("A restore was requested. Running now...");
+        backup_restore_manager->run(restore.get());
+        NOVA_LOG_INFO("Finished with restore job, proceeding with prepare.");
     }
     NOVA_LOG_INFO("Starting redis instance.");
     internal_start(false);

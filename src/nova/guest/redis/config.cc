@@ -10,9 +10,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <stdio.h>
-#include "constants.h"
 #include "nova/Log.h"
 #include <boost/optional.hpp>
+#include "constants.h"
 
 using nova::Log;
 using boost::optional;
@@ -21,6 +21,9 @@ using std::string;
 
 namespace nova { namespace redis {
 
+namespace {
+
+} // end anon namespace
 
 std::string Config::_get_string_value(std::string key)
 {

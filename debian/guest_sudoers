@@ -10,6 +10,7 @@ Cmnd_Alias NOVACMDS = /bin/mv,              \
                       /usr/bin/dpkg,        \
                       /usr/bin/apt-get,     \
                       /usr/sbin/mysqld,     \
+                      /usr/bin/redis-cli,   \
                       /usr/bin/innobackupex, \
                       /usr/bin/xtrabackup,  \
                       /var/lib/nova/backup, \

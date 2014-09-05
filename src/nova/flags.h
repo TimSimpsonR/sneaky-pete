@@ -169,6 +169,8 @@ class FlagValues {
 
         const char * rabbit_userid() const;
 
+        const bool redis_allow_master_to_backup() const;
+
         const long long redis_backup_rdb_max_age_in_seconds() const;
 
         const int redis_state_change_wait_time() const;

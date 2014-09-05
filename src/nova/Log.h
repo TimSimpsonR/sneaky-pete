@@ -104,6 +104,10 @@ namespace nova {
 
             static void initialize(const LogOptions & options);
 
+            static void initialize_job_thread();
+
+            static void initialize_status_thread();
+
             /** Saves the current log to name.1, after first renaming all other
              *  backed up logs from 1 - options.max_old_files. */
             static void rotate_files();

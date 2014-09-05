@@ -421,6 +421,10 @@ const char * FlagValues::rabbit_userid() const {
     return map->get("rabbit_userid", "guest");
 }
 
+const bool FlagValues::redis_allow_master_to_backup() const {
+    return get_flag_value<bool>(*map, "redis_allow_master_to_backup", true);
+}
+
 const int FlagValues::redis_state_change_wait_time() const {
     return get_flag_value<int>(*map, "redis_state_change_wait_time", 3 * 60);
 }

@@ -34,27 +34,6 @@ using namespace nova::utils::swift;
  */
 
 
-class FileWriter : public SwiftDownloader::Output {
-public:
-
-    FileWriter(const char * file_name)
-    :   file(file_name, std::ofstream::binary)
-    {
-    }
-
-    virtual ~FileWriter() {
-    }
-
-    virtual void write(const char * buffer, size_t buffer_size) {
-        file.write(buffer, buffer_size);
-    }
-
-private:
-    bool _eof;
-    ofstream file;
-};
-
-
 int main(int argc, char **argv)
 {
     CurlScope scope;
@@ -62,8 +41,8 @@ int main(int argc, char **argv)
 
     if (argc < 7) {
         const char * program_name = (argc > 0 ? argv[0] : "download_file");
-        NOVA_LOG_ERROR("Usage: %s  output_file token base_url container checksum "
-                        "base_file_name", program_name);
+        NOVA_LOG_ERROR("Usage: %s  output_file token base_url container "
+                       "base_file_name checksum ", program_name);
       return 1;
     }
 
@@ -78,7 +57,7 @@ int main(int argc, char **argv)
 
     NOVA_LOG_DEBUG("Writing output file.")
 
-    FileWriter local_file(output_file_name);
+    LocalFileWriter local_file(output_file_name);
 
 
     //const auto max_bytes = 32 * 1024;

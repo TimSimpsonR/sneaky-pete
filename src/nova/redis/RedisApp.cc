@@ -98,24 +98,35 @@ void RedisApp::prepare(const optional<string> & json_root_password,
                        const optional<string> & overrides,
                        optional<BackupRestoreInfo> restore)
 {
-    if (!json_root_password) {
-        NOVA_LOG_ERROR("Missing root password!");
-        throw RedisException(RedisException::MISSING_ROOT_PASSWORD);
+    string root_password;
+    if (restore) {
+        if (status->is_running()) {
+            NOVA_LOG_INFO("Stopping redis instance before extracting backup.");
+            internal_stop(false);
+        }
+        NOVA_LOG_INFO("A restore was requested. Running now...");
+        backup_restore_manager->run(restore.get());
+        NOVA_LOG_INFO("Finished extracting backup.");
+        NOVA_LOG_INFO("Resetting config (but keeping password).");
+        reset_configuration(config_contents);
+    } else {
+        if (!json_root_password) {
+            NOVA_LOG_ERROR("Missing root password!");
+            throw RedisException(RedisException::MISSING_ROOT_PASSWORD);
+        }
+        NOVA_LOG_INFO("Writing Redis config file.");
+        root_password = json_root_password.get();
+        SHELL("sudo rm /etc/redis/redis.conf");
+        SHELL("sudo chmod -R 777 /etc/redis");
+        write_config(config_contents, root_password);
     }
-    const string root_password = json_root_password.get();
-
-    SHELL("sudo rm /etc/redis/redis.conf");
-    SHELL("sudo chmod -R 777 /etc/redis");
-
-    write_config(config_contents, root_password);
-
 
     NOVA_LOG_INFO("Starting to muck with Redis's config file.");
-    SHELL("mkdir -p /etc/redis/conf.d");
+    SHELL("sudo mkdir -p /etc/redis/conf.d");
+    SHELL("sudo chown -R nova:nova /etc/redis/conf.d");
+
     NOVA_LOG_INFO("Checking for Redis file.");
-    if (is_file("/etc/redis/conf.d/local.conf")) {
-        SHELL("rm /etc/redis/conf.d/local.conf");
-    }
+    SHELL("sudo rm -f /etc/redis/conf.d/local.conf");
 
     NOVA_LOG_INFO("Opening /etc/redis/conf.d/local.conf for writing");
     {
@@ -164,11 +175,6 @@ void RedisApp::prepare(const optional<string> & json_root_password,
     if (status->is_running()) {
         NOVA_LOG_INFO("Stopping redis instance.");
         internal_stop(false);
-    }
-    if (restore) {
-        NOVA_LOG_INFO("A restore was requested. Running now...");
-        backup_restore_manager->run(restore.get());
-        NOVA_LOG_INFO("Finished with restore job, proceeding with prepare.");
     }
     NOVA_LOG_INFO("Starting redis instance.");
     internal_start(false);

@@ -51,7 +51,7 @@ int main(int argc, char **argv)
         return 0;
     } else if (option == "dbfilename") {
         RedisClient client;
-        NOVA_LOG_INFO("Redis dump file located at: %s", find_dump_file(client));
+        NOVA_LOG_INFO("Redis dump file located at: %s", find_rdb_file(client));
         return 0;
     } else if (option == "rdb") {
         NOVA_LOG_INFO("Updating rdb.");
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
             "id",
             "swift-url"
         };
-        RedisBackupJob job(data, tolerance, backup_info);
+        RedisBackupJob job(data, true, tolerance, backup_info);
         job();
         return 0;
     } else {

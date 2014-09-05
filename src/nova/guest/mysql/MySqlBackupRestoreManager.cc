@@ -2,6 +2,7 @@
 
 #include "MySqlBackupRestoreManager.h"
 #include <boost/foreach.hpp>
+#include "nova/utils/ls.h"
 #include "nova/utils/io.h"
 #include <boost/assign/list_of.hpp>
 #include <boost/assign/std/list.hpp>
@@ -16,6 +17,7 @@ using namespace boost::assign;
 using nova::backup::BackupRestoreInfo;
 using nova::backup::BackupRestoreException;
 using boost::format;
+using nova::utils::ls;
 using namespace nova::process;
 using std::string;
 using std::stringstream;
@@ -179,18 +181,6 @@ private:
         }
         NOVA_LOG_DEBUG("Backup successfully extracted.");
     }  // end of extract_backup method.
-
-    void ls(const string & directory, vector<string> & output) {
-        stringstream stdout;
-        const CommandList cmds = list_of("/usr/bin/sudo")("-E")("/bin/ls")
-                                        (directory.c_str());
-        nova::process::execute(stdout, cmds, 60.0);
-        while(stdout.good()) {
-            string item;
-            stdout >> item;
-            output.push_back(item);
-        }
-    }
 
     void prepare_db() {
         NOVA_LOG_DEBUG("Preparing db using innobackupex!");

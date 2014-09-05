@@ -57,6 +57,22 @@ namespace {
         }
     }
 
+    boost::thread::id main_thread;
+    boost::thread::id status_thread;
+    boost::thread::id job_thread;
+
+    const char * thread_to_string(const boost::thread::id & id) {
+        if (id == main_thread) {
+            return "main    ";
+        } else if (id == status_thread) {
+            return " status ";
+        } else if (id == job_thread) {
+            return "    job ";
+        } else {
+            return " ?????? ";
+        }
+    }
+
     static boost::mutex global_mutex;
 
     static time_t start_time;
@@ -180,9 +196,19 @@ boost::optional<size_t> Log::current_log_file_size() {
 
 void Log::initialize(const LogOptions & options) {
     boost::lock_guard<boost::mutex> lock(global_mutex);
+    main_thread = boost::this_thread::get_id();
     _open_log(options);
     ::time(&start_time);
 }
+
+void Log::initialize_job_thread() {
+    job_thread = boost::this_thread::get_id();
+}
+
+void Log::initialize_status_thread() {
+    status_thread = boost::this_thread::get_id();
+}
+
 
 LogPtr & Log::_get_instance() {
     static LogPtr instance(0);
@@ -274,6 +300,7 @@ bool Log::should_rotate_logs() {
 }
 
 
+
 void Log::write(const char * file_name, int line_number, Log::Level level,
                 const char * message)
 {
@@ -285,14 +312,16 @@ void Log::write(const char * file_name, int line_number, Log::Level level,
     boost::lock_guard<boost::mutex> lock(mutex);
     if (options.use_std_streams) {
         std::ostream & out = (level == LEVEL_INFO) ? std::cout : std::cerr;
-        out << time.c_str() << " " << boost::this_thread::get_id() << " "
+        out << time.c_str() << " "
+            << thread_to_string(boost::this_thread::get_id()) << " "
             << level_string << " "
             << level_color(level) << message << ANSI_RESET
             << " for " << file_name <<  ":" << line_number << std::endl;
     }
     {
         if (file.is_open()) {
-            file << time.c_str() << " " << boost::this_thread::get_id() << " "
+            file << time.c_str() << " "
+                 << thread_to_string(boost::this_thread::get_id()) << " "
                  << level_string << " " << message
                  << " for " << file_name <<  ":" << line_number << std::endl;
             file.flush();

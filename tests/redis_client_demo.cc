@@ -24,6 +24,6 @@ int main(int argc, char **argv)
     NOVA_LOG_INFO("Creating a default style Redis client.");
     NOVA_LOG_INFO("This will only work in a container.");
     RedisClient client;
-    client.ping();
+    NOVA_LOG_INFO("Redis info=%s", client.command("info").expect_string());
     NOVA_LOG_INFO("THE END");
 }

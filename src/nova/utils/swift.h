@@ -61,6 +61,7 @@ class SwiftException : public std::exception {
 
     public:
         enum Code {
+            LOCAL_FILE_NOT_FOUND,
             SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL,
             SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL,
             SWIFT_DOWNLOAD_CHECKSUM_MATCH_FAIL
@@ -97,7 +98,7 @@ private:
 
 class SwiftDownloader : public SwiftClient {
 public:
-    class Output : boost::noncopyable  {
+    class Output  {
     public:
         virtual ~Output();
 

@@ -13,7 +13,7 @@ namespace nova { namespace redis {
 class RedisApp : public nova::datastores::DatastoreApp {
     public:
         RedisApp(RedisAppStatusPtr app_status,
-                 nova::backup::BackupRestoreManagerPtr backup_restore_manager;
+                 nova::backup::BackupRestoreManagerPtr backup_restore_manager,
                  const int state_change_wait_time);
         virtual ~RedisApp();
 

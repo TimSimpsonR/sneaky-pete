@@ -12,7 +12,8 @@
 
 namespace nova { namespace redis {
 
-std::string find_dump_file(RedisClient & client);
+std::string find_aof_file(RedisClient & client);
+std::string find_rdb_file(RedisClient & client);
 
 /** Allows the RDB file to be refreshed. */
 class RdbPersistence {
@@ -42,7 +43,9 @@ private:
 class RedisBackupJob : public nova::backup::BackupJob {
 public:
 
-    RedisBackupJob(nova::backup::BackupRunnerData data, long long tolerance,
+    RedisBackupJob(nova::backup::BackupRunnerData data,
+                   bool allow_master_to_backup,
+                   long long tolerance,
                    const nova::backup::BackupCreationArgs & args);
 
     RedisBackupJob(const RedisBackupJob & other);
@@ -57,7 +60,14 @@ protected:
     virtual const char * get_backup_type() const;
 
 private:
+    bool allow_master_to_backup;
+
     RedisClient client;
+
+    std::vector<std::string> determine_files_to_backup();
+
+    void ensure_file_exists_in(std::vector<std::string> files,
+                               const char * const filepath);
 
     bool is_slave();
 
@@ -65,13 +75,14 @@ private:
 
     long long tolerance;
 
-    std::string upload();
+    std::string upload(std::vector<std::string> files);
 };
 
 
 class RedisBackupManager : public nova::backup::BackupManager {
     public:
         RedisBackupManager(const nova::backup::BackupManagerInfo & info,
+                           const bool allow_master_to_backup,
                            const long long tolerance);
 
         virtual ~RedisBackupManager();
@@ -83,12 +94,11 @@ class RedisBackupManager : public nova::backup::BackupManager {
             using nova::backup::BackupManagerInfo;
             using nova::backup::BackupManagerPtr;
 
-            BackupManagerInfo info
-                = BackupManagerInfo::from_flags(flags, args...);
-            const long long tolerance
-                = flags.redis_backup_rdb_max_age_in_seconds();
             BackupManagerPtr result;
-            result.reset(new RedisBackupManager(info, tolerance));
+            result.reset(new RedisBackupManager(
+                BackupManagerInfo::from_flags(flags, args...),
+                flags.redis_allow_master_to_backup(),
+                flags.redis_backup_rdb_max_age_in_seconds()));
             return result;
         }
 
@@ -96,6 +106,8 @@ class RedisBackupManager : public nova::backup::BackupManager {
             const nova::backup::BackupCreationArgs & args);
 
     private:
+        // If true, we can backup even on the slave.
+        bool allow_master_to_backup;
         // How recent the dump file must be before we begin.
         long long tolerance;
 };

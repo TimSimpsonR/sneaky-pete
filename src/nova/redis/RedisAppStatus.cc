@@ -4,7 +4,6 @@
 #include <boost/assign/list_of.hpp>
 #include <boost/algorithm/string.hpp>
 #include "nova/redis/RedisClient.h"
-#include "nova/guest/redis/constants.h"
 #include "nova/redis/RedisException.h"
 #include "nova/Log.h"
 #include "nova/datastores/DatastoreStatus.h"

@@ -20,6 +20,7 @@
 #include <memory>
 #include "nova/db/mysql.h"
 #include "nova/redis/RedisAppStatus.h"
+#include "nova/redis/RedisBackup.h"
 #include "nova/guest/redis/message_handler.h"
 #include <boost/optional.hpp>
 #include "nova/guest/common/PrepareHandler.h"
@@ -45,6 +46,7 @@ using nova::redis::RedisAppStatusPtr;
 using nova::redis::RedisAppStatus;
 using std::auto_ptr;
 using nova::backup::BackupManager;
+using nova::backup::BackupManagerPtr;
 using nova::guest::backup::BackupMessageHandler;
 using nova::backup::BackupRestoreManager;
 using nova::backup::BackupRestoreManagerPtr;
@@ -62,6 +64,8 @@ using nova::redis::RedisApp;
 using nova::redis::RedisAppPtr;
 using nova::redis::RedisAppStatus;
 using nova::redis::RedisAppStatusPtr;
+using nova::redis::RedisBackupManager;
+using nova::redis::RedisBackupRestoreManager;
 using nova::rpc::ResilientSenderPtr;
 using namespace nova::rpc;
 using std::string;
@@ -123,7 +127,10 @@ struct Func {
 
         RedisAppStatusPtr app_status(new RedisAppStatus(sender,
                                                         is_redis_installed()));
+        BackupRestoreManagerPtr backup_restore_manager(
+            RedisBackupRestoreManager::from_flags(flags));
         RedisAppPtr app(new RedisApp(app_status,
+                                     backup_restore_manager,
                                      flags.redis_state_change_wait_time()));
         VolumeManagerPtr volume_manager;  // Intentionally leave this null.
         PrepareHandlerPtr prepare_ptr(new PrepareHandler(
@@ -138,6 +145,12 @@ struct Func {
         handlers.push_back(handler_interrogator);
 
         handlers.push_back(handler_redis);
+
+        BackupManagerPtr backup = RedisBackupManager::from_flags(
+            flags, sender, job_runner, interrogator);
+        MessageHandlerPtr handler_backup(new BackupMessageHandler(backup));
+        handlers.push_back(handler_backup);
+
         PeriodicTasksPtr tasks(new PeriodicTasks(app_status));
         return boost::make_tuple(handlers, tasks);
     }

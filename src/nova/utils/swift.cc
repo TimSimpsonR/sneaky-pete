@@ -22,15 +22,6 @@ using nova::LogApiScope;
 using nova::LogOptions;
 using nova::utils::Md5;
 
-
-// Define _NOVA_SWIFT_VERBOSE when building to get log messages for almost
-// everything.
-#ifdef _NOVA_SWIFT_VERBOSE
-#define NOVA_SWIFT_LOG(msg) { std::string m = str(msg); NOVA_LOG_DEBUG(m.c_str()); }
-#else
-#define NOVA_SWIFT_LOG(msg) /* */
-#endif
-
 namespace nova { namespace utils { namespace swift {
 
 
@@ -62,8 +53,8 @@ struct SwiftUploader::SegmentInfo {
         this->bytes_read += bytes_read;
         this->checksum.update(buffer, bytes_read);
         this->file_checksum.update(buffer, bytes_read);
-        NOVA_SWIFT_LOG(format("Curl upload call back.\n bytes_read=%d, "
-                       "total bytes_read=%d") % bytes_read % this->bytes_read);
+        NOVA_LOG_TRACE("Curl upload call back.\n bytes_read=%d, "
+                       "total bytes_read=%d", bytes_read, this->bytes_read);
         return bytes_read;
     }
 
@@ -165,6 +156,7 @@ SwiftDownloader::SwiftDownloader(const string & token,
     url(url),
     checksum(checksum)
 {
+    NOVA_LOG_TRACE("Url=%s", url);
 }
 
 SwiftDownloader::SwiftDownloader(const string & token,
@@ -174,12 +166,13 @@ SwiftDownloader::SwiftDownloader(const string & token,
     url(file_info.manifest_url()),
     checksum(checksum)
 {
+    NOVA_LOG_TRACE("Url=%s", url);
 }
 
 void SwiftDownloader::read(SwiftDownloader::Output & output) {
     reset_session();
 
-    NOVA_SWIFT_LOG(format("Reading segment..."));
+    NOVA_LOG_TRACE("Reading segment...");
     session.set_opt(CURLOPT_URL, url.c_str());
 
     struct CallBack {
@@ -188,7 +181,7 @@ void SwiftDownloader::read(SwiftDownloader::Output & output) {
             Output * output = reinterpret_cast<Output *>(userdata);
             const char * buffer = reinterpret_cast<const char *>(ptr);
             const size_t buffer_size = size * nmemb;
-            NOVA_SWIFT_LOG(format("Read callback: %d") % buffer_size);
+            NOVA_LOG_TRACE("Read callback: %d", buffer_size);
             output->write(buffer, buffer_size);
             // Assume success. In C++ land we have exceptions.
             return buffer_size;
@@ -318,8 +311,7 @@ void SwiftUploader::write_manifest(int file_number,
 
 void SwiftUploader::write_container(){
     reset_session();
-    NOVA_SWIFT_LOG(format("Writing container to %s...")
-                   % file_info.container_url());
+    NOVA_LOG_TRACE("Writing container to %s...", file_info.container_url());
     /* enable uploading */
     session.set_opt(CURLOPT_UPLOAD, 1L);
 
@@ -335,14 +327,14 @@ void SwiftUploader::write_container(){
 
     /* Make it happen */
     session.perform(list_of(200)(201)(202));
-    NOVA_SWIFT_LOG(format("Containing write complete."));
+    NOVA_LOG_TRACE("Containing write complete.");
 }
 
 string SwiftUploader::write_segment(const string & url,
                                     SwiftUploader::Input & input) {
     reset_session();
 
-    NOVA_SWIFT_LOG(format("Writing segment..."));
+    NOVA_LOG_TRACE("Writing segment...");
     session.set_opt(CURLOPT_UPLOAD, 1L);
     session.set_opt(CURLOPT_PUT, 1L);    // Use PUT
     session.set_opt(CURLOPT_URL, url.c_str());
@@ -394,6 +386,60 @@ string SwiftUploader::write(SwiftUploader::Input & input){
 }
 
 
+
+/**---------------------------------------------------------------------------
+ *- LocalFileReader
+ *---------------------------------------------------------------------------*/
+
+LocalFileReader::LocalFileReader(const char * file_name)
+:   _eof(false),
+    file(file_name, std::ifstream::binary) {
+    if (!file.good()) {
+        NOVA_LOG_ERROR("Can't find file %s!", file_name);
+        throw SwiftException(SwiftException::LOCAL_FILE_NOT_FOUND);
+    }
+}
+
+LocalFileReader::~LocalFileReader() {
+}
+
+bool LocalFileReader::eof() const {
+    return _eof;
+}
+
+size_t LocalFileReader::read(char * buffer, size_t bytes) {
+    if (file.eof()) {
+        _eof = true;
+        return 0;
+    }
+    if (!file.good()) {
+        NOVA_LOG_ERROR("Error in file stream!");
+        throw SwiftException(SwiftException::LOCAL_FILE_NOT_FOUND);
+    }
+    file.read(buffer, bytes - 1);
+  buffer[bytes] = '\0';
+  return file.gcount();
+}
+
+
+/**---------------------------------------------------------------------------
+ *- LocalFileWriter
+ *---------------------------------------------------------------------------*/
+
+LocalFileWriter::LocalFileWriter(const char * file_name)
+:   file(file_name, std::ofstream::binary) {
+}
+
+LocalFileWriter::~LocalFileWriter() {
+}
+
+void LocalFileWriter::write(const char * buffer, size_t buffer_size) {
+    file.write(buffer, buffer_size);
+}
+
+
+
+
 /**---------------------------------------------------------------------------
  *- SwiftException
  *---------------------------------------------------------------------------*/
@@ -407,6 +453,8 @@ SwiftException::~SwiftException() throw() {
 
 const char * SwiftException::what() const throw() {
     switch(code) {
+        case LOCAL_FILE_NOT_FOUND:
+            return "Local file to read from Swift not found.";
         case SWIFT_UPLOAD_SEGMENT_CHECKSUM_MATCH_FAIL:
             return "Failure matching segment checksum of swift upload!";
         case SWIFT_UPLOAD_CHECKSUM_OF_SEGMENT_CHECKSUMS_MATCH_FAIL:

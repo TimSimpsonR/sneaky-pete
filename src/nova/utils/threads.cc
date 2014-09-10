@@ -146,6 +146,7 @@ void ThreadBasedJobRunner::execute_job() {
 }
 
 void ThreadBasedJobRunner::operator()() {
+    Log::initialize_job_thread();
     NOVA_LOG_INFO("Starting Job Runner thread...");
     while(!is_shutdown_requested()) {
         NOVA_LOG_INFO("Waiting for job...");

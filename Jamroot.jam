@@ -324,7 +324,6 @@ exe parrot_e
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
-
 install parrot : parrot_e/<link>shared ;
 unit u_nova_process
     :   src/nova/process.cc
@@ -334,6 +333,10 @@ unit u_nova_process
     :   <dependency>parrot/<link>shared
         <define>_NOVA_PROCESS_VERBOSE
     :   BOOST_TEST_CATCH_SYSTEM_ERRORS=no
+    ;
+
+unit u_nova_utils_ls
+    :   src/nova/utils/ls.cc
     ;
 
 unit u_nova_datastores_DatastoreStatus
@@ -510,6 +513,7 @@ unit u_nova_backup_BackupManager
     :   u_nova_Log
         u_nova_backup_BackupException
         u_nova_utils_regex
+        u_nova_utils_swift
     ;
 
 unit u_nova_guest_mysql_MySqlBackupManager
@@ -533,6 +537,7 @@ unit u_nova_guest_mysql_MySqlBackupRestoreManager
     :   src/nova/guest/mysql/MySqlBackupRestoreManager.cc
     :   u_nova_backup_BackupRestore
         u_nova_process
+        u_nova_utils_ls
         u_nova_utils_regex
         u_nova_utils_swift
         u_nova_utils_zlib
@@ -626,9 +631,12 @@ unit u_nova_redis_RedisAppStatus
         u_nova_redis_RedisClient
     ;
 
+
 unit u_nova_redis_RedisBackup
     :   src/nova/redis/RedisBackup.cc
     :   u_nova_guest_common_PrepareHandler
+        u_nova_utils_ls
+        u_nova_redis_RedisClient
         u_nova_redis_RedisException
         u_nova_backup_BackupException
         u_nova_backup_BackupManager
@@ -836,6 +844,22 @@ exe nova_process_fd_demo
     :   <linkflags>$(EXE_LINK_FLAGS)
     ;
 
+exe redis_backup_demo
+    :   pch
+        u_nova_guest_diagnostics_Interrogator
+        u_nova_utils_swift
+        u_nova_redis_RedisBackup
+        u_nova_redis_RedisClient
+        u_nova_guest_common_PrepareHandler
+        u_nova_redis_RedisException
+        u_nova_backup_BackupException
+        u_nova_backup_BackupManager
+        u_nova_backup_BackupRestore
+        u_nova_utils_regex
+        tests/redis_backup_demo.cc
+    :   <linkflags>$(EXE_LINK_FLAGS)
+    ;
+
 exe apt_install
     :   pch
         u_nova_Log
@@ -890,6 +914,8 @@ exe sneaky-pete-redis
         u_nova_datastores_DatastoreStatus
         u_nova_guest_diagnostics_Interrogator
         u_nova_guest_diagnostics_InterrogatorMessageHandler
+        u_nova_guest_backup_BackupMessageHandler
+        u_nova_redis_RedisBackup
         src/redis_agent.cc
         lib_m
         lib_c
@@ -1070,12 +1096,12 @@ install tools
         format_file
         greedy_pete
         mount_file
+        redis_backup_demo
         redis_client_demo
         resizefs_file
         unmount_file
         upload_file
         send_forever_turbo
-
     :   <link>static <variant>release
     ;
 

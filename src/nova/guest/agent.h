@@ -51,6 +51,7 @@ public:
     }
 
     virtual void operator()() {
+        Log::initialize_status_thread();
         while(true) {
             boost::posix_time::seconds time(periodic_interval);
             boost::this_thread::sleep(time);

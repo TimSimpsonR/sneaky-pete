@@ -13,11 +13,11 @@ namespace nova { namespace backup {
  *---------------------------------------------------------------------------*/
 
 BackupRestoreInfo::BackupRestoreInfo(const string & token,
-                                     const string & backup_url,
-                                     const string & backup_checksum)
+                                     const string & location,
+                                     const string & checksum)
 :   token(token),
-    backup_url(backup_url),
-    backup_checksum(backup_checksum) {
+    location(location),
+    checksum(checksum) {
 }
 
 /**---------------------------------------------------------------------------

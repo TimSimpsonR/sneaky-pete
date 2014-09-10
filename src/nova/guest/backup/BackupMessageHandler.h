@@ -7,8 +7,6 @@
 
 namespace nova { namespace guest { namespace backup {
 
-    nova::backup::BackupInfo from_json(const nova::JsonObjectPtr data);
-
     class BackupMessageHandler : public nova::guest::MessageHandler {
 
         public:

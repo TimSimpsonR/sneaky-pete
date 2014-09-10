@@ -101,6 +101,8 @@ bool is_file(const char * file_path);
 
 bool is_file_sans_logging(const char * file_path);
 
+void ls(const std::string & directory, std::vector<std::string> & output);
+
 /** Throws exceptions if errors are detected. */
 size_t read_with_throw(int fd, char * const buf, size_t count);
 

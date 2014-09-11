@@ -124,6 +124,8 @@ const char * DatastoreStatus::status_name(DatastoreStatus::Status status) {
             return "blocked";
         case BUILDING:
             return "building";
+        case BUILD_PENDING:
+            return "build pending";
         case CRASHED:
             return "crashed";
         case DELETED:

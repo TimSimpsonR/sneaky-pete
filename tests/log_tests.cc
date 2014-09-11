@@ -22,6 +22,10 @@ using nova::utils::RegexMatchesPtr;
 using std::string;
 using std::vector;
 
+#define LOG_PREFIX "[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}" \
+                       "[0-9]{2}:[0-9]{2}:[0-9]{2}" \
+                       "\\s+[0-9a-z]+\\s+"
+
 #define CHECK_POINT() BOOST_CHECK_EQUAL(2,2);
 
 #define CHECK_LOG_EXCEPTION(statement, ex_code) try { \
@@ -100,8 +104,7 @@ struct LogTestsFixture {
 void check_log_line(const string msg, const string & actual_line,
                     const string & level, const string & expected_value) {
     string regex_string = str(format(
-        "[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
-        "\\s{1}0x[0-9a-f]+\\s{1}%s %s for tests/log_tests.cc:[0-9]+")
+        LOG_PREFIX "%s %s for tests/log_tests.cc:[0-9]+")
         % level % expected_value);
     Regex regex(regex_string.c_str());
     RegexMatchesPtr matches = regex.match(actual_line.c_str());
@@ -189,8 +192,7 @@ BOOST_AUTO_TEST_CASE(writing_some_lines_and_rotating) {
     {
         vector<string> lines;
         log_fixture.read_file(lines, 2);
-        Regex regex("[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                    "\\s{1}0x[0-9a-f]+\\s{1}DEBUG Hello from the tests\\. How\'re you doing\\? "
+        Regex regex(LOG_PREFIX "DEBUG Hello from the tests\\. How\'re you doing\\? "
                     "for tests/log_tests.cc:[0-9]+");
         RegexMatchesPtr matches = regex.match(lines[0].c_str());
         BOOST_CHECK_EQUAL(!!matches, true);
@@ -207,8 +209,7 @@ BOOST_AUTO_TEST_CASE(writing_some_lines_and_rotating) {
     {
         vector<string> lines;
         log_fixture.read_file(lines);
-        Regex regex("[0-9]{4}-[0-9]{2}-[0-9]{2}\\s{1}[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                "\\s{1}0x[0-9a-f]+\\s{1}INFO  Bye "
+        Regex regex(LOG_PREFIX "INFO  Bye "
                 "for tests/log_tests.cc:[0-9]+");
         RegexMatchesPtr matches = regex.match(lines[0].c_str());
         BOOST_CHECK_EQUAL(!!matches, true);

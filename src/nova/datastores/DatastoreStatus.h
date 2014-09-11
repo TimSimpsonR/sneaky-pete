@@ -42,6 +42,7 @@ namespace nova { namespace datastores {
                 //! BEGIN GENERATED CODE
                 BLOCKED = 0x2,  // blocked
                 BUILDING = 0x9,  // building
+                BUILD_PENDING = 0x19,  // build pending
                 CRASHED = 0x6,  // crashed
                 DELETED = 0x5,  // deleted
                 FAILED = 0x8,  // failed to spawn

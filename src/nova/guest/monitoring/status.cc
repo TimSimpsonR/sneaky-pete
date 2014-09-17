@@ -7,12 +7,16 @@
 #include <sys/stat.h>
 #include "nova/Log.h"
 #include "nova/guest/apt.h"
+#include <boost/assign/list_of.hpp>
+#include "nova/process.h"
 
+namespace process = nova::process;
 using nova::guest::apt::AptGuest;
 using namespace boost;
 using nova::utils::io::is_directory;
 using nova::utils::io::is_file;
 using namespace std;
+using boost::assign::list_of;
 
 
 namespace nova { namespace guest { namespace monitoring {
@@ -58,6 +62,8 @@ optional<string> MonitoringStatus::read_pid_from_file() {
 
 MonitoringStatus::Status MonitoringStatus::get_current_status() {
     NOVA_LOG_INFO("opening the pid file (%s)", MONITORING_PID_FILE);
+    process::execute(list_of("/usr/bin/sudo")
+                            ("chmod")("0644")(MONITORING_PID_FILE));
 
     if (!is_file(MONITORING_BIN_PATH)) {
         return REMOVED;

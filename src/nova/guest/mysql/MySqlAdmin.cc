@@ -150,12 +150,13 @@ void MySqlAdmin::create_database(MySqlDatabaseListPtr databases) {
     }
 }
 
-void MySqlAdmin::create_user(MySqlUserPtr user) {
+void MySqlAdmin::create_user(MySqlUserPtr user, const char * const grant_stuff) {
     if (!user->get_password()) {
         throw MySqlGuestException(MySqlGuestException::NO_PASSWORD_FOR_CREATE_USER);
     }
     string text = str(format(
-        "GRANT USAGE ON *.* TO '%s'@\"%s\" IDENTIFIED BY '%s'")
+        "GRANT %s ON *.* TO '%s'@\"%s\" IDENTIFIED BY '%s'")
+        % grant_stuff
         % con->escape_string(user->get_name().c_str())
         % con->escape_string(user->get_host().c_str())
         % con->escape_string(user->get_password().get().c_str()));

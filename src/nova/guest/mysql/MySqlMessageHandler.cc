@@ -252,6 +252,16 @@ namespace {
         return _create_user(sql, args);
     }
 
+    JSON_METHOD(create_user_with_replication_client) {
+        MySqlAdminPtr sql = guest->sql_admin();
+        MySqlUserPtr user = user_from_obj(args->get_object("user"));
+        NOVA_LOG_INFO("Creating strange and mysterious user.");
+        sql->create_user(user);
+        NOVA_LOG_INFO("Adding replication client grant.");
+        sql->create_user(user, "replication client");
+        return JsonData::from_null();
+    }
+
     JSON_METHOD(list_users) {
         unsigned int limit = args->get_positive_int("limit");
         optional<string> marker = args->get_optional_string("marker");

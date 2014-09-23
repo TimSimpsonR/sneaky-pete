@@ -37,7 +37,8 @@ namespace nova { namespace guest { namespace mysql {
 
             void create_database(MySqlDatabaseListPtr databases);
 
-            void create_user(MySqlUserPtr);
+            void create_user(MySqlUserPtr,
+                             const char * const grant_stuff="USAGE");
 
             void create_users(MySqlUserListPtr);
 
@@ -80,7 +81,6 @@ namespace nova { namespace guest { namespace mysql {
             MySqlAdmin & operator = (const MySqlAdmin &);
 
             nova::db::mysql::MySqlConnectionPtr con;
-
     };
 
     typedef boost::shared_ptr<MySqlAdmin> MySqlAdminPtr;

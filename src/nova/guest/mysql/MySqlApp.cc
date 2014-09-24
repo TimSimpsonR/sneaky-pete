@@ -36,6 +36,7 @@ using namespace nova::utils;
 using nova::Log;
 namespace process = nova::process;
 using namespace std;
+using nova::process::CommandList;
 
 namespace nova { namespace guest { namespace mysql {
 
@@ -225,8 +226,21 @@ void MySqlApp::prepare(const optional<string> & root_password,
     }
 
     internal_start();
-
+    load_timezone_tables();
     NOVA_LOG_INFO("Dbaas preparation complete.");
+}
+
+void MySqlApp::load_timezone_tables(){
+    NOVA_LOG_INFO("Loading timezone tables..");
+    /*In order to be able to use named time zones (Eg: Europe/London)
+    the 'default_time_zone' for the mysql server can be set in etc/mysql/my.cnf
+    or specified as a configuration parameter.*/
+    process::shell("mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql mysql", true);
+    // restart mysql server to avoid usage of any cached time zone data
+    NOVA_LOG_INFO("Restarting Mysql..");
+    internal_stop();
+    internal_start();
+    NOVA_LOG_INFO("Completed loading timezone tables.");
 }
 
 boost::optional<std::string> fetch_debian_sys_maint_password() {

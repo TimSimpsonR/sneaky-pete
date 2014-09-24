@@ -443,6 +443,7 @@ MySqlMessageHandler::MySqlMessageHandler()
         REGISTER(list_users),
         REGISTER(revoke_access),
         REGISTER(update_attributes),
+        REGISTER(create_user_with_replication_client),
         {0, 0}
     };
     const MethodEntry * itr = static_method_entries;

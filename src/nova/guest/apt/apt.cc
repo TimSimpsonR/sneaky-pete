@@ -323,7 +323,7 @@ void AptGuest::write_file(const char * name, const char * file_ext,
     file << file_contents.get();
     file.close();
     NOVA_LOG_INFO("Copying new %s file into place.", name);
-    string file_name = str(format("/etc/apt/%s%s.d/cdb") % name % file_ext);
+    string file_name = str(format("/etc/apt/%s.d/cdb%s") % name % file_ext);
     process::execute(list_of("/usr/bin/sudo")("cp")("/tmp/cdb")
                             (file_name.c_str()));
 }
@@ -332,7 +332,7 @@ void AptGuest::write_repo_files(const optional<string> & preferences_file,
                                 const optional<string> & sources_file,
                                 const optional<double> time_out) {
     write_file("preferences", "", preferences_file, time_out);
-    write_file("sources", ".list", sources_file, time_out);
+    write_file("sources.list", ".list", sources_file, time_out);
     update();
 }
 

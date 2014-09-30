@@ -270,7 +270,7 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
         NOVA_LOG_INFO("Generating root password...");
         auto new_root_password = mysql::generate_password();
         init_file << "UPDATE mysql.user SET Password=PASSWORD('"
-                  << new_root_password << "') WHERE User='root' AND Host='%';"
+                  << new_root_password << "') WHERE User='root' AND Host='localhost';"
                   << std::endl;
 
         NOVA_LOG_INFO("Removing anonymous users...");
@@ -303,6 +303,10 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
                   << debian_sys_maint_password.get() << "') "
                   << "WHERE User='debian-sys-maint';" << std::endl;
     }
+
+    NOVA_LOG_INFO("Removing the test default database...");
+    init_file << "DELETE FROM mysql.db WHERE Db IN('test', 'test\\_%');" << std::endl;
+    init_file << "DROP DATABASE test;" << std::endl;
 
     NOVA_LOG_INFO("Flushing privileges");
     init_file << "FLUSH PRIVILEGES;" << std::endl;

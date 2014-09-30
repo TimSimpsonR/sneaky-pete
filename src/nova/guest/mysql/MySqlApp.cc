@@ -226,16 +226,18 @@ void MySqlApp::prepare(const optional<string> & root_password,
     }
 
     internal_start();
-    load_timezone_tables();
+    load_timezone_tables(admin_password.c_str());
     NOVA_LOG_INFO("Dbaas preparation complete.");
 }
 
-void MySqlApp::load_timezone_tables(){
+void MySqlApp::load_timezone_tables(const char * password){
     NOVA_LOG_INFO("Loading timezone tables..");
     /*In order to be able to use named time zones (Eg: Europe/London)
     the 'default_time_zone' for the mysql server can be set in etc/mysql/my.cnf
     or specified as a configuration parameter.*/
-    process::shell("mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql mysql", true);
+    const string cmd = str(format("mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u%s -p%s mysql")
+                           %ADMIN_USER_NAME %password);
+    nova::process::shell(cmd.c_str(), false);
     // restart mysql server to avoid usage of any cached time zone data
     NOVA_LOG_INFO("Restarting Mysql..");
     internal_stop();

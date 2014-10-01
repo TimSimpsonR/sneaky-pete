@@ -117,7 +117,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
         void write_fresh_init_file(const std::string & admin_password,
                                    bool wipe_root_and_anonymous_users);
         // Loads mysql timezone tables to use named timezones
-        void load_timezone_tables();
+        void load_timezone_tables(const char *);
 
 };
 

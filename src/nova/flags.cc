@@ -436,7 +436,7 @@ const int FlagValues::rabbit_port() const {
 
 std::vector<unsigned long> FlagValues::rabbit_reconnect_wait_times() const {
     return get_flag_value_as_vector<unsigned long>(
-        *map, "rabbit_reconnect_wait_times", "1, 5, 30, 45, 60", 1);
+        *map, "rabbit_reconnect_wait_times", "1,5,30,45,60", 1);
 }
 
 const char * FlagValues::rabbit_userid() const {

@@ -385,18 +385,22 @@ unit u_nova_rpc_amqp
     :   lib_rabbitmq
     ;
 
+unit u_nova_rpc_ResilientConnection
+    :   src/nova/rpc/ResilientConnection.cc
+    :   u_nova_rpc_amqp
+        u_nova_Log
+    ;
+
 unit u_nova_rpc_Sender
     :   src/nova/rpc/Sender.cc
-    :   u_nova_rpc_amqp
+    :   u_nova_rpc_ResilientConnection
         u_nova_json
-        u_nova_Log
         u_nova_utils_subsecond
     ;
 
 unit u_nova_rpc_Receiver
     :   src/nova/rpc/Receiver.cc
-    :   u_nova_rpc_amqp
-        u_nova_json
+    :   u_nova_rpc_ResilientConnection
         u_nova_Log
     ;
 

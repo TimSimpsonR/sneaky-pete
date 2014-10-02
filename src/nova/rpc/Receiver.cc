@@ -117,6 +117,8 @@ void Receiver::finish_message(const GuestOutput & output) {
     // This is like telling Nova "roger."
     NOVA_LOG_INFO("Replying with 'end' message: %s", END_MESSAGE);
     rtn_ex_channel->publish(exchange_name, routing_key, END_MESSAGE);
+    // Manually close in order to throw any errors that might happen here.
+    rtn_ex_channel->close();
 }
 
 JsonObjectPtr Receiver::_next_message() {
@@ -197,16 +199,12 @@ GuestInput Receiver::next_message() {
 ResilientReceiver::ResilientReceiver(const char * host, int port,
     const char * userid, const char * password, size_t client_memory,
     const char * topic, const char * exchange_name,
-    unsigned long reconnect_wait_time)
-: client_memory(client_memory),
+    std::vector<unsigned long> reconnect_wait_times)
+: ResilientConnection(host, port, userid, password, client_memory,
+                      reconnect_wait_times),
   exchange_name(exchange_name),
-  host(host),
-  password(password),
-  port(port),
   receiver(0),
-  topic(topic),
-  userid(userid),
-  reconnect_wait_time(reconnect_wait_time)
+  topic(topic)
 {
     open(false);
 }
@@ -232,6 +230,10 @@ void ResilientReceiver::finish_message(const GuestOutput & output) {
     }
 }
 
+bool ResilientReceiver::is_open() const {
+    return receiver.get() != 0;
+}
+
 GuestInput ResilientReceiver::next_message() {
     while(true) {
         try {
@@ -244,31 +246,9 @@ GuestInput ResilientReceiver::next_message() {
     }
 }
 
-void ResilientReceiver::open(bool wait_first) {
-    while(receiver.get() == 0) {
-        try {
-            if (wait_first) {
-                NOVA_LOG_INFO("Waiting to create fresh AMQP connection...");
-                boost::posix_time::seconds time(reconnect_wait_time);
-                boost::this_thread::sleep(time);
-            }
-            AmqpConnectionPtr connection =
-                AmqpConnection::create(host.c_str(), port, userid.c_str(),
-                    password.c_str(), client_memory);
-            receiver.reset(new Receiver(connection, topic.c_str(),
-                                        exchange_name.c_str()));
-            return;
-        } catch(const AmqpException & amqpe) {
-            NOVA_LOG_ERROR("Error establishing AMQP connection: %s",
-                            amqpe.what());
-            wait_first = true;
-        }
-    }
-}
-
-void ResilientReceiver::reset() {
-    close();
-    open(true);
+void ResilientReceiver::finish_open(AmqpConnectionPtr connection) {
+    receiver.reset(new Receiver(connection, topic.c_str(),
+                                exchange_name.c_str()));
 }
 
 } }  // end namespace

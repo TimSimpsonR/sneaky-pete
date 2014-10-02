@@ -7,6 +7,7 @@
 #include "nova/Log.h"
 #include <memory>
 #include <boost/optional.hpp>
+#include "ResilientConnection.h"
 #include <string>
 #include <boost/utility.hpp>
 #include <boost/smart_ptr.hpp>
@@ -34,14 +35,14 @@ namespace nova { namespace rpc {
     };
 
 
-    class ResilientSender {
+    class ResilientSender : public ResilientConnection {
         public:
             ResilientSender(const char * host, int port, const char * userid,
                             const char * password, size_t client_memory,
                             const char * topic,
                             const char * exchange_name,
                             const char * instance_id,
-                            unsigned long reconnect_wait_time);
+                         const std::vector<unsigned long> reconnect_wait_times);
 
             ~ResilientSender();
 
@@ -66,35 +67,24 @@ namespace nova { namespace rpc {
              */
             void send_plain_string(const char * publish_string);
 
+        protected:
+            virtual void close();
+
+            virtual void finish_open(AmqpConnectionPtr connection);
+
+            virtual bool is_open() const;
+
         private:
             ResilientSender(const ResilientSender &);
             ResilientSender & operator = (const ResilientSender &);
 
-            void reset();
-
-            size_t client_memory;
-
-            void close();
-
             std::string exchange_name;
 
-            std::string host;
-
             std::string instance_id;
-
-            void open(bool wait_first);
-
-            std::string password;
-
-            int port;
 
             std::auto_ptr<Sender> sender;
 
             std::string topic;
-
-            std::string userid;
-
-            unsigned long reconnect_wait_time;
 
             boost::mutex conductor_mutex;
 

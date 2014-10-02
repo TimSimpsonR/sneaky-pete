@@ -40,6 +40,7 @@ using namespace boost::assign;
 using nova::guest::apt::AptGuest;
 using nova::guest::apt::AptGuestPtr;
 using nova::guest::apt::AptMessageHandler;
+using nova::guest::apt::AptException;
 using std::auto_ptr;
 using nova::backup::BackupManagerPtr;
 using nova::guest::mysql::MySqlBackupManager;
@@ -109,8 +110,12 @@ struct Func {
     static bool is_mysql_installed(std::list<std::string> package_list,
                                    AptGuestPtr & apt_worker) {
         BOOST_FOREACH(const auto & package_name, package_list) {
-            if (apt_worker->version(package_name.c_str())) {
-                return true;
+            try {
+                if (apt_worker->version(package_name.c_str())) {
+                    return true;
+                }
+            } catch(const AptException & ae) {
+                NOVA_LOG_INFO("What? Versionfailed? NOO!")
             }
         }
         return false;

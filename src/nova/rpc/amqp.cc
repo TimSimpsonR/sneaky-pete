@@ -374,6 +374,12 @@ void AmqpChannel::close() {
         //     parent->log.error2("Could not avoid SIGPIPE: %s", strerror(errno));
         // }
 
+        // There will be no case where we call this function, catch something,
+        // the call it again. Additionally we don't want client code to call
+        // this, then the destructor which will call this again if something
+        // fails. So setting this to false is the safest thing to do.
+        is_open = false;
+
         const amqp_rpc_reply_t reply =
             amqp_channel_close(conn, channel_number, AMQP_REPLY_SUCCESS);
 
@@ -387,7 +393,6 @@ void AmqpChannel::close() {
         // }
 
         check(reply, AmqpException::CLOSE_CHANNEL_FAILED);
-        is_open = false;
     }
 }
 

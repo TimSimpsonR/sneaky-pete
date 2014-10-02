@@ -7,6 +7,7 @@
 #include "nova/Log.h"
 #include <memory>
 #include <boost/optional.hpp>
+#include "ResilientConnection.h"
 #include <string>
 #include <boost/utility.hpp>
 
@@ -46,12 +47,13 @@ namespace nova { namespace rpc {
 
     /** Like the standard receiver, but kills and waits to restablish
      *  the connection anytime there's a problem. */
-    class ResilientReceiver {
+    class ResilientReceiver : public ResilientConnection {
 
     public:
         ResilientReceiver(const char * host, int port, const char * userid,
             const char * password, size_t client_memory, const char * topic,
-            const char * exchange_name, unsigned long reconnect_wait_time);
+            const char * exchange_name,
+            std::vector<unsigned long> reconnect_wait_times);
 
         ~ResilientReceiver();
 
@@ -61,34 +63,22 @@ namespace nova { namespace rpc {
         /** Grabs the next message. */
         nova::guest::GuestInput next_message();
 
-        void reset();
+    protected:
+        virtual void close();
+
+        virtual void finish_open(AmqpConnectionPtr connection);
+
+        virtual bool is_open() const;
 
     private:
         ResilientReceiver(const ResilientReceiver &);
         ResilientReceiver & operator = (const ResilientReceiver &);
 
-        size_t client_memory;
-
-        void close();
-
         std::string exchange_name;
-
-        std::string host;
-
-        void open(bool wait_first);
-
-        std::string password;
-
-        int port;
 
         std::auto_ptr<Receiver> receiver;
 
         std::string topic;
-
-        std::string userid;
-
-        unsigned long reconnect_wait_time;
-
     };
 
 } } // end namespace

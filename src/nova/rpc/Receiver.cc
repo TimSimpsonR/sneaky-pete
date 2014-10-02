@@ -32,10 +32,9 @@ namespace {
  *---------------------------------------------------------------------------*/
 
 Receiver::Receiver(AmqpConnectionPtr connection, const char * topic,
-                   const char * exchange_name)
+                   const char * exchange_name, MessageInfo last_msg)
 :   connection(connection),
-    last_delivery_tag(-1),
-    last_msg_id(boost::none),
+    last_msg(last_msg),
     queue(),
     topic(topic)
 {
@@ -69,9 +68,9 @@ Receiver::~Receiver() {
 }
 
 void Receiver::finish_message(const GuestOutput & output) {
-    queue->ack_message(last_delivery_tag);
+    queue->ack_message(last_msg.delivery_tag);
 
-    if (!last_msg_id) {
+    if (!last_msg.msg_id) {
         // No reply necessary.
         NOVA_LOG_INFO("Acknowledged message but will not send reply because "
                       "no _msg_id was given.");
@@ -80,11 +79,11 @@ void Receiver::finish_message(const GuestOutput & output) {
 
     // Send reply.
     string exchange_name_str = str(format("__agent_response_%s")
-                                   % last_msg_id.get());
+                                   % last_msg.msg_id.get());
 
-    //const char * const queue_name = last_msg_id.c_str();
-    const char * const exchange_name = last_msg_id.get().c_str();
-    const char * const routing_key = last_msg_id.get().c_str(); //"";
+    //const char * const queue_name = msg_id.c_str();
+    const char * const exchange_name = last_msg.msg_id.get().c_str();
+    const char * const routing_key = last_msg.msg_id.get().c_str(); //"";
     // queue_name, exchange_name, and routing_key are all the same.
     AmqpChannelPtr rtn_ex_channel = connection->new_channel();
     string msg;
@@ -121,6 +120,10 @@ void Receiver::finish_message(const GuestOutput & output) {
     rtn_ex_channel->close();
 }
 
+MessageInfo Receiver::get_message_info() const {
+    return last_msg;
+}
+
 JsonObjectPtr Receiver::_next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
@@ -147,7 +150,7 @@ JsonObjectPtr Receiver::_next_message() {
     NOVA_LOG_INFO(log_msg.str().c_str());
     JsonObjectPtr json_obj(new JsonObject(msg->message.c_str()));
 
-    last_delivery_tag = msg->delivery_tag;
+    last_msg.delivery_tag = msg->delivery_tag;
     return json_obj;
 }
 
@@ -176,9 +179,9 @@ GuestInput Receiver::next_message() {
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
         try {
-            last_msg_id = msg->get_string("_msg_id");
+            last_msg.msg_id = msg->get_string("_msg_id");
          } catch(const JsonException & je) {
-             last_msg_id = boost::none;
+             last_msg.msg_id = boost::none;
          }
          try {
              GuestInput input;
@@ -203,6 +206,7 @@ ResilientReceiver::ResilientReceiver(const char * host, int port,
 : ResilientConnection(host, port, userid, password, client_memory,
                       reconnect_wait_times),
   exchange_name(exchange_name),
+  last_msg({ -1, boost::none }),
   receiver(0),
   topic(topic)
 {
@@ -214,6 +218,7 @@ ResilientReceiver::~ResilientReceiver() {
 }
 
 void ResilientReceiver::close() {
+    last_msg = receiver->get_message_info();  // Restore on failure.
     receiver.reset(0);
 }
 
@@ -248,7 +253,7 @@ GuestInput ResilientReceiver::next_message() {
 
 void ResilientReceiver::finish_open(AmqpConnectionPtr connection) {
     receiver.reset(new Receiver(connection, topic.c_str(),
-                                exchange_name.c_str()));
+                                exchange_name.c_str(), last_msg));
 }
 
 } }  // end namespace

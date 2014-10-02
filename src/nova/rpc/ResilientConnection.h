@@ -48,7 +48,7 @@ namespace nova { namespace rpc {
 
             int port;
 
-            unsigned int reconnect_wait_time_index = 0;
+            unsigned int reconnect_wait_time_index;
 
             std::vector<unsigned long> reconnect_wait_times;
 

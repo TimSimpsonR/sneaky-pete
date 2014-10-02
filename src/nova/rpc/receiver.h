@@ -14,16 +14,24 @@
 
 namespace nova { namespace rpc {
 
+    struct MessageInfo {
+        int delivery_tag;
+        boost::optional<std::string> msg_id;
+    };
+
     class Receiver : boost::noncopyable  {
 
     public:
         Receiver(AmqpConnectionPtr connection, const char * topic,
-                 const char * exchange_name);
+                 const char * exchange_name,
+                 MessageInfo last_msg={ -1, boost::none });
 
         ~Receiver();
 
         /** Finishes a message. */
         void finish_message(const nova::guest::GuestOutput & output);
+
+        MessageInfo get_message_info() const;
 
         static void init_input_with_json(nova::guest::GuestInput & input,
                                          nova::JsonObject & msg);
@@ -36,8 +44,7 @@ namespace nova { namespace rpc {
         Receiver & operator = (const Receiver &);
 
         AmqpConnectionPtr connection;
-        int last_delivery_tag;
-        boost::optional<std::string> last_msg_id;
+        MessageInfo last_msg;
         AmqpChannelPtr queue;
         const std::string topic;
 
@@ -75,6 +82,8 @@ namespace nova { namespace rpc {
         ResilientReceiver & operator = (const ResilientReceiver &);
 
         std::string exchange_name;
+
+        MessageInfo last_msg;
 
         std::auto_ptr<Receiver> receiver;
 

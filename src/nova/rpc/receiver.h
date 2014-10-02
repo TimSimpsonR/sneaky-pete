@@ -9,14 +9,36 @@
 #include <boost/optional.hpp>
 #include "ResilientConnection.h"
 #include <string>
+#include <boost/tuple/tuple.hpp>
 #include <boost/utility.hpp>
 
 
 namespace nova { namespace rpc {
 
-    struct MessageInfo {
+    /* Handles some state around receiving and responding to a message. By
+     * storing the position it was at when an exception was thrown the
+     * finish_message method can resume replying if an exception is thrown
+     * in the middle of one of the Amqp actions. */
+    class MessageState {
+    public:
+        MessageState();
+
+        MessageState(const MessageState & other);
+
+        /** Can be called multiple times. Does nothing if the message has
+         *  already been replied to. */
+        void finish_message(AmqpConnectionPtr connection,
+                            AmqpChannelPtr queue, const std::string & msg);
+
+        /** Sets a new message to reply to. */
+        void set_response_info(int delivery_tag,
+                               boost::optional<std::string> msg_id);
+
+    private:
         int delivery_tag;
         boost::optional<std::string> msg_id;
+        int must_send_reply_body;
+        int must_send_reply_end;
     };
 
     class Receiver : boost::noncopyable  {
@@ -24,14 +46,14 @@ namespace nova { namespace rpc {
     public:
         Receiver(AmqpConnectionPtr connection, const char * topic,
                  const char * exchange_name,
-                 MessageInfo last_msg={ -1, boost::none });
+                 MessageState msg=MessageState());
 
         ~Receiver();
 
         /** Finishes a message. */
         void finish_message(const nova::guest::GuestOutput & output);
 
-        MessageInfo get_message_info() const;
+        MessageState get_message_state() const;
 
         static void init_input_with_json(nova::guest::GuestInput & input,
                                          nova::JsonObject & msg);
@@ -44,11 +66,11 @@ namespace nova { namespace rpc {
         Receiver & operator = (const Receiver &);
 
         AmqpConnectionPtr connection;
-        MessageInfo last_msg;
+        MessageState msg_state;
         AmqpChannelPtr queue;
         const std::string topic;
 
-        nova::JsonObjectPtr _next_message();
+        boost::tuple<nova::JsonObjectPtr, int> _next_message();
 
     };
 
@@ -83,7 +105,7 @@ namespace nova { namespace rpc {
 
         std::string exchange_name;
 
-        MessageInfo last_msg;
+        MessageState msg_state;
 
         std::auto_ptr<Receiver> receiver;
 

@@ -13,6 +13,7 @@ using boost::format;
 using nova::guest::GuestInput;
 using nova::guest::GuestException;
 using nova::guest::GuestOutput;
+using boost::optional;
 using nova::json_string;
 using nova::JsonObject;
 using nova::JsonObjectPtr;
@@ -26,15 +27,80 @@ namespace {
                                "  \"ending\":true }";
 }
 
+/**---------------------------------------------------------------------------
+ *- MessageState
+ *---------------------------------------------------------------------------*/
+
+MessageState::MessageState()
+:   delivery_tag(-1),
+    msg_id(boost::none),
+    must_send_reply_body(false),
+    must_send_reply_end(false)
+{}
+
+MessageState::MessageState(const MessageState & other)
+:   delivery_tag(other.delivery_tag),
+    msg_id(other.msg_id),
+    must_send_reply_body(other.must_send_reply_body),
+    must_send_reply_end(other.must_send_reply_end)
+{}
+
+void MessageState::finish_message(AmqpConnectionPtr connection,
+                                  AmqpChannelPtr queue,
+                                  const string & msg) {
+    if (delivery_tag != -1) {
+        queue->ack_message(delivery_tag);
+        delivery_tag = -1;
+    }
+
+    if (!msg_id) {
+        // No reply necessary.
+        NOVA_LOG_INFO("Acknowledged message but will not send reply because "
+                      "no _msg_id was given.");
+        return;
+    }
+
+    const char * const exchange_name = msg_id.get().c_str();
+    const char * const routing_key = msg_id.get().c_str();
+
+    AmqpChannelPtr rtn_ex_channel = connection->new_channel();
+    if (must_send_reply_body -- > 0) {
+        NOVA_LOG_INFO("Replying with 'body' message.");
+        rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
+        must_send_reply_body = 0;
+    }
+
+
+    if (must_send_reply_end -- > 0) {
+        // This is like telling Nova "roger."
+        NOVA_LOG_INFO("Replying with 'end' message: %s", END_MESSAGE);
+        rtn_ex_channel->publish(exchange_name, routing_key, END_MESSAGE);
+        must_send_reply_end = 0;
+    }
+
+    msg_id = boost::none;
+    // Manually close in order to throw any errors that might happen here.
+    rtn_ex_channel->close();
+}
+
+
+void MessageState::set_response_info(int delivery_tag, optional<string> msg_id) {
+    this->delivery_tag = delivery_tag;
+    this->msg_id = msg_id;
+    if (this->msg_id) {
+        must_send_reply_body = 3;
+        must_send_reply_end = 3;
+    }
+}
 
 /**---------------------------------------------------------------------------
  *- Receiver
  *---------------------------------------------------------------------------*/
 
 Receiver::Receiver(AmqpConnectionPtr connection, const char * topic,
-                   const char * exchange_name, MessageInfo last_msg)
+                   const char * exchange_name, const MessageState msg)
 :   connection(connection),
-    last_msg(last_msg),
+    msg_state(msg),
     queue(),
     topic(topic)
 {
@@ -67,31 +133,11 @@ Receiver::Receiver(AmqpConnectionPtr connection, const char * topic,
 Receiver::~Receiver() {
 }
 
-void Receiver::finish_message(const GuestOutput & output) {
-    queue->ack_message(last_msg.delivery_tag);
-
-    if (!last_msg.msg_id) {
-        // No reply necessary.
-        NOVA_LOG_INFO("Acknowledged message but will not send reply because "
-                      "no _msg_id was given.");
-        return;
-    }
-
-    // Send reply.
-    string exchange_name_str = str(format("__agent_response_%s")
-                                   % last_msg.msg_id.get());
-
-    //const char * const queue_name = msg_id.c_str();
-    const char * const exchange_name = last_msg.msg_id.get().c_str();
-    const char * const routing_key = last_msg.msg_id.get().c_str(); //"";
-    // queue_name, exchange_name, and routing_key are all the same.
-    AmqpChannelPtr rtn_ex_channel = connection->new_channel();
+string create_reply_message_string(const GuestOutput & output) {
     string msg;
     if (!output.failure) {
         msg = str(format("{ \"failure\":null, \"result\":%s }")
                   % output.result->to_string());
-        //msg = "{ 'failure': null }";
-        //msg = "{\"failure\":null}";
         JsonObject obj(msg.c_str());
         msg = obj.to_string();
     } else {
@@ -110,21 +156,19 @@ void Receiver::finish_message(const GuestOutput & output) {
                            msg.c_str());
         #endif
     }
-
-    rtn_ex_channel->publish(exchange_name, routing_key, msg.c_str());
-
-    // This is like telling Nova "roger."
-    NOVA_LOG_INFO("Replying with 'end' message: %s", END_MESSAGE);
-    rtn_ex_channel->publish(exchange_name, routing_key, END_MESSAGE);
-    // Manually close in order to throw any errors that might happen here.
-    rtn_ex_channel->close();
+    return msg;
 }
 
-MessageInfo Receiver::get_message_info() const {
-    return last_msg;
+void Receiver::finish_message(const GuestOutput & output) {
+    const string msg_string = create_reply_message_string(output);
+    msg_state.finish_message(connection, queue, msg_string);
 }
 
-JsonObjectPtr Receiver::_next_message() {
+MessageState Receiver::get_message_state() const {
+    return msg_state;
+}
+
+boost::tuple<JsonObjectPtr, int> Receiver::_next_message() {
     AmqpQueueMessagePtr msg;
     while(!msg) {
         msg = queue->get_message(topic.c_str());
@@ -150,8 +194,7 @@ JsonObjectPtr Receiver::_next_message() {
     NOVA_LOG_INFO(log_msg.str().c_str());
     JsonObjectPtr json_obj(new JsonObject(msg->message.c_str()));
 
-    last_msg.delivery_tag = msg->delivery_tag;
-    return json_obj;
+    return boost::make_tuple(json_obj, msg->delivery_tag);
 }
 
 void Receiver::init_input_with_json(GuestInput & input, JsonObject & msg) {
@@ -164,8 +207,9 @@ void Receiver::init_input_with_json(GuestInput & input, JsonObject & msg) {
 GuestInput Receiver::next_message() {
     while(true) {
         JsonObjectPtr raw;
+        int delivery_tag;
         try {
-            raw = _next_message();
+            boost::tie(raw, delivery_tag) = _next_message();
         } catch(const JsonException & je) {
             NOVA_LOG_ERROR("Message was not JSON! %s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
@@ -178,19 +222,21 @@ GuestInput Receiver::next_message() {
             NOVA_LOG_ERROR("%s", je.what());
             throw GuestException(GuestException::MALFORMED_INPUT);
         }
+        optional<string> msg_id;
         try {
-            last_msg.msg_id = msg->get_string("_msg_id");
-         } catch(const JsonException & je) {
-             last_msg.msg_id = boost::none;
-         }
-         try {
-             GuestInput input;
-             init_input_with_json(input, *msg);
-             return input;
-         } catch(const JsonException & je) {
+            msg_id = msg->get_string("_msg_id");
+        } catch(const JsonException & je) {
+            msg_id = boost::none;
+        }
+        msg_state.set_response_info(delivery_tag, msg_id);
+        try {
+            GuestInput input;
+            init_input_with_json(input, *msg);
+            return input;
+        } catch(const JsonException & je) {
             NOVA_LOG_ERROR("Json message was malformed:", msg->to_string());
-             throw GuestException(GuestException::MALFORMED_INPUT);
-         }
+            throw GuestException(GuestException::MALFORMED_INPUT);
+        }
     }
 }
 
@@ -206,7 +252,7 @@ ResilientReceiver::ResilientReceiver(const char * host, int port,
 : ResilientConnection(host, port, userid, password, client_memory,
                       reconnect_wait_times),
   exchange_name(exchange_name),
-  last_msg({ -1, boost::none }),
+  msg_state(),
   receiver(0),
   topic(topic)
 {
@@ -218,7 +264,7 @@ ResilientReceiver::~ResilientReceiver() {
 }
 
 void ResilientReceiver::close() {
-    last_msg = receiver->get_message_info();  // Restore on failure.
+    msg_state = receiver->get_message_state();  // Restore on failure.
     receiver.reset(0);
 }
 
@@ -253,7 +299,7 @@ GuestInput ResilientReceiver::next_message() {
 
 void ResilientReceiver::finish_open(AmqpConnectionPtr connection) {
     receiver.reset(new Receiver(connection, topic.c_str(),
-                                exchange_name.c_str(), last_msg));
+                                exchange_name.c_str(), msg_state));
 }
 
 } }  // end namespace

@@ -6,6 +6,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace nova { namespace flags {
 
@@ -20,7 +21,8 @@ class FlagException : public std::exception {
                 NO_EQUAL_SIGN,
                 NO_STARTING_DASHES,
                 PATTERN_GROUP_NOT_MATCHED,
-                PATTERN_NOT_MATCHED
+                PATTERN_NOT_MATCHED,
+                TOO_FEW_ITEMS_IN_LIST
             };
 
             FlagException(const Code code, const char * line) throw();
@@ -165,7 +167,7 @@ class FlagValues {
 
         const int rabbit_port() const;
 
-        unsigned long rabbit_reconnect_wait_time() const;
+        std::vector<unsigned long> rabbit_reconnect_wait_times() const;
 
         const char * rabbit_userid() const;
 

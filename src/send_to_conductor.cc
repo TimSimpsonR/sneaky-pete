@@ -34,9 +34,14 @@ int main(int argc, char **argv)
   const char * password = argv[++i];
   const char * message = argv[++i];
 
+  std::vector<unsigned long> wait_times;
+  wait_times.push_back(10);
+  wait_times.push_back(20);
+  wait_times.push_back(60);
+
   ResilientSender rs("10.0.0.1", 5672,
                      userid, password,
-                     4096, "trove-conductor","", "my-instance-id", 10);
+                     4096, "trove-conductor","", "my-instance-id", wait_times);
   rs.send_plain_string(message);
 
   return 0;

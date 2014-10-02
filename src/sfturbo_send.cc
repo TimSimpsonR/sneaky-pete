@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
             flags.rabbit_client_memory(),
             topic.c_str(), flags.control_exchange(),
             flags.guest_id(),
-            flags.rabbit_reconnect_wait_time()));
+            flags.rabbit_reconnect_wait_times()));
 
     const int worker_count = 10;
     for (int i = 0; i < worker_count; i++) {

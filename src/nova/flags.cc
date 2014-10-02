@@ -57,6 +57,8 @@ const char * FlagException::code_to_string(FlagException::Code code) throw() {
             return "A regex pattern group not matched.";
         case PATTERN_NOT_MATCHED:
             return "The regex pattern was not matched.";
+        case TOO_FEW_ITEMS_IN_LIST:
+            return "The given list value has less items than are required.";
         default:
             return "An error occurred.";
     }
@@ -221,17 +223,37 @@ optional<bool> get_flag_value<>(FlagMap & map, const char * name) {
 }
 
 std::list<string> get_flag_value_as_string_list(
-    FlagMap & map, const char * name, const char * default_value)
+    FlagMap & map, const char * name, const char * default_value,
+    int minimum_size)
 {
     optional<const char *> value = get_flag_value<const char *>(map, name);
-    std::list<string> cmds;
+    std::list<string> result;
     string full(value.get_value_or(default_value));
     stringstream ss(full);
     string cmd;
+    int count = 0;
     while(std::getline(ss, cmd, ',')) {
-        cmds.push_back(cmd);
+        result.push_back(cmd);
+        ++ count;
     }
-    return cmds;
+    if (count < minimum_size) {
+        throw FlagException(FlagException::TOO_FEW_ITEMS_IN_LIST, full.c_str());
+    }
+    return result;
+}
+
+template<typename T>
+std::vector<T> get_flag_value_as_vector(
+    FlagMap & map, const char * name, const char * default_value,
+    int minimum_size)
+{
+    const auto string_list = get_flag_value_as_string_list(
+        map, name, default_value, minimum_size);
+    std::vector<T> new_list;
+    BOOST_FOREACH(const string & element, string_list) {
+        new_list.push_back(boost::lexical_cast<T>(element));
+    }
+    return new_list;
 }
 
 template<typename T>
@@ -281,14 +303,14 @@ const char * FlagValues::backup_restore_restore_directory() const {
 
 list<string> FlagValues::backup_process_commands() const {
     return get_flag_value_as_string_list(*map, "backup_process_commands",
-        "/usr/bin/sudo,-E,/var/lib/nova/backup");
+        "/usr/bin/sudo,-E,/var/lib/nova/backup", 1);
 }
 
 list<string> FlagValues::backup_restore_process_commands() const {
     return get_flag_value_as_string_list(
         *map,
         "backup_restore_process_commands",
-        "/usr/bin/sudo,-E,/var/lib/nova/restore");
+        "/usr/bin/sudo,-E,/var/lib/nova/restore", 1);
 }
 
 const char * FlagValues::backup_restore_save_file_pattern() const {
@@ -393,7 +415,7 @@ unsigned long FlagValues::periodic_interval() const {
 
 std::list<std::string> FlagValues::datastore_packages() const {
     return get_flag_value_as_string_list(*map, "datastore_packages",
-        "mysql-server,mysql-server-5.1,mysql-server-5.5,mysql-server-5.6,mariadb-server-10.0,percona-server-server-5.5,percona-server-server-5.6");
+        "mysql-server,mysql-server-5.1,mysql-server-5.5,mysql-server-5.6,mariadb-server-10.0,percona-server-server-5.5,percona-server-server-5.6", 1);
 }
 
 size_t FlagValues::rabbit_client_memory() const {
@@ -412,9 +434,9 @@ const int FlagValues::rabbit_port() const {
     return map->get_as_int("rabbit_port", 5672);
 }
 
-unsigned long FlagValues::rabbit_reconnect_wait_time() const {
-    return get_flag_value(*map, "rabbit_reconnect_wait_time",
-                                 (unsigned long) 30);
+std::vector<unsigned long> FlagValues::rabbit_reconnect_wait_times() const {
+    return get_flag_value_as_vector<unsigned long>(
+        *map, "rabbit_reconnect_wait_times", "1, 5, 30, 45, 60", 1);
 }
 
 const char * FlagValues::rabbit_userid() const {

@@ -91,13 +91,16 @@ BOOST_AUTO_TEST_CASE(SendingSomeMessages)
 {
     CHECK_POINT();
     FlagValues flags(get_flags());
-
+    CHECK_POINT();
+    std::vector<unsigned long> time_outs;
+    time_outs.push_back(60);
+    CHECK_POINT();
     ResilientSenderPtr sender(new ResilientSender(flags.rabbit_host(), flags.rabbit_port(),
                                                   flags.rabbit_userid(), flags.rabbit_password(),
                                                   flags.rabbit_client_memory(),
                                                   TOPIC, "trove",
-                                                  "restests", 60));
-
+                                                  "restests", time_outs));
+    CHECK_POINT();
     NOVA_LOG_INFO("TEST - Created RSender");
 
     CHECK_POINT();
@@ -105,7 +108,7 @@ BOOST_AUTO_TEST_CASE(SendingSomeMessages)
     ResilientReceiver receiver(flags.rabbit_host(), flags.rabbit_port(),
                                flags.rabbit_userid(), flags.rabbit_password(),
                                flags.rabbit_client_memory(),
-                               TOPIC, "trove", 60);
+                               TOPIC, "trove", time_outs);
 
     NOVA_LOG_INFO("TEST - Created RReceiver");
 

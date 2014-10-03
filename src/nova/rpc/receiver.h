@@ -84,7 +84,7 @@ namespace nova { namespace rpc {
             const char * exchange_name,
             std::vector<unsigned long> reconnect_wait_times);
 
-        ~ResilientReceiver();
+        virtual ~ResilientReceiver();
 
         /** Finishes a message. */
         void finish_message(const nova::guest::GuestOutput & output);

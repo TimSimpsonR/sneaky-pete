@@ -16,7 +16,6 @@ ResilientConnection::ResilientConnection(const char * host, int port,
     reconnect_wait_times(reconnect_wait_times),
     userid(userid)
 {
-    open(false);
 }
 
 ResilientConnection::~ResilientConnection() {

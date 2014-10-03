@@ -19,7 +19,7 @@ namespace nova { namespace rpc {
                             const char * password, size_t client_memory,
                          const std::vector<unsigned long> reconnect_wait_times);
 
-            ~ResilientConnection();
+            virtual ~ResilientConnection();
 
         protected:
 

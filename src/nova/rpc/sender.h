@@ -44,7 +44,7 @@ namespace nova { namespace rpc {
                             const char * instance_id,
                          const std::vector<unsigned long> reconnect_wait_times);
 
-            ~ResilientSender();
+            virtual ~ResilientSender();
 
             /**
              *  Sends a message. Accepts JSON object element key value pairs

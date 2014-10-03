@@ -17,6 +17,21 @@
 
 namespace nova { namespace rpc {
 
+namespace {
+    template<typename T>
+    void log_error_if(const amqp_rpc_reply_t reply,
+                      const amqp_method_number_t id_must_equal,
+                      const char * const name) {
+        if (id_must_equal == reply.reply.id) {
+            NOVA_LOG_ERROR("reply is is %s", name);
+            T * special_type = static_cast<T *>(reply.reply.decoded);
+            std::string reason(
+                static_cast<char *>(special_type->reply_text.bytes),
+                special_type->reply_text.len);
+            NOVA_LOG_ERROR("reply text: %s", reason);
+        }
+    }
+}
 
 /**---------------------------------------------------------------------------
  *- AmqpException
@@ -327,8 +342,19 @@ void AmqpChannel::ack_message(int delivery_tag) {
 }
 
 void AmqpChannel::check(const amqp_rpc_reply_t reply,
-                             const AmqpException::Code & code) {
+                        const AmqpException::Code & code) {
     if (reply.reply_type != AMQP_RESPONSE_NORMAL) {
+        if (AMQP_RESPONSE_SERVER_EXCEPTION == reply.reply_type) {
+            NOVA_LOG_ERROR("Unexpected result from AmqpChannel operation."
+                           "Reply type == %d", reply.reply.id);
+            log_error_if<amqp_channel_close_t>(reply,
+                AMQP_CHANNEL_CLOSE_METHOD, "AMQP_CHANNEL_CLOSE_METHOD");
+            log_error_if<amqp_connection_close_t>(reply,
+                AMQP_CONNECTION_CLOSE_METHOD, "AMQP_CONNECTION_CLOSE_METHOD");
+        } else {
+            NOVA_LOG_ERROR("Unexpected result from AmqpChannel operation. "
+                           "Reply type = %d", reply.reply_type);
+        }
         _throw(code);
     }
 }

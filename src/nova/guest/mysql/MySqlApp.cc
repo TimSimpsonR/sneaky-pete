@@ -265,10 +265,10 @@ boost::optional<std::string> fetch_debian_sys_maint_password() {
 }
 
 void MySqlApp::write_fresh_init_file(const string & admin_password,
-                                     bool wipe_root_and_anonymous_users) {
+                                     bool is_not_a_restore) {
     ofstream init_file(FRESH_INIT_FILE_PATH);
 
-    if (wipe_root_and_anonymous_users) {
+    if (is_not_a_restore) {
         NOVA_LOG_INFO("Generating root password...");
         auto new_root_password = mysql::generate_password();
         init_file << "UPDATE mysql.user SET Password=PASSWORD('"
@@ -306,9 +306,11 @@ void MySqlApp::write_fresh_init_file(const string & admin_password,
                   << "WHERE User='debian-sys-maint';" << std::endl;
     }
 
-    NOVA_LOG_INFO("Removing the test default database...");
-    init_file << "DELETE FROM mysql.db WHERE Db IN('test', 'test\\_%');" << std::endl;
-    init_file << "DROP DATABASE test;" << std::endl;
+    if (is_not_a_restore) {
+        NOVA_LOG_INFO("Removing the test default database...");
+        init_file << "DELETE FROM mysql.db WHERE Db IN('test', 'test\\_%');" << std::endl;
+        init_file << "DROP DATABASE test;" << std::endl;
+    }
 
     NOVA_LOG_INFO("Flushing privileges");
     init_file << "FLUSH PRIVILEGES;" << std::endl;

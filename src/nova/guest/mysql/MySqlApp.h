@@ -115,7 +115,7 @@ class MySqlApp : public nova::datastores::DatastoreApp {
          * each command executed as root by MySQL when 'run_mysqld_with_init'
          * is called. */
         void write_fresh_init_file(const std::string & admin_password,
-                                   bool wipe_root_and_anonymous_users);
+                                   bool is_not_a_restore);
         // Loads mysql timezone tables to use named timezones
         void load_timezone_tables(const char *);
 

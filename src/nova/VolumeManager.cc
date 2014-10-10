@@ -173,18 +173,20 @@ void VolumeDevice::mount(const std::string mount_point, bool write_to_fstab) {
 
 void VolumeDevice::check_device_exists() {
     NOVA_LOG_INFO("Checking if device exists...");
+    const unsigned int timeout = manager.get_volume_format_timeout();
     unsigned int attempts = 0;
     unsigned int max_retries =  manager.get_num_tries_device_exists();
     // Take into account first attempt for max attempts
     unsigned int max_attempts = max_retries + 1;
+    proc::CommandList cmds = list_of("/usr/bin/sudo")
+                                    ("blockdev")
+                                    ("--getsize64")
+                                    (device_path.c_str());
 
     while(attempts < max_attempts) {
         std::stringstream output;
         try{
-            proc::execute(output, list_of("/usr/bin/sudo")
-                                         ("blockdev")
-                                         ("--getsize64")
-                                         (device_path.c_str()));
+            proc::execute(output, cmds, timeout);
             return;
         }
         catch (proc::ProcessException &e) {
@@ -201,6 +203,7 @@ void VolumeDevice::check_device_exists() {
 
 void VolumeDevice::format_device() {
     NOVA_LOG_INFO("Formatting device...");
+    const unsigned int timeout = manager.get_volume_format_timeout();
     std::string volume_fstype = manager.get_volume_fstype();
     std::string format_options = manager.get_format_options();
     proc::CommandList cmds = list_of("/usr/bin/sudo")
@@ -210,7 +213,7 @@ void VolumeDevice::format_device() {
                                     (device_path.c_str());
     std::stringstream output;
     try{
-        proc::execute(output, cmds);
+        proc::execute(output, cmds, timeout);
         // TODO (joe.cruz) expect EOF
     }
     catch (proc::ProcessException &e) {
@@ -221,14 +224,15 @@ void VolumeDevice::format_device() {
 }
 
 void VolumeDevice::check_format() {
-   NOVA_LOG_INFO("Checking device format...");
+    NOVA_LOG_INFO("Checking device format...");
+    const unsigned int timeout = manager.get_volume_format_timeout();
     proc::CommandList cmds = list_of("/usr/bin/sudo")
                                     ("dumpe2fs")
                                     (device_path.c_str());
     // proc::Process<proc::StdErrAndStdOut> process(cmds);
     std::stringstream output;
     try{
-        proc::execute(output, cmds);
+        proc::execute(output, cmds, timeout);
         // TODO (joe.cruz) expect patterns "has_journal", "Wrong magic number"
     }
     catch (proc::ProcessException &e) {
@@ -240,7 +244,7 @@ void VolumeDevice::check_format() {
 
 void VolumeDevice::check_filesystem(const std::string mount_point) {
     NOVA_LOG_INFO("Checking filesystem for device...");
-
+    const unsigned int timeout = manager.get_volume_format_timeout();
     proc::CommandList cmds = list_of("/usr/bin/sudo")
                                     ("e2fsck")
                                     ("-f")("-n")
@@ -251,7 +255,7 @@ void VolumeDevice::check_filesystem(const std::string mount_point) {
         // Check if the device is currently mounted to the mount_point
         // e2fsck should NOT be run on a device that is mounted
         if (! is_mount(mount_point)) {
-            proc::execute(output, cmds);
+            proc::execute(output, cmds, timeout);
         } else {
             NOVA_LOG_INFO("Not running e2fsck because this device is mounted.")
         }
@@ -270,7 +274,7 @@ void VolumeDevice::unmount(const std::string mount_point) {
 
 void VolumeDevice::resize_fs(const std::string mount_point) {
     NOVA_LOG_INFO("Resizing filesystem for device...");
-
+    const unsigned int timeout = manager.get_volume_format_timeout();
     check_filesystem(mount_point);
 
     proc::CommandList cmds = list_of("/usr/bin/sudo")
@@ -279,7 +283,7 @@ void VolumeDevice::resize_fs(const std::string mount_point) {
 
     std::stringstream output;
     try{
-        proc::execute(output, cmds);
+        proc::execute(output, cmds, timeout);
     }
     catch (proc::ProcessException &e) {
         NOVA_LOG_ERROR("Resizing Device filesystem FAILED:%s", e.what());

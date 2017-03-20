@@ -109,7 +109,10 @@ pkg_install \
 
 set -e
 
-mkdir -p /opt/sp-deps/libcurl
+sudo mkdir -p /opt/sp-deps/libcurl
+sudo chown $USER /opt/sp-deps
+sudo chown $USER /opt/sp-deps/libcurl
+
 
 # Now build the library Sneaky Pete will use from source.
 pkg_checkout https://github.com/bagder/curl.git curl e305f5ec71

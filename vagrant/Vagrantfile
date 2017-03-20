@@ -1,5 +1,5 @@
 Vagrant::Config.run do |config|
-  config.vm.box_url = "http://files.vagrantup.com/lucid32.box"
-  config.vm.box = "debian_squeeze_openvz"
+  #config.vm.box_url = "http://files.vagrantup.com/debian/wheezy64.box"
+  config.vm.box = "debian/wheezy64"
   config.vm.share_folder "src", "/src", "./../"
 end

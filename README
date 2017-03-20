@@ -24,11 +24,22 @@ The script "vagrant/initialize.sh" will install Boost Build and other
 dependencies needed by the build process.
 
 Boost Build is driven by the file "Jamroot.jam" in the root directory. To invoke
-Boost Build, type "bjam" at the command line.
+Boost Build, type "bjam" at the command line from the source directory
+(`/src` in the Vagrant VM).
 
 To build the Sneaky Pete, cd into this directory and type the following:
 
-bjam -d+2 -q deploy
+.. code-block:: bash
+
+    bjam -d+2 -q deploy
+
+Then run it with
+
+.. code-block:: bash
+
+    bin/gcc-4.7/release/link-static/nova-guest
+    bin/gcc-4.7/release/link-static/sneaky-pete-mysql
+    bin/gcc-4.7/release/link-static/sneaky-pete-redis
 
 "-d+2" is optional and tells Boost Build to print out every command it executes.
 Boost Build will take awhile to start up, so if you keep getting compiler
